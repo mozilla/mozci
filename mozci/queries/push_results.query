@@ -1,0 +1,16 @@
+from: treeherder
+select:
+    - {name: label, value: job.type.name}
+    - {name: result, value: run.result}
+    - {name: classification, value: failure.classification}
+    - {name: duration, value: action.duration}
+where:
+    and:
+        - prefix: {repo.changeset.id: {$eval: rev}}
+        - eq: {repo.branch.name: {$eval: branch}}
+        - ne: {run.tier: 3}
+        - ne: {run.result: "retry"}
+        - ne: {job.type.name: "Gecko Decision Task"}
+        - not: {prefix: {job.type.name: "Action"}}
+format: list
+limit: 10000

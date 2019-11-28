@@ -1,0 +1,16 @@
+from: task
+select:
+    - {name: id, value: task.id}
+    - {name: label, value: run.name}
+    - {name: artifacts, value: task.artifacts.url}
+where:
+    and:
+        - prefix: {repo.changeset.id: {$eval: rev}}
+        - eq: {repo.branch.name: "autoland"}
+        - $if: label == "decision-task"
+          then:
+              eq: {task.kind: "decision-task"}
+          else:
+              find: {run.name: {$eval: label}}
+format: list
+limit: 100

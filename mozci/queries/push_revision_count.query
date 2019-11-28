@@ -1,0 +1,10 @@
+from: repo
+select:
+    - {name: push_min, value: push.id, aggregate: min}
+    - {name: push_max, value: push.id, aggregate: max}
+where:
+    and:
+        - eq: {branch.name: {$eval: branch}}
+        - gte: [push.date, {date: {$eval: from_date}}]
+        - lte: [push.date, {date: {$eval: to_date}}]
+format: table

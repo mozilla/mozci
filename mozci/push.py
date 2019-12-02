@@ -7,7 +7,7 @@ from adr.query import run_query
 from adr.util.memoize import memoize, memoized_property
 from loguru import logger
 
-from ci_info.task import (
+from mozci.task import (
     LabelSummary,
     Status,
     Task,

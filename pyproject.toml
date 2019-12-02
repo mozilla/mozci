@@ -2,7 +2,10 @@
 name = "mozci"
 version = "0.1.0"
 description = ""
-authors = ["Andrew Halberstadt <ahal@pm.me>"]
+authors = [
+  "Andrew Halberstadt <ahal@mozilla.com>",
+  "Marco Castelluccio <marco@mozilla.com>"
+]
 
 [tool.poetry.dependencies]
 python = "^3.7"

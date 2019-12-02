@@ -20,17 +20,24 @@ SHADOW_SCHEDULER_ARTIFACT_URL = "https://index.taskcluster.net/v1/task/gecko.v2.
 
 class Push:
 
-    def __init__(self, rev, branch='autoland'):
+    def __init__(self, revs, branch='autoland'):
         """A representation of a single push.
 
         Args:
-            rev (str): Revision of the top-most commit in the push.
+            revs (list): List of revisions of commits in the push (top-most is the first element).
             branch (str): Branch to look on (default: autoland).
         """
-        self.rev = rev
+        if isinstance(revs, str):
+            revs = [revs]
+
+        self.revs = revs
         self.branch = branch
         self._id = None
         self._date = None
+
+    @property
+    def rev(self):
+        return self.revs[0]
 
     @property
     def backedoutby(self):

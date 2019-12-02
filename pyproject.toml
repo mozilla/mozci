@@ -4,7 +4,7 @@ version = "0.1.2"
 description = ""
 authors = [
   "Andrew Halberstadt <ahal@mozilla.com>",
-  "Marco Castelluccio <marco@mozilla.com>"
+  "Marco Castelluccio <marco@mozilla.com>",
 ]
 
 [tool.poetry.dependencies]

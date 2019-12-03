@@ -1,5 +1,6 @@
 from: treeherder
 select:
+    - {name: id, value: run.taskcluster.id}
     - {name: label, value: job.type.name}
     - {name: result, value: run.result}
     - {name: classification, value: failure.classification}

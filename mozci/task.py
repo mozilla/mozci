@@ -14,6 +14,7 @@ class Status(Enum):
 @dataclass
 class Task:
     """Contains information pertaining to a single task."""
+    id: str
     label: str
     duration: int
     result: str

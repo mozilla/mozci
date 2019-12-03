@@ -16,9 +16,15 @@ class Task:
     """Contains information pertaining to a single task."""
     id: str
     label: str
+    kind: str
     duration: int
     result: str
     classification: str
+    tags: dict
+
+    @staticmethod
+    def create(**kwargs):
+        return Task(**kwargs)
 
     @property
     def failed(self):

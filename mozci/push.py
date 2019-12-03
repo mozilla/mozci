@@ -129,20 +129,37 @@ class Push:
         """
 
         args = Namespace(rev=self.rev, branch=self.branch)
-        data = run_query('push_results', args)['data']
+        tasks = defaultdict(dict)
 
-        tasks = []
-        for kwargs in data:
-            # Do a bit of data sanitization.
-            if any(a not in kwargs for a in ('label', 'duration', 'result', 'classification')):
+        def add(data):
+            for task in data:
+                if 'id' not in task:
+                    continue
+                tasks[task['id']].update(task)
+
+        # Gather information from the treeherder and task tables.
+        for table in ('treeherder', 'task'):
+            add(run_query('push_tasks_from_{}'.format(table), args)['data'])
+
+        # Normalize tags.
+        tasks = tasks.values()
+        for task in tasks:
+            if not task.get('tags'):
                 continue
+            task['tags'] = {t['name']: t['value'] for t in task['tags']}
 
-            if kwargs['duration'] <= 0:
-                continue
-
-            tasks.append(Task(**kwargs))
-
-        return tasks
+        # If we are missing one of these keys, discard the task.
+        required_keys = (
+            'classification',
+            'duration',
+            'id',
+            'kind',
+            'label',
+            'result',
+        )
+        return [Task.create(**task) for task in tasks
+                if all(k in task for k in required_keys)
+                if task['duration'] > 0]
 
     @property
     def task_labels(self):

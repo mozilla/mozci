@@ -138,7 +138,7 @@ class Push:
                 tasks[task['id']].update(task)
 
         # Gather information from the treeherder and task tables.
-        for table in ('treeherder', 'task'):
+        for table in ('treeherder', 'task', 'unittest'):
             add(run_query('push_tasks_from_{}'.format(table), args)['data'])
 
         # Normalize tags.

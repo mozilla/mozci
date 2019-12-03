@@ -1,6 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import List
+from typing import Dict, List
 
 from adr.util.memoize import memoize, memoized_property
 
@@ -20,15 +20,22 @@ class Task:
     duration: int
     result: str
     classification: str
-    tags: dict
+    tags: Dict = field(default_factory=dict)
 
     @staticmethod
     def create(**kwargs):
+        if kwargs['kind'] == 'test':
+            return TestTask(**kwargs)
         return Task(**kwargs)
 
     @property
     def failed(self):
         return self.result in ('busted', 'exception', 'testfailed')
+
+
+@dataclass
+class TestTask(Task):
+    groups: List = field(default_factory=list)
 
 
 @dataclass

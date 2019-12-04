@@ -1,0 +1,13 @@
+from: unittest
+select:
+    - {name: id, value: task.id}
+    - {name: groups, value: run.suite.groups}
+where:
+    and:
+        - prefix: {repo.changeset.id: {$eval: rev}}
+        - eq: {repo.branch.name: {$eval: branch}}
+        - ne: {treeherder.tier: 3}
+        - ne: {kind: "decision-task"}
+limit: 10000
+format: list
+

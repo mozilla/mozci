@@ -1,0 +1,13 @@
+from: task
+select:
+    - {name: id, value: task.id}
+    - {name: kind, value: task.kind}
+    - {name: tags, value: task.tags}
+where:
+    and:
+        - prefix: {repo.changeset.id: {$eval: rev}}
+        - eq: {repo.branch.name: {$eval: branch}}
+        - ne: {treeherder.tier: 3}
+        - ne: {task.kind: "decision-task"}
+limit: 10000
+format: list

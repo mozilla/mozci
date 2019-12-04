@@ -129,20 +129,49 @@ class Push:
         """
 
         args = Namespace(rev=self.rev, branch=self.branch)
-        data = run_query('push_results', args)['data']
+        tasks = defaultdict(dict)
 
-        tasks = []
-        for kwargs in data:
-            # Do a bit of data sanitization.
-            if any(a not in kwargs for a in ('label', 'duration', 'result', 'classification')):
+        def add(data):
+            for task in data:
+                if 'id' not in task:
+                    continue
+                tasks[task['id']].update(task)
+
+        # Gather information from the treeherder and task tables.
+        for table in ('treeherder', 'task', 'unittest'):
+            add(run_query('push_tasks_from_{}'.format(table), args)['data'])
+
+        # If we are missing one of these keys, discard the task.
+        required_keys = (
+            'classification',
+            'duration',
+            'id',
+            'kind',
+            'label',
+            'result',
+        )
+
+        # Normalize and validate.
+        normalized_tasks = []
+        for task in tasks.values():
+            missing = [k for k in required_keys if k not in task]
+            taskstr = task.get('label', task['id'])
+
+            if missing:
+                logger.trace(f"Skipping task '{taskstr}' because it is missing "
+                             f"the following attributes: {', '.join(missing)}")
                 continue
 
-            if kwargs['duration'] <= 0:
+            if task['duration'] > 0:
+                logger.trace(f"Skipping task '{taskstr}' because has an invalid duration.")
                 continue
 
-            tasks.append(Task(**kwargs))
+            if task.get('tags'):
+                task['tags'] = {t['name']: t['value'] for t in task['tags']}
 
-        return tasks
+            normalized_tasks.append(task)
+
+        return [Task.create(**task) for task in normalized_tasks]
 
     @property
     def task_labels(self):

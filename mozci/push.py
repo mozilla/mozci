@@ -14,9 +14,9 @@ from mozci.task import (
 )
 
 HGMO_JSON_URL = "https://hg.mozilla.org/integration/{branch}/rev/{rev}?style=json"
-HGMO_JSON_PUSHES_URL = "https://hg.mozilla.org/integration/{branch}/json-pushes?version=2&startID={push_id_start}&endID={push_id_end}"
-TASKGRAPH_ARTIFACT_URL = "https://index.taskcluster.net/v1/task/gecko.v2.autoland.revision.{rev}.taskgraph.decision/artifacts/public/{artifact}"
-SHADOW_SCHEDULER_ARTIFACT_URL = "https://index.taskcluster.net/v1/task/gecko.v2.autoland.revision.{rev}.source/shadow-scheduler-{name}/artifacts/public/shadow-scheduler/optimized_tasks.list"
+HGMO_JSON_PUSHES_URL = "https://hg.mozilla.org/integration/{branch}/json-pushes?version=2&startID={push_id_start}&endID={push_id_end}"  # noqa
+TASKGRAPH_ARTIFACT_URL = "https://index.taskcluster.net/v1/task/gecko.v2.autoland.revision.{rev}.taskgraph.decision/artifacts/public/{artifact}"  # noqa
+SHADOW_SCHEDULER_ARTIFACT_URL = "https://index.taskcluster.net/v1/task/gecko.v2.autoland.revision.{rev}.source/shadow-scheduler-{name}/artifacts/public/shadow-scheduler/optimized_tasks.list"  # noqa
 
 
 # The maximum number of parents or children to look for previous/next task runs,
@@ -90,7 +90,12 @@ class Push:
         return self._id
 
     def create_push(self, push_id):
-        url = HGMO_JSON_PUSHES_URL.format(branch=self.branch, push_id_start=push_id - 1, push_id_end=push_id)
+        url = HGMO_JSON_PUSHES_URL.format(
+            branch=self.branch,
+            push_id_start=push_id - 1,
+            push_id_end=push_id
+        )
+
         r = requests.get(url)
         r.raise_for_status()
         result = r.json()["pushes"][str(push_id)]
@@ -450,13 +455,15 @@ class Push:
 
 
 def make_push_objects(**kwargs):
-    push_min, push_max = run_query("push_revision_count", Namespace(**kwargs))["data"][0]
+    push_min, push_max = run_query(
+        "push_revision_count", Namespace(**kwargs))["data"][0]
 
     CHUNK_SIZE = 10000
-    pushes_groups = [(i, min(i+CHUNK_SIZE-1, push_max)) for i in range(push_min, push_max, CHUNK_SIZE)]
+    pushes_groups = [(i, min(i+CHUNK_SIZE-1, push_max))
+                     for i in range(push_min, push_max, CHUNK_SIZE)]
 
     pushes = []
-    cur = prev = None
+    cur = None
 
     data = []
     for pushes_group in pushes_groups:

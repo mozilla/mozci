@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List
 
-from adr.util.memoize import memoize, memoized_property
+from adr.util.memoize import memoized_property
 
 
 class Status(Enum):

@@ -14,8 +14,14 @@ from mozci.task import (
 )
 
 HGMO_JSON_URL = "https://hg.mozilla.org/integration/{branch}/rev/{rev}?style=json"
+HGMO_JSON_PUSHES_URL = "https://hg.mozilla.org/integration/{branch}/json-pushes?version=2&startID={push_id_start}&endID={push_id_end}"
 TASKGRAPH_ARTIFACT_URL = "https://index.taskcluster.net/v1/task/gecko.v2.autoland.revision.{rev}.taskgraph.decision/artifacts/public/{artifact}"
 SHADOW_SCHEDULER_ARTIFACT_URL = "https://index.taskcluster.net/v1/task/gecko.v2.autoland.revision.{rev}.source/shadow-scheduler-{name}/artifacts/public/shadow-scheduler/optimized_tasks.list"
+
+
+# The maximum number of parents or children to look for previous/next task runs,
+# when the task did not run on the currently considered push.
+MAX_DEPTH = 14
 
 
 class Push:
@@ -83,6 +89,19 @@ class Push:
         self._id = self._hgmo['pushid']
         return self._id
 
+    def create_push(self, push_id):
+        url = HGMO_JSON_PUSHES_URL.format(branch=self.branch, push_id_start=push_id - 1, push_id_end=push_id)
+        r = requests.get(url)
+        r.raise_for_status()
+        result = r.json()["pushes"][str(push_id)]
+
+        push = Push(result["changesets"][::-1])
+        # avoids the need to query hgmo to find this info
+        push._id = push_id
+        push._date = result["date"]
+
+        return push
+
     @memoized_property
     def parent(self):
         """Returns the parent push of this push.
@@ -90,13 +109,16 @@ class Push:
         Returns:
             Push: A `Push` instance representing the parent push.
         """
-        other = self
-        while True:
-            for rev in other._hgmo['parents']:
-                parent = Push(rev)
-                if parent.id != self.id:
-                    return parent
-                other = parent
+        return self.create_push(self.id - 1)
+
+    @memoized_property
+    def child(self):
+        """Returns the child push of this push.
+
+        Returns:
+            Push: A `Push` instance representing the child push.
+        """
+        return self.create_push(self.id + 1)
 
     @memoized_property
     def tasks(self):
@@ -105,6 +127,7 @@ class Push:
         Returns:
             list: A list of `Task` objects.
         """
+
         args = Namespace(rev=self.rev, branch=self.branch)
         data = run_query('push_results', args)['data']
 
@@ -216,15 +239,32 @@ class Push:
             set: Set of task labels (str).
         """
         failclass = ('not classified', 'fixed by commit')
-        candidate_regressions = set()
-        for label, summary in self.label_summaries.items():
-            if summary.status == Status.PASS:
-                continue
 
-            if all(c not in failclass for c in summary.classifications):
-                continue
+        passing_labels = set()
+        candidate_regressions = {}
 
-            candidate_regressions.add(label)
+        count = 0
+        other = self
+        while count < MAX_DEPTH + 1:
+            for label, summary in other.label_summaries.items():
+                if label in passing_labels:
+                    # It passed in one of the pushes between the current and its
+                    # children, so it is definitely not a regression in the current.
+                    continue
+
+                if summary.status == Status.PASS:
+                    passing_labels.add(label)
+                    continue
+
+                if all(c not in failclass for c in summary.classifications):
+                    passing_labels.add(label)
+                    continue
+
+                candidate_regressions[label] = count
+
+            other = other.child
+            count += 1
+
         return candidate_regressions
 
     @memoized_property
@@ -232,26 +272,24 @@ class Push:
         """All regressions, both likely and definite.
 
         Each regression is associated with an integer, which is the number of
-        parent pushes that didn't run the label. A count of 0 means the label
-        passed on the previous push. A count of 3 means there were three pushes
-        between this one and the last time the task passed (so any one of them
-        could have caused it). A count of 99 means that the maximum number of
-        parents were searched without finding the task and we gave up.
+        parent and children pushes that didn't run the label. A count of 0 means
+        the label failed on the current push and passed on the previous push.
+        A count of 3 means there were three pushes between the failure and the
+        last time the task passed (so any one of them could have caused it).
+        A count of MAX_DEPTH means that the maximum number of parents were
+        searched without finding the task and we gave up.
 
         Returns:
             dict: A dict of the form {<label>: <int>}.
         """
-        # The maximum number of parents to search. If the task wasn't run
-        # on any of them, we assume there was no prior regression.
-        max_depth = 14
         regressions = {}
 
-        for label in self.candidate_regressions:
+        for label, child_count in self.candidate_regressions.items():
             count = 0
             other = self.parent
             prior_regression = False
 
-            while True:
+            while count < MAX_DEPTH:
                 if label in other.task_labels:
                     if other.label_summaries[label].status != Status.PASS:
                         prior_regression = True
@@ -259,11 +297,11 @@ class Push:
 
                 other = other.parent
                 count += 1
-                if count == max_depth:
-                    break
 
-            if not prior_regression:
-                regressions[label] = count
+            total_count = count + child_count
+
+            if not prior_regression and total_count <= MAX_DEPTH:
+                regressions[label] = total_count
 
         return regressions
 
@@ -277,7 +315,7 @@ class Push:
         Returns:
             set: Set of task labels (str).
         """
-        return set([label for label, count in self.regressions.items() if count > 0])
+        return set(label for label, count in self.regressions.items() if count > 0)
 
     @property
     def likely_regressions(self):
@@ -290,7 +328,7 @@ class Push:
         Returns:
             set: Set of task labels (str).
         """
-        return set([label for label, count in self.regressions.items() if count == 0])
+        return set(label for label, count in self.regressions.items() if count == 0)
 
     @memoize
     def get_shadow_scheduler_tasks(self, name):
@@ -391,24 +429,31 @@ def make_push_objects(**kwargs):
     pushes = []
     cur = prev = None
 
+    data = []
     for pushes_group in pushes_groups:
         kwargs["from_push"] = pushes_group[0]
         kwargs["to_push"] = pushes_group[1]
 
-        data = run_query("push_revisions", Namespace(**kwargs))["data"]
+        data += run_query("push_revisions", Namespace(**kwargs))["data"]
 
-        for pushid, date, revs, parents in data:
-            topmost = list(set(revs) - set(parents))[0]
+    for pushid, date, revs, parents in data:
+        topmost = list(set(revs) - set(parents))[0]
 
-            cur = Push(topmost)
+        cur = Push([topmost] + [r for r in revs if r != topmost])
 
-            # avoids the need to query hgmo to find this info
-            cur._id = pushid
-            cur._date = date
-            if prev:
-                cur._parent = prev
+        # avoids the need to query hgmo to find this info
+        cur._id = pushid
+        cur._date = date
 
-            pushes.append(cur)
-            prev = cur
+        pushes.append(cur)
+
+    for i, cur in enumerate(pushes):
+        if i != 0:
+            cur._parent = pushes[i - 1]
+
+        if i != len(pushes) - 1:
+            cur._child = pushes[i + 1]
+
+    pushes.sort(key=lambda p: p._id)
 
     return pushes

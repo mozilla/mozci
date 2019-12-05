@@ -173,6 +173,10 @@ class Push:
             if task.get('tags'):
                 task['tags'] = {t['name']: t['value'] for t in task['tags']}
 
+            if task.get('groups'):
+                if isinstance(task['groups'], str):
+                    task['groups'] = [task['groups']]
+
             normalized_tasks.append(task)
 
         return [Task.create(**task) for task in normalized_tasks]

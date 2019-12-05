@@ -15,8 +15,8 @@ from mozci.task import (
 
 HGMO_JSON_URL = "https://hg.mozilla.org/integration/{branch}/rev/{rev}?style=json"
 HGMO_JSON_PUSHES_URL = "https://hg.mozilla.org/integration/{branch}/json-pushes?version=2&startID={push_id_start}&endID={push_id_end}"  # noqa
-TASKGRAPH_ARTIFACT_URL = "https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.v2.autoland.revision.{rev}.taskgraph.decision/artifacts/public/{artifact}"  # noqa
-SHADOW_SCHEDULER_ARTIFACT_URL = "https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.v2.autoland.revision.{rev}.source/shadow-scheduler-{name}/artifacts/public/shadow-scheduler/optimized_tasks.list"  # noqa
+TASKGRAPH_ARTIFACT_URL = "https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision/artifacts/public/{artifact}"  # noqa
+SHADOW_SCHEDULER_ARTIFACT_URL = "https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.source/shadow-scheduler-{name}/artifacts/public/shadow-scheduler/optimized_tasks.list"  # noqa
 
 # The maximum number of parents or children to look for previous/next task runs,
 # when the task did not run on the currently considered push.
@@ -365,7 +365,7 @@ class Push:
 
     @memoize
     def get_shadow_scheduler_tasks(self, name):
-        """Returns all tasks the given shadow scheduler would have scheduler,
+        """Returns all tasks the given shadow scheduler would have scheduled,
         or None if the given scheduler didn't run.
 
         Args:
@@ -375,7 +375,7 @@ class Push:
             list: All task labels that would have been scheduler or None.
         """
         # First look for an index.
-        url = SHADOW_SCHEDULER_ARTIFACT_URL.format(rev=self.rev, name=name)
+        url = SHADOW_SCHEDULER_ARTIFACT_URL.format(branch=self.branch, rev=self.rev, name=name)
         r = requests.get(url)
 
         if r.status_code != 200:
@@ -408,7 +408,7 @@ class Push:
         Returns:
             dict: JSON representation of the artifact.
         """
-        url = TASKGRAPH_ARTIFACT_URL.format(rev=self.rev, artifact=name)
+        url = TASKGRAPH_ARTIFACT_URL.format(branch=self.branch, rev=self.rev, artifact=name)
         r = requests.get(url)
         if r.status_code != 200:
             logger.warning(f"No decision task with artifact {name} on {self.rev}.")

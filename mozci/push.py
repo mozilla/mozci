@@ -167,7 +167,7 @@ class Push:
                              f"the following attributes: {', '.join(missing)}")
                 continue
 
-            if task['duration'] > 0:
+            if task['duration'] <= 0:
                 logger.trace(f"Skipping task '{taskstr}' because has an invalid duration.")
                 continue
 

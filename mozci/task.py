@@ -68,7 +68,15 @@ class Task:
 
 
 @dataclass
+class TestResult:
+    group: str
+    test: str
+    ok: bool
+
+
+@dataclass
 class TestTask(Task):
+    results: List[TestResult] = field(default_factory=list)
     _groups: List = field(default_factory=list)
 
     @property

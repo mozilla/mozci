@@ -12,7 +12,7 @@ import taskcluster_urls as liburls
 from adr.util import memoize
 from loguru import logger
 
-from taskgraph.util import yaml
+from mozci.util import yaml
 
 # Default rootUrl to use if none is given in the environment; this should point
 # to the production Taskcluster deployment used for CI.

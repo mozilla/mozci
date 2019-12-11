@@ -1,8 +1,14 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List
+from urllib3.response import HTTPResponse
 
-from adr.util.memoize import memoized_property
+from adr.util import memoize, memoized_property
+
+from mozci.util.taskcluster import (
+    get_artifact,
+    list_artifacts,
+)
 
 
 class Status(Enum):
@@ -31,6 +37,29 @@ class Task:
     @property
     def failed(self):
         return self.result in ('busted', 'exception', 'testfailed')
+
+    @memoized_property
+    def artifacts(self):
+        """List the artifacts that were uploaded by this task."""
+        return [artifact['name'] for artifact in list_artifacts(self.id)]
+
+    @memoize
+    def get_artifact(self, path):
+        """Downloads and returns the content of an artifact.
+
+        Args:
+            path (str): The path component of the artifact URL. This is usually
+                        something like `public/file.txt`. The values listed by
+                        the `Task.artifacts` property can be passed into this
+                        function.
+
+        Returns:
+            Contents of the artifact.
+        """
+        data = get_artifact(self.id, path)
+        if isinstance(data, HTTPResponse):
+            return data.read()
+        return data
 
 
 @dataclass

@@ -2,7 +2,6 @@ from argparse import Namespace
 from collections import defaultdict
 
 import requests
-from adr.errors import MissingDataError
 from adr.query import run_query
 from adr.util.memoize import memoize, memoized_property
 from loguru import logger
@@ -12,10 +11,12 @@ from mozci.task import (
     Status,
     Task,
 )
+from mozci.util.taskcluster import find_task_id
 
 HGMO_JSON_URL = "https://hg.mozilla.org/integration/{branch}/rev/{rev}?style=json"
 HGMO_JSON_PUSHES_URL = "https://hg.mozilla.org/integration/{branch}/json-pushes?version=2&startID={push_id_start}&endID={push_id_end}"  # noqa
-TASKGRAPH_ARTIFACT_URL = "https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision/artifacts/public/{artifact}"  # noqa
+
+BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
 SHADOW_SCHEDULER_ARTIFACT_URL = "https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.source/shadow-scheduler-{name}/artifacts/public/shadow-scheduler/optimized_tasks.list"  # noqa
 
 # The maximum number of parents or children to look for previous/next task runs,
@@ -37,6 +38,7 @@ class Push:
 
         self.revs = revs
         self.branch = branch
+        self.index = BASE_INDEX.format(branch=self.branch, rev=self.rev)
         self._id = None
         self._date = None
 
@@ -197,7 +199,7 @@ class Push:
         Returns:
             set: A set of task labels.
         """
-        return set(self._get_decision_artifact('target-tasks.json'))
+        return set(self.decision_task.get_artifact('public/target-tasks.json'))
 
     @memoized_property
     def scheduled_task_labels(self):
@@ -208,7 +210,7 @@ class Push:
         Returns:
             set: A set of task labels (str).
         """
-        tasks = self._get_decision_artifact('task-graph.json').values()
+        tasks = self.decision_task.get_artifact('public/task-graph.json').values()
         return {t['label'] for t in tasks}
 
     @property
@@ -390,6 +392,12 @@ class Push:
         tasks = r.text
         return set(tasks.splitlines())
 
+    @memoized_property
+    def decision_task(self):
+        index = self.index + ".taskgraph.decision"
+        task_id = find_task_id(index)
+        return Task(id=task_id)
+
     @memoize
     def _get_artifact_urls_from_label(self, label):
         """All artifact urls from any task whose label contains ``label``.
@@ -401,23 +409,6 @@ class Push:
             list: A list of urls.
         """
         return run_query('label_artifacts', Namespace(rev=self.rev, label=label))['data']
-
-    @memoize
-    def _get_decision_artifact(self, name):
-        """Get an artifact from Decision task of this push.
-
-        Args:
-            name (str): Name of the artifact fetch.
-
-        Returns:
-            dict: JSON representation of the artifact.
-        """
-        url = TASKGRAPH_ARTIFACT_URL.format(branch=self.branch, rev=self.rev, artifact=name)
-        r = requests.get(url)
-        if r.status_code != 200:
-            logger.warning(f"No decision task with artifact {name} on {self.rev}.")
-            raise MissingDataError("No decision task on {self.rev}!")
-        return r.json()
 
     @memoized_property
     def _shadow_scheduler_artifacts(self):

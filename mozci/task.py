@@ -21,11 +21,11 @@ class Status(Enum):
 class Task:
     """Contains information pertaining to a single task."""
     id: str
-    label: str
-    kind: str
-    duration: int
-    result: str
-    classification: str
+    label: str = field(default=None)
+    kind: str = field(default=None)
+    duration: int = field(default=None)
+    result: str = field(default=None)
+    classification: str = field(default=None)
     tags: Dict = field(default_factory=dict)
 
     @staticmethod

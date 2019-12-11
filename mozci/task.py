@@ -57,9 +57,13 @@ class Task:
             Contents of the artifact.
         """
         data = get_artifact(self.id, path)
-        if isinstance(data, HTTPResponse):
-            return data.read()
-        return data
+        if not isinstance(data, HTTPResponse):
+            return data
+
+        output = data.read()
+        if isinstance(output, bytes):
+            output = output.decode("utf-8")
+        return output
 
 
 @dataclass

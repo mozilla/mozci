@@ -17,7 +17,6 @@ HGMO_JSON_URL = "https://hg.mozilla.org/integration/{branch}/rev/{rev}?style=jso
 HGMO_JSON_PUSHES_URL = "https://hg.mozilla.org/integration/{branch}/json-pushes?version=2&startID={push_id_start}&endID={push_id_end}"  # noqa
 
 BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
-SHADOW_SCHEDULER_ARTIFACT_URL = "https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.source/shadow-scheduler-{name}/artifacts/public/shadow-scheduler/optimized_tasks.list"  # noqa
 
 # The maximum number of parents or children to look for previous/next task runs,
 # when the task did not run on the currently considered push.
@@ -125,6 +124,17 @@ class Push:
             Push: A `Push` instance representing the child push.
         """
         return self.create_push(self.id + 1)
+
+    @memoized_property
+    def decision_task(self):
+        """A representation of the decision task.
+
+        Returns:
+            Task: A `Task` instance representing the decision task.
+        """
+        index = self.index + ".taskgraph.decision"
+        task_id = find_task_id(index)
+        return Task(id=task_id)
 
     @memoized_property
     def tasks(self):
@@ -378,59 +388,12 @@ class Push:
             name (str): The name of the shadow scheduler to query.
 
         Returns:
-            list: All task labels that would have been scheduler or None.
+            list: All task labels that would have been scheduled.
         """
-        # First look for an index.
-        url = SHADOW_SCHEDULER_ARTIFACT_URL.format(branch=self.branch, rev=self.rev, name=name)
-        r = requests.get(url)
-
-        if r.status_code != 200:
-            if name not in self._shadow_scheduler_artifacts:
-                return None
-            r = requests.get(self._shadow_scheduler_artifacts[name])
-
-        tasks = r.text
-        return set(tasks.splitlines())
-
-    @memoized_property
-    def decision_task(self):
-        index = self.index + ".taskgraph.decision"
-        task_id = find_task_id(index)
-        return Task(id=task_id)
-
-    @memoize
-    def _get_artifact_urls_from_label(self, label):
-        """All artifact urls from any task whose label contains ``label``.
-
-        Args:
-            label (str): Substring to filter task labels by.
-
-        Returns:
-            list: A list of urls.
-        """
-        return run_query('label_artifacts', Namespace(rev=self.rev, label=label))['data']
-
-    @memoized_property
-    def _shadow_scheduler_artifacts(self):
-        """Get the tasks artifact from the shadow scheduler task called 'name'.
-
-        Returns:
-            dict: A mapping of {<shadow scheduler name>: <tasks>}.
-        """
-        artifacts = {}
-        for task in self._get_artifact_urls_from_label('shadow-scheduler'):
-            if 'artifacts' not in task:
-                continue
-
-            label = task['label']
-            found_url = None
-            for url in task['artifacts']:
-                if url.rsplit('/', 1)[1] == 'optimized_tasks.list':
-                    found_url = url
-            index = label.find('shadow-scheduler-') + len('shadow-scheduler-')
-            artifacts[label[index:]] = found_url
-
-        return artifacts
+        index = self.index + ".source.shadow-scheduler-{}".format(name)
+        task = Task(id=find_task_id(index))
+        labels = task.get_artifact('public/shadow-scheduler/optimized_tasks.list')
+        return set(labels.splitlines())
 
     @memoized_property
     def _hgmo(self):

@@ -150,21 +150,18 @@ class Push:
         def add(data):
             for task in data:
                 if 'id' not in task:
+                    logger.trace(f"Skipping {task} because of missing id.")
                     continue
                 tasks[task['id']].update(task)
 
         # Gather information from the treeherder and task tables.
-        for table in ('treeherder', 'task', 'unittest'):
+        for table in ('treeherder', 'unittest'):
             add(run_query('push_tasks_from_{}'.format(table), args)['data'])
 
         # If we are missing one of these keys, discard the task.
         required_keys = (
-            'classification',
-            'duration',
             'id',
-            'kind',
             'label',
-            'result',
         )
 
         # Normalize and validate.
@@ -178,16 +175,12 @@ class Push:
                              f"the following attributes: {', '.join(missing)}")
                 continue
 
-            if task['duration'] <= 0:
-                logger.trace(f"Skipping task '{taskstr}' because has an invalid duration.")
-                continue
-
             if task.get('tags'):
                 task['tags'] = {t['name']: t['value'] for t in task['tags']}
 
-            if task.get('groups'):
-                if isinstance(task['groups'], str):
-                    task['groups'] = [task['groups']]
+            if task.get('_groups'):
+                if isinstance(task['_groups'], str):
+                    task['_groups'] = [task['_groups']]
 
             normalized_tasks.append(task)
 

@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List
@@ -30,7 +31,7 @@ class Task:
 
     @staticmethod
     def create(**kwargs):
-        if kwargs['kind'] == 'test':
+        if kwargs['label'].startswith('test-'):
             return TestTask(**kwargs)
         return Task(**kwargs)
 
@@ -68,7 +69,21 @@ class Task:
 
 @dataclass
 class TestTask(Task):
-    groups: List = field(default_factory=list)
+    _groups: List = field(default_factory=list)
+
+    @property
+    def groups(self):
+        if self._groups:
+            return self._groups
+
+        try:
+            path = [a for a in self.artifacts if a.endswith('errorsummary.log')][0]
+        except IndexError:
+            return self._groups
+
+        data = self.get_artifact(path).splitlines()[0]
+        self._groups = json.loads(data)['groups']
+        return self._groups
 
 
 @dataclass

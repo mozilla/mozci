@@ -69,6 +69,7 @@ class Task:
 
 @dataclass
 class TestResult:
+    """Contains information relating to a single test failure within a TestTask."""
     group: str
     test: str
     ok: bool
@@ -76,41 +77,44 @@ class TestResult:
 
 @dataclass
 class TestTask(Task):
-    _results: List[TestResult] = field(default_factory=list)
-    _groups: List = field(default_factory=list)
+    """Subclass containing additional information only relevant to 'test' tasks."""
+    _results: List[TestResult] = field(default=None)
+    _groups: List = field(default=None)
 
     def _load_errorsummary(self):
         try:
             path = [a for a in self.artifacts if a.endswith('errorsummary.log')][0]
         except IndexError:
-            return self._groups
+            return
 
+        # This may clobber the values that were populated by ActiveData, but
+        # since the artifact is already downloaded, parsed and we need to
+        # iterate over it anyway.. It doesn't really hurt and simplifies some
+        # logic.
+        self._groups = []
+        self._results = []
         lines = [json.loads(l) for l in self.get_artifact(path).splitlines()]
+        for line in lines:
+            if line['action'] == 'test_groups':
+                self._groups = line["groups"]
 
-        self._groups = lines[0]["groups"]
-
-        results = {}
-        for line in lines[1:]:
-            results[line['test']] = (
-                line['group'] if 'group' in line else None, line['expected'] == line['status']
-            )
-
-        self._results = [
-            TestResult(group=group, test=test, ok=ok) for test, (group, ok) in results.items()
-        ]
+            elif line['action'] == 'test_result':
+                self._results.append(TestResult(
+                    test=line['test'],
+                    group=line.get('group'),
+                    ok=line['status'] == line['expected'],
+                ))
 
     @property
     def groups(self):
-        if not self._groups:
+        if self._groups is None:
             self._load_errorsummary()
-
         return self._groups
 
     @property
     def results(self):
-        if not self._results:
+        if self._results is None:
             self._load_errorsummary()
-
         return self._results
 
 

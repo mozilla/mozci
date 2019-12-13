@@ -200,7 +200,7 @@ class Push:
             if task.get('_result_ok'):
                 if '_result_group' not in task:
                     task['_result_group'] = [None] * len(task["_result_test"])
-                task['results'] = [TestResult(group=group, test=test, ok=ok) for group, test, ok in zip(task["_result_group"], task["_result_test"], task["_result_ok"])]
+                task['_results'] = [TestResult(group=group, test=test, ok=ok) for group, test, ok in zip(task["_result_group"], task["_result_test"], task["_result_ok"])]
                 del task['_result_ok']
                 del task['_result_test']
                 del task['_result_group']

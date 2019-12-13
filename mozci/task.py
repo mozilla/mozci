@@ -76,22 +76,38 @@ class TestResult:
 
 @dataclass
 class TestTask(Task):
-    results: List[TestResult] = field(default_factory=list)
+    _results: List[TestResult] = field(default_factory=list)
     _groups: List = field(default_factory=list)
 
-    @property
-    def groups(self):
-        if self._groups:
-            return self._groups
-
+    def _load_errorsummary(self):
         try:
             path = [a for a in self.artifacts if a.endswith('errorsummary.log')][0]
         except IndexError:
             return self._groups
 
-        data = self.get_artifact(path).splitlines()[0]
-        self._groups = json.loads(data)['groups']
+        lines = [json.loads(l) for l in self.get_artifact(path).splitlines()]
+
+        self._groups = lines[0]["groups"]
+
+        results = {}
+        for line in lines[1:]:
+            results[line['test']] = (line['group'] if 'group' in line else None, line['expected'] == line['status'])
+
+        self._results = [TestResult(group=group, test=test, ok=ok) for test, (group, ok) in results.items()]
+
+    @property
+    def groups(self):
+        if not self._groups:
+            self._load_errorsummary()
+
         return self._groups
+
+    @property
+    def results(self):
+        if not self._results:
+            self._load_errorsummary()
+
+        return self._results
 
 
 @dataclass

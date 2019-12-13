@@ -91,9 +91,13 @@ class TestTask(Task):
 
         results = {}
         for line in lines[1:]:
-            results[line['test']] = (line['group'] if 'group' in line else None, line['expected'] == line['status'])
+            results[line['test']] = (
+                line['group'] if 'group' in line else None, line['expected'] == line['status']
+            )
 
-        self._results = [TestResult(group=group, test=test, ok=ok) for test, (group, ok) in results.items()]
+        self._results = [
+            TestResult(group=group, test=test, ok=ok) for test, (group, ok) in results.items()
+        ]
 
     @property
     def groups(self):

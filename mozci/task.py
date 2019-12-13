@@ -79,20 +79,24 @@ class TestResult:
 class TestTask(Task):
     """Subclass containing additional information only relevant to 'test' tasks."""
     _results: List[TestResult] = field(default=None)
+    _errors: List = field(default=None)
     _groups: List = field(default=None)
 
     def _load_errorsummary(self):
+        # This may clobber the values that were populated by ActiveData, but
+        # since the artifact is already downloaded, parsed and we need to
+        # iterate over it anyway.. It doesn't really hurt and simplifies some
+        # logic. It also ensures we don't attempt to load the errorsummary more
+        # than once.
+        self._groups = []
+        self._results = []
+        self._errors = []
+
         try:
             path = [a for a in self.artifacts if a.endswith('errorsummary.log')][0]
         except IndexError:
             return
 
-        # This may clobber the values that were populated by ActiveData, but
-        # since the artifact is already downloaded, parsed and we need to
-        # iterate over it anyway.. It doesn't really hurt and simplifies some
-        # logic.
-        self._groups = []
-        self._results = []
         lines = [json.loads(l) for l in self.get_artifact(path).splitlines()]
         for line in lines:
             if line['action'] == 'test_groups':
@@ -105,6 +109,9 @@ class TestTask(Task):
                     ok=line['status'] == line['expected'],
                 ))
 
+            elif line['action'] == 'log':
+                self._errors.append(line['message'])
+
     @property
     def groups(self):
         if self._groups is None:
@@ -116,6 +123,12 @@ class TestTask(Task):
         if self._results is None:
             self._load_errorsummary()
         return self._results
+
+    @property
+    def errors(self):
+        if self._errors is None:
+            self._load_errorsummary()
+        return self._errors
 
 
 @dataclass

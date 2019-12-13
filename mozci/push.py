@@ -10,6 +10,7 @@ from mozci.task import (
     LabelSummary,
     Status,
     Task,
+    TestResult,
 )
 from mozci.util.taskcluster import find_task_id
 
@@ -147,12 +148,26 @@ class Push:
         args = Namespace(rev=self.rev, branch=self.branch)
         tasks = defaultdict(dict)
 
+        list_keys = (
+            "_result_ok", "_result_group", "_result_test"
+        )
+
         def add(data):
             for task in data:
                 if 'id' not in task:
                     logger.trace(f"Skipping {task} because of missing id.")
                     continue
-                tasks[task['id']].update(task)
+
+                cur_task = tasks[task["id"]]
+
+                for key, val in task.items():
+                    if key in list_keys:
+                        if key not in cur_task:
+                            cur_task[key] = []
+
+                        cur_task[key].append(val)
+                    else:
+                        cur_task[key] = val
 
         # Gather information from the treeherder and task tables.
         for table in ('treeherder', 'unittest'):
@@ -181,6 +196,20 @@ class Push:
             if task.get('_groups'):
                 if isinstance(task['_groups'], str):
                     task['_groups'] = [task['_groups']]
+
+            if task.get('_result_ok'):
+                if '_result_group' in task:
+                    groups = task.pop('_result_group')
+                else:
+                    groups = [None] * len(task['_result_test'])
+
+                tests = task.pop('_result_test')
+                oks = task.pop('_result_ok')
+
+                task['_results'] = [
+                    TestResult(group=group, test=test, ok=ok)
+                    for group, test, ok in zip(groups, tests, oks)
+                ]
 
             normalized_tasks.append(task)
 

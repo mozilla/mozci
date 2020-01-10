@@ -2,6 +2,7 @@ from argparse import Namespace
 from collections import defaultdict
 
 import requests
+from adr.errors import MissingDataError
 from adr.query import run_query
 from adr.util.memoize import memoize, memoized_property
 from loguru import logger
@@ -169,9 +170,17 @@ class Push:
                     else:
                         cur_task[key] = val
 
-        # Gather information from the treeherder and task tables.
-        for table in ('treeherder', 'unittest'):
-            add(run_query('push_tasks_from_{}'.format(table), args)['data'])
+        # Gather information from the treeherder table.
+        add(run_query('push_tasks_from_treeherder', args)['data'])
+
+        # Gather information from the unittest table. We allow missing data for this table because
+        # ActiveData only holds very recent data in it, but we have fallbacks on Taskcluster
+        # artifacts.
+        # TODO: We have fallbacks for groups and results, but not for kind.
+        try:
+            add(run_query('push_tasks_from_unittest', args)['data'])
+        except MissingDataError:
+            pass
 
         # If we are missing one of these keys, discard the task.
         required_keys = (

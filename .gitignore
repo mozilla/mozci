@@ -103,3 +103,10 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+.idea
+.svn
+/vendor/adr
+/example.py
+/*.iml
+/requirements.txt

@@ -451,7 +451,8 @@ def make_push_objects(**kwargs):
 
         data += run_query("push_revisions", Namespace(**kwargs))["data"]
 
-    for pushid, date, revs, parents in data:
+    for row in data:
+        pushid, date, revs, parents = row['pushid'], row['date'], row['revs'], row['parents']
         topmost = list(set(revs) - set(parents))[0]
 
         cur = Push([topmost] + [r for r in revs if r != topmost])

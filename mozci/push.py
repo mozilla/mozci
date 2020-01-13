@@ -148,6 +148,7 @@ class Push:
 
         args = Namespace(rev=self.rev, branch=self.branch)
         tasks = defaultdict(dict)
+        retries = defaultdict(int)
 
         list_keys = (
             "_result_ok", "_result_group", "_result_test"
@@ -159,7 +160,20 @@ class Push:
                     logger.trace(f"Skipping {task} because of missing id.")
                     continue
 
-                cur_task = tasks[task["id"]]
+                task_id = task['id']
+
+                # If a task is re-run, use the data from the last run.
+                if 'retry_id' in task:
+                    if task['retry_id'] < retries[task_id]:
+                        logger.trace(f"Skipping {task} because there is a newer run of it.")
+                        continue
+
+                    retries[task_id] = task['retry_id']
+
+                    # We don't need to store the retry ID.
+                    del task['retry_id']
+
+                cur_task = tasks[task_id]
 
                 for key, val in task.items():
                     if key in list_keys:

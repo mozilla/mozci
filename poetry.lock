@@ -4,7 +4,7 @@ description = "Utility for running ActiveData recipes"
 name = "adr"
 optional = false
 python-versions = ">=3.6,<4.0"
-version = "0.16.7"
+version = "0.17.1"
 
 [package.dependencies]
 appdirs = ">=1.4,<2.0"
@@ -543,13 +543,13 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools"]
 
 [metadata]
-content-hash = "ce0115f73efe3d375fd897ffe5b48f010b2878e034a892b468d1bc2236c17c3a"
+content-hash = "a2521b8457405128869594c34f66297a0e861c8c9f018ff99bb0a60efc853bfb"
 python-versions = "^3.7"
 
 [metadata.files]
 adr = [
-    {file = "adr-0.16.7-py3-none-any.whl", hash = "sha256:e4d882166788866291bc2c35d6fdb7163ae58cd0e6af1daf17a6c4166da93f4c"},
-    {file = "adr-0.16.7.tar.gz", hash = "sha256:71a290b2da0c8dd89111dd2449555bd1badc6978494caf8a577044ba654a8b37"},
+    {file = "adr-0.17.1-py3-none-any.whl", hash = "sha256:825b49c80ff385039b3bb0ab72d858a6e6272b4e2d46eaa9a0cb428f997afd67"},
+    {file = "adr-0.17.1.tar.gz", hash = "sha256:999c881ff0ebdee9b2204dba9573abb1bf8d23c3440a918ceb9c395c18b358fa"},
 ]
 appdirs = [
     {file = "appdirs-1.4.3-py2.py3-none-any.whl", hash = "sha256:d8b24664561d0d34ddfaec54636d502d7cea6e29c3eaf68f3df6180863e2166e"},

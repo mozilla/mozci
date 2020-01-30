@@ -9,7 +9,7 @@ authors = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
-adr = "^0.16.7"
+adr = "^0.17.1"
 taskcluster_urls = "^12.1"
 
 [tool.poetry.dev-dependencies]

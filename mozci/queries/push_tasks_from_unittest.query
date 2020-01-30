@@ -2,6 +2,7 @@ from: unittest
 select:
     - {name: id, value: task.id}
     - {name: kind, value: task.kind}
+    - {name: _groups, value: run.suite.groups}
     - {name: _result_group, value: result.group}
     - {name: _result_test, value: result.test}
     - {name: _result_ok, value: result.ok}

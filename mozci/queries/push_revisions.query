@@ -1,8 +1,8 @@
 from: repo
 groupby:
     - {name: pushid, value: push.id}
-    - {name: date, value: push.date}
 select:
+    - {name: date, value: push.date, aggregate: min}
     - {name: rev, value: changeset.id, aggregate: union}
     - {name: parents, value: parents, aggregate: union}
 sort: push.id
@@ -11,8 +11,9 @@ where:
         - eq: {branch.name: {$eval: branch}}
         - gte: [push.id, {$eval: from_push}]
         - lte: [push.id, {$eval: to_push}]
-limit: 10000
-format: table
+limit: 100000
+format: list
+destination: url
 
 context:
     from_date:

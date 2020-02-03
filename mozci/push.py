@@ -154,8 +154,18 @@ class Push:
             "_result_ok", "_result_group", "_result_test"
         )
 
-        def add(data):
-            for task in data:
+        def add(result):
+            if "header" in result:
+                result["data"] = [
+                    {
+                        field: value
+                        for field, value in zip(result["header"], entry)
+                        if value is not None
+                    }
+                    for entry in result["data"]
+                ]
+
+            for task in result["data"]:
                 if 'id' not in task:
                     logger.trace(f"Skipping {task} because of missing id.")
                     continue
@@ -185,19 +195,19 @@ class Push:
                         cur_task[key] = val
 
         # Gather information from the treeherder table.
-        add(run_query('push_tasks_from_treeherder', args)['data'])
+        add(run_query('push_tasks_from_treeherder', args))
 
         # Gather information from the unittest table. We allow missing data for this table because
         # ActiveData only holds very recent data in it, but we have fallbacks on Taskcluster
         # artifacts.
         # TODO: We have fallbacks for groups and results, but not for kind.
         try:
-            add(run_query('push_tasks_results_from_unittest', args)['data'])
+            add(run_query('push_tasks_results_from_unittest', args))
         except MissingDataError:
             pass
 
         try:
-            add(run_query('push_tasks_groups_from_unittest', args)['data'])
+            add(run_query('push_tasks_groups_from_unittest', args))
         except MissingDataError:
             pass
 

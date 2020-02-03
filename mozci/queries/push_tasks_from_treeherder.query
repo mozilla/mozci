@@ -15,4 +15,4 @@ where:
         - ne: {job.type.name: "Gecko Decision Task"}
         - not: {prefix: {job.type.name: "Action"}}
 limit: 10000
-format: list
+format: table

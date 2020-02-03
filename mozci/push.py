@@ -192,7 +192,12 @@ class Push:
         # artifacts.
         # TODO: We have fallbacks for groups and results, but not for kind.
         try:
-            add(run_query('push_tasks_from_unittest', args)['data'])
+            add(run_query('push_tasks_results_from_unittest', args)['data'])
+        except MissingDataError:
+            pass
+
+        try:
+            add(run_query('push_tasks_groups_from_unittest', args)['data'])
         except MissingDataError:
             pass
 

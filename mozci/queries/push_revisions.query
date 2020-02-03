@@ -8,9 +8,9 @@ select:
 where:
     and:
         - eq: {branch.name: {$eval: branch}}
-        - gte: [push.id, {$eval: from_push}]
-        - lte: [push.id, {$eval: to_push}]
-limit: 100000
+        - gte: [push.date, {date: {$eval: from_date}}]
+        - lte: [push.date, {date: {$eval: to_date}}]
+limit: 10000000
 format: list
 destination: url
 

@@ -14,6 +14,5 @@ where:
         - ne: {run.result: "retry"}
         - ne: {job.type.name: "Gecko Decision Task"}
         - not: {prefix: {job.type.name: "Action"}}
+limit: 10000
 format: list
-destination: url
-limit: 1000000

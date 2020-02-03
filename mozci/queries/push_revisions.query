@@ -3,7 +3,7 @@ groupby:
     - {name: pushid, value: push.id}
 select:
     - {name: date, value: push.date, aggregate: min}
-    - {name: rev, value: changeset.id, aggregate: union}
+    - {name: revs, value: changeset.id, aggregate: union}
     - {name: parents, value: parents, aggregate: union}
 where:
     and:

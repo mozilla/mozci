@@ -5,7 +5,6 @@ select:
     - {name: date, value: push.date, aggregate: min}
     - {name: rev, value: changeset.id, aggregate: union}
     - {name: parents, value: parents, aggregate: union}
-sort: push.id
 where:
     and:
         - eq: {branch.name: {$eval: branch}}

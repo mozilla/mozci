@@ -10,6 +10,5 @@ where:
         - eq: {repo.branch.name: {$eval: branch}}
         - ne: {treeherder.tier: 3}
         - ne: {task.kind: "decision-task"}
-limit: 10000000
+limit: 10000
 format: list
-destination: url

@@ -154,18 +154,18 @@ class Push:
             "_result_ok", "_result_group", "_result_test"
         )
 
-        def add(data):
-            if "header" in data:
-                data["data"] = [
+        def add(result):
+            if "header" in result:
+                result["data"] = [
                     {
                         field: entry[i]
-                        for i, field in enumerate(data["header"])
+                        for i, field in enumerate(result["header"])
                         if entry[i] is not None
                     }
-                    for entry in data["data"]
+                    for entry in result["data"]
                 ]
 
-            for task in data["data"]:
+            for task in result["data"]:
                 if 'id' not in task:
                     logger.trace(f"Skipping {task} because of missing id.")
                     continue

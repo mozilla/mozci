@@ -473,13 +473,13 @@ def make_push_objects(**kwargs):
 
         pushes.append(cur)
 
+    pushes.sort(key=lambda p: p._id)
+
     for i, cur in enumerate(pushes):
         if i != 0:
             cur._parent = pushes[i - 1]
 
         if i != len(pushes) - 1:
             cur._child = pushes[i + 1]
-
-    pushes.sort(key=lambda p: p._id)
 
     return pushes

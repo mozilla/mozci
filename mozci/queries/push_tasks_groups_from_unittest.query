@@ -11,4 +11,4 @@ where:
         - ne: {treeherder.tier: 3}
         - ne: {task.kind: "decision-task"}
 limit: 10000
-format: list
+format: table

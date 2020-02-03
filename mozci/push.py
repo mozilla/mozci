@@ -158,9 +158,9 @@ class Push:
             if "header" in result:
                 result["data"] = [
                     {
-                        field: entry[i]
-                        for i, field in enumerate(result["header"])
-                        if entry[i] is not None
+                        field: value
+                        for field, value in zip(result["header"], entry)
+                        if value is not None
                     }
                     for entry in result["data"]
                 ]

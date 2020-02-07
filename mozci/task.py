@@ -1,4 +1,5 @@
 import json
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List
@@ -132,7 +133,67 @@ class TestTask(Task):
 
 
 @dataclass
-class LabelSummary:
+class RunnableSummary(ABC):
+    @property
+    @abstractmethod
+    def classifications(self):
+        ...
+
+    @property
+    @abstractmethod
+    def status(self):
+        ...
+
+
+@dataclass
+class GroupSummary(RunnableSummary):
+    """Summarizes the overall state of a group (across retriggers)."""
+    name: str
+    tasks: List[Task]
+
+    def __post_init__(self):
+        assert all(self.name in t.groups for t in self.tasks)
+
+    @property
+    def classifications(self):
+        return set(t.classification for t in self.tasks if t.failed)
+
+    @memoized_property
+    def status(self):
+        overall_status_by_label = {}
+        for task in self.tasks:
+            for result in task.results:
+                if result.group != self.name:
+                    continue
+
+                if not result.ok:
+                    status = Status.FAIL
+                else:
+                    status = Status.PASS
+
+                if task.label not in overall_status_by_label:
+                    overall_status_by_label[task.label] = status
+                elif status != overall_status_by_label[task.label]:
+                    overall_status_by_label[task.label] = Status.INTERMITTENT
+
+        # If the manifest failed intermittently at least in one task, we
+        # consider it to be intermittent.
+        if any(
+            status == Status.INTERMITTENT for status in overall_status_by_label.values()
+        ):
+            return Status.INTERMITTENT
+
+        # Otherwise, if the manifest failed at least once in any of the tasks,
+        # we consider it as a failure.
+        if any(status == Status.FAIL for status in overall_status_by_label.values()):
+            return Status.FAIL
+
+        # Otherwise, the manifest passed in all tasks, so we consider it a pass.
+        return Status.PASS
+
+
+@dataclass
+class LabelSummary(RunnableSummary):
     """Summarizes the overall state of a task label (across retriggers)."""
     label: str
     tasks: List[Task]
@@ -143,10 +204,6 @@ class LabelSummary:
     @property
     def classifications(self):
         return set(t.classification for t in self.tasks if t.failed)
-
-    @property
-    def results(self):
-        return set(t.result for t in self.tasks)
 
     @memoized_property
     def status(self):

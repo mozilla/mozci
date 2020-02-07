@@ -8,9 +8,11 @@ from adr.util.memoize import memoize, memoized_property
 from loguru import logger
 
 from mozci.task import (
+    GroupSummary,
     LabelSummary,
     Status,
     Task,
+    TestTask,
     TestResult,
 )
 from mozci.util.taskcluster import find_task_id
@@ -260,7 +262,7 @@ class Push:
         Returns:
             set: A set of task labels (str).
         """
-        return set([t.label for t in self.tasks])
+        return set(t.label for t in self.tasks)
 
     @memoized_property
     def target_task_labels(self):
@@ -292,6 +294,23 @@ class Push:
             set: A set of task labels (str).
         """
         return self.task_labels - self.scheduled_task_labels
+
+    @memoized_property
+    def group_summaries(self):
+        """All group summaries combining retriggers.
+
+        Returns:
+            dict: A dictionary of the form {<group>: [<GroupSummary>]}.
+        """
+        groups = defaultdict(list)
+        for task in self.tasks:
+            if not isinstance(task, TestTask):
+                continue
+
+            for group in task.groups:
+                groups[group].append(task)
+        groups = {group: GroupSummary(group, tasks) for group, tasks in groups.items()}
+        return groups
 
     @memoized_property
     def label_summaries(self):
@@ -336,71 +355,76 @@ class Push:
 
         return int(duration / 3600)
 
-    @memoized_property
-    def candidate_regressions(self):
-        """The set of task labels that are regression candidates for this push.
+    @memoize
+    def get_candidate_regressions(self, runnable_type):
+        """Retrieve the set of "runnables" that are regression candidates for this push.
 
-        A candidate regression is any task label for which at least one
+        A "runnable" can be any group of tests, e.g. a label, a manifest across platforms,
+        a manifest on a given platform.
+
+        A candidate regression is any runnable for which at least one
         associated task failed (therefore including intermittents), and which
         is either not classified or fixed by commit.
 
         Returns:
-            set: Set of task labels (str).
+            set: Set of runnable names (str).
         """
         failclass = ('not classified', 'fixed by commit')
 
-        passing_labels = set()
+        passing_runnables = set()
         candidate_regressions = {}
 
         count = 0
         other = self
         while count < MAX_DEPTH + 1:
-            for label, summary in other.label_summaries.items():
-                if label in passing_labels:
+            for name, summary in getattr(other, f"{runnable_type}_summaries").items():
+                if name in passing_runnables:
                     # It passed in one of the pushes between the current and its
                     # children, so it is definitely not a regression in the current.
                     continue
 
                 if summary.status == Status.PASS:
-                    passing_labels.add(label)
+                    passing_runnables.add(name)
                     continue
 
                 if all(c not in failclass for c in summary.classifications):
-                    passing_labels.add(label)
+                    passing_runnables.add(name)
                     continue
 
-                candidate_regressions[label] = count
+                candidate_regressions[name] = count
 
             other = other.child
             count += 1
 
         return candidate_regressions
 
-    @memoized_property
-    def regressions(self):
+    @memoize
+    def get_regressions(self, runnable_type):
         """All regressions, both likely and definite.
 
         Each regression is associated with an integer, which is the number of
-        parent and children pushes that didn't run the label. A count of 0 means
-        the label failed on the current push and passed on the previous push.
+        parent and children pushes that didn't run the runnable. A count of 0 means
+        the runnable failed on the current push and passed on the previous push.
         A count of 3 means there were three pushes between the failure and the
         last time the task passed (so any one of them could have caused it).
         A count of MAX_DEPTH means that the maximum number of parents were
         searched without finding the task and we gave up.
 
         Returns:
-            dict: A dict of the form {<label>: <int>}.
+            dict: A dict of the form {<str>: <int>}.
         """
         regressions = {}
 
-        for label, child_count in self.candidate_regressions.items():
+        for name, child_count in self.get_candidate_regressions(runnable_type).items():
             count = 0
             other = self.parent
             prior_regression = False
 
             while count < MAX_DEPTH:
-                if label in other.task_labels:
-                    if other.label_summaries[label].status != Status.PASS:
+                runnable_summaries = getattr(other, f"{runnable_type}_summaries")
+
+                if name in runnable_summaries:
+                    if runnable_summaries[name].status != Status.PASS:
                         prior_regression = True
                     break
 
@@ -410,34 +434,36 @@ class Push:
             total_count = count + child_count
 
             if not prior_regression and total_count <= MAX_DEPTH:
-                regressions[label] = total_count
+                regressions[name] = total_count
 
         return regressions
 
-    @property
-    def possible_regressions(self):
-        """The set of all task labels that may have been regressed by this push.
+    def get_possible_regressions(self, runnable_type):
+        """The set of all runnables that may have been regressed by this push.
 
         A possible regression is a candidate_regression that didn't run on one or
         more parent pushes.
 
         Returns:
-            set: Set of task labels (str).
+            set: Set of runnables (str).
         """
-        return set(label for label, count in self.regressions.items() if count > 0)
+        return set(name for name, count in self.get_regressions(runnable_type).items() if count > 0)
 
-    @property
-    def likely_regressions(self):
-        """The set of all task labels that were likely regressed by this push.
+    def get_likely_regressions(self, runnable_type):
+        """The set of all runnables that were likely regressed by this push.
 
         A likely regression is a candidate_regression that both ran and passed
         on the immediate parent push. It still isn't a sure thing as the task
         could be intermittent.
 
         Returns:
-            set: Set of task labels (str).
+            set: Set of runnables (str).
         """
-        return set(label for label, count in self.regressions.items() if count == 0)
+        return set(
+            name
+            for name, count in self.get_regressions(runnable_type).items()
+            if count == 0
+        )
 
     @memoize
     def get_shadow_scheduler_tasks(self, name):

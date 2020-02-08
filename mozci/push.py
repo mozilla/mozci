@@ -49,7 +49,7 @@ class Push:
     def rev(self):
         return self.revs[0]
 
-    @property
+    @memoized_property
     def backedoutby(self):
         """The revision of the commit which backs out this one or None.
 
@@ -436,6 +436,14 @@ class Push:
                 count += 1
 
             total_count = count + child_count
+
+            # When the push was not backed-out, it's less likely to be the cause of a failure.
+            # So, we penalize it by doubling its count (basically, we consider the push to be
+            # further away from the failure, which makes it more likely to fall outside of
+            # MAX_DEPTH).
+            # We can't fully exclude pushes which were not backed-out because of bustage fixes.
+            if not self.backedout:
+                total_count *= 2
 
             if not prior_regression and total_count <= MAX_DEPTH:
                 regressions[name] = total_count

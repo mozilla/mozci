@@ -390,6 +390,11 @@ class Push:
                     passing_runnables.add(name)
                     continue
 
+                if name in candidate_regressions:
+                    # It failed in one of the pushes between the current and its
+                    # children, we don't want to increase the previous distance.
+                    continue
+
                 candidate_regressions[name] = count
 
             other = other.child

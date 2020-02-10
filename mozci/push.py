@@ -13,7 +13,7 @@ from mozci.task import (
     Status,
     Task,
     TestTask,
-    TestResult,
+    GroupResult,
 )
 from mozci.util.taskcluster import find_task_id
 
@@ -153,7 +153,7 @@ class Push:
         retries = defaultdict(int)
 
         list_keys = (
-            "_result_ok", "_result_group", "_result_test"
+            "_result_ok", "_result_group",
         )
 
         def add(result):
@@ -241,14 +241,13 @@ class Push:
                 if '_result_group' in task:
                     groups = task.pop('_result_group')
                 else:
-                    groups = [None] * len(task['_result_test'])
+                    groups = [None] * len(task['_result_ok'])
 
-                tests = task.pop('_result_test')
                 oks = task.pop('_result_ok')
 
                 task['_results'] = [
-                    TestResult(group=group, test=test, ok=ok)
-                    for group, test, ok in zip(groups, tests, oks)
+                    GroupResult(group=group, ok=ok)
+                    for group, ok in zip(groups, oks)
                 ]
 
             normalized_tasks.append(task)

@@ -69,17 +69,16 @@ class Task:
 
 
 @dataclass
-class TestResult:
-    """Contains information relating to a single test failure within a TestTask."""
+class GroupResult:
+    """Contains information relating to a single group failure within a TestTask."""
     group: str
-    test: str
     ok: bool
 
 
 @dataclass
 class TestTask(Task):
     """Subclass containing additional information only relevant to 'test' tasks."""
-    _results: List[TestResult] = field(default=None)
+    _results: List[GroupResult] = field(default=None)
     _errors: List = field(default=None)
     _groups: List = field(default=None)
 
@@ -104,8 +103,7 @@ class TestTask(Task):
                 self._groups = line["groups"]
 
             elif line['action'] == 'test_result':
-                self._results.append(TestResult(
-                    test=line['test'],
+                self._results.append(GroupResult(
                     group=line.get('group'),
                     ok=line['status'] == line['expected'],
                 ))

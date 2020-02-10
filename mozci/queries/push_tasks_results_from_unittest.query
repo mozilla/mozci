@@ -1,15 +1,14 @@
 from: unittest
-select:
+groupby:
     - {name: id, value: task.id}
     - {name: _result_group, value: result.group}
-    - {name: _result_test, value: result.test}
-    - {name: _result_ok, value: result.ok}
+select:
+    - {name: _result_ok, value: result.ok, aggregate: min}
 where:
     and:
         - prefix: {repo.changeset.id: {$eval: rev}}
         - eq: {repo.branch.name: {$eval: branch}}
         - ne: {treeherder.tier: 3}
         - ne: {task.kind: "decision-task"}
-limit: 10000000
-format: list
-destination: url
+limit: 10000
+format: table

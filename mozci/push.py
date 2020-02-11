@@ -238,17 +238,15 @@ class Push:
                     task['_groups'] = [task['_groups']]
 
             if task.get('_result_ok'):
-                if '_result_group' in task:
-                    groups = task.pop('_result_group')
-                else:
-                    groups = [None] * len(task['_result_ok'])
-
                 oks = task.pop('_result_ok')
 
-                task['_results'] = [
-                    GroupResult(group=group, ok=ok)
-                    for group, ok in zip(groups, oks)
-                ]
+                if task.get('_result_group'):
+                    groups = task.pop('_result_group')
+
+                    task['_results'] = [
+                        GroupResult(group=group, ok=ok)
+                        for group, ok in zip(groups, oks)
+                    ]
 
             normalized_tasks.append(task)
 

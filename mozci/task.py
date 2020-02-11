@@ -21,6 +21,25 @@ class Status(Enum):
     INTERMITTENT = 2
 
 
+NO_GROUPS_SUITES = (
+    "raptor",
+    "talos",
+    "awsy",
+    "web-platform-tests",
+    "gtest",
+    "cppunit",
+    "telemetry-tests",
+    "firefox-ui-functional",
+    "junit",
+    "crashtest",
+    "geckoview-reftest",
+)
+
+
+def is_no_groups_suite(label):
+    return any(f'-{s}-' in label for s in NO_GROUPS_SUITES)
+
+
 # We only want to warn about bad groups once.
 bad_group_warned = False
 
@@ -100,9 +119,20 @@ class TestTask(Task):
     _errors: List = field(default=None)
     _groups: List = field(default=None)
 
-    # XXX: Once bug 1613937 and bug 1613939 are fixed, we can remove the filtering
-    # and slash replacing, and turn the warning on bad group names into an assertion.
     def __post_init__(self):
+        if is_no_groups_suite(self.label):
+            assert self._groups is None, f"{self.label} should have no groups"
+            self._groups = []
+
+            assert self._errors is None, f"{self.label} should have no errors"
+            self._errors = []
+
+            assert self._results is None, f"{self.label} should have no results"
+            self._results = []
+
+        # XXX: Once bug 1613937 and bug 1613939 are fixed, we can remove the filtering
+        # and slash replacing, and turn the warning on bad group names into an assertion.
+
         if self._groups is not None:
             self._groups = [
                 group.replace("\\", "/")

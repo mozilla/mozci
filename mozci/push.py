@@ -1,3 +1,4 @@
+import os
 from argparse import Namespace
 from collections import defaultdict
 
@@ -25,6 +26,9 @@ BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
 # The maximum number of parents or children to look for previous/next task runs,
 # when the task did not run on the currently considered push.
 MAX_DEPTH = 14
+
+# We only want to warn about bad groups once.
+bad_group_warned = False
 
 
 class Push:
@@ -236,6 +240,12 @@ class Push:
             if task.get('_groups'):
                 if isinstance(task['_groups'], str):
                     task['_groups'] = [task['_groups']]
+
+                global bad_group_warned
+                for group in task['_groups']:
+                    if not bad_group_warned and (os.path.isabs(group) or group.startswith("file://") or "\\" in group):
+                        bad_group_warned = True
+                        logger.warning(f"Bad group name in task {task['id']}: {group}")
 
             if task.get('_result_ok'):
                 if '_result_group' in task:

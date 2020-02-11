@@ -141,16 +141,14 @@ class TestTask(Task):
             ]
 
         def update_group(result):
-            if result.group is not None:
-                result.group = result.group.replace("\\", "/")
-
+            result.group = result.group.replace("\\", "/")
             return result
 
         if self._results is not None:
             self._results = [
                 update_group(result)
                 for result in self._results
-                if result.group is None or not is_bad_group(self.id, result.group)
+                if not is_bad_group(self.id, result.group)
             ]
 
     def _load_errorsummary(self):

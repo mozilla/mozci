@@ -1,4 +1,5 @@
 import json
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -6,6 +7,7 @@ from typing import Dict, List
 from urllib3.response import HTTPResponse
 
 from adr.util import memoize, memoized_property
+from loguru import logger
 
 from mozci.util.taskcluster import (
     get_artifact,
@@ -17,6 +19,22 @@ class Status(Enum):
     PASS = 0
     FAIL = 1
     INTERMITTENT = 2
+
+
+# We only want to warn about bad groups once.
+bad_group_warned = False
+
+
+def is_bad_group(task_id, group):
+    global bad_group_warned
+
+    bad_group = os.path.isabs(group) or group.startswith("file://") or group.startswith("Z:")
+
+    if not bad_group_warned and (bad_group or "\\" in group):
+        bad_group_warned = True
+        logger.warning(f"Bad group name in task {task_id}: {group}")
+
+    return bad_group
 
 
 @dataclass
@@ -82,6 +100,29 @@ class TestTask(Task):
     _errors: List = field(default=None)
     _groups: List = field(default=None)
 
+    # XXX: Once bug 1613937 and bug 1613939 are fixed, we can remove the filtering
+    # and slash replacing, and turn the warning on bad group names into an assertion.
+    def __post_init__(self):
+        if self._groups is not None:
+            self._groups = [
+                group.replace("\\", "/")
+                for group in self._groups
+                if not is_bad_group(self.id, group)
+            ]
+
+        def update_group(result):
+            if result.group is not None:
+                result.group = result.group.replace("\\", "/")
+
+            return result
+
+        if self._results is not None:
+            self._results = [
+                update_group(result)
+                for result in self._results
+                if result.group is None or not is_bad_group(self.id, result.group)
+            ]
+
     def _load_errorsummary(self):
         # This may clobber the values that were populated by ActiveData, but
         # since the artifact is already downloaded, parsed and we need to
@@ -110,6 +151,8 @@ class TestTask(Task):
 
             elif line['action'] == 'log':
                 self._errors.append(line['message'])
+
+        self.__post_init__()
 
     @property
     def groups(self):

@@ -65,6 +65,7 @@ class Task:
     duration: int = field(default=None)
     result: str = field(default=None)
     classification: str = field(default=None)
+    classification_note: str = field(default=None)
     tags: Dict = field(default_factory=dict)
 
     @staticmethod
@@ -225,7 +226,7 @@ class GroupSummary(RunnableSummary):
 
     @property
     def classifications(self):
-        return set(t.classification for t in self.tasks if t.failed)
+        return [(t.classification, t.classification_note) for t in self.tasks if t.failed]
 
     @memoized_property
     def status(self):
@@ -272,7 +273,7 @@ class LabelSummary(RunnableSummary):
 
     @property
     def classifications(self):
-        return set(t.classification for t in self.tasks if t.failed)
+        return [(t.classification, t.classification_note) for t in self.tasks if t.failed]
 
     @memoized_property
     def status(self):

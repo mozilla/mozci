@@ -5,6 +5,7 @@ select:
     - {name: label, value: job.type.name}
     - {name: result, value: run.result}
     - {name: classification, value: failure.classification}
+    - {name: classification_note, value: failure.notes.text}
     - {name: duration, value: action.duration}
 where:
     and:

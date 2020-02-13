@@ -36,22 +36,17 @@ def get_automation_relevance(branch, rev):
     return r.json()["changesets"][0]
 
 
-backouts = set()
+backouts = {}
 
 
-@memoize
 def is_backout(branch, rev):
     global backouts
 
-    if rev in backouts:
-        return True
+    if rev not in backouts:
+        res = get_automation_relevance(branch, rev)
+        backouts[rev] = len(res["backsoutnodes"]) > 0
 
-    res = get_automation_relevance(branch, rev)
-    if len(res["backsoutnodes"]) > 0:
-        backouts.add(rev)
-        return True
-
-    return False
+    return backouts[rev]
 
 
 class Push:
@@ -88,7 +83,7 @@ class Push:
         if not backout_rev:
             return None
 
-        backouts.add(backout_rev)
+        backouts[backout_rev] = True
         return backout_rev
 
     @property

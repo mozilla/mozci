@@ -29,7 +29,7 @@ BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
 MAX_DEPTH = 14
 
 
-def get_hgmo(branch, rev):
+def get_automation_relevance(branch, rev):
     url = HGMO_AUTOMATION_RELEVANCE_URL.format(branch=branch, rev=rev)
     r = requests.get(url)
     r.raise_for_status()
@@ -46,7 +46,7 @@ def is_backout(branch, rev):
     if rev in backouts:
         return True
 
-    res = get_hgmo(branch, rev)
+    res = get_automation_relevance(branch, rev)
     if len(res["backsoutnodes"]) > 0:
         backouts.add(rev)
         return True

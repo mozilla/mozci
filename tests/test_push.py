@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from mozci import push
 from mozci.push import Push, MAX_DEPTH
 from mozci.task import Task
 
@@ -451,3 +452,175 @@ def test_far_child_failed_and_backedout():
     last.backedoutby = None
 
     assert current.get_regressions("label") == {}
+
+
+def test_fixed_by_commit(monkeypatch):
+    '''
+    Tests the scenario where two tasks succeeded in a parent push, didn't run in the
+    push of interest and failed in a following push, with 'fixed by commit' information
+    pointing to the back-outs.
+    '''
+    def mock_is_backout(branch, rev):
+        return True
+
+    monkeypatch.setattr(push, "is_backout", mock_is_backout)
+
+    first = Push("first")
+    current = Push("current")
+    next = Push("next")
+    last = Push("last")
+
+    first.parent = first
+    first.child = current
+    first.tasks = [
+        Task.create(id="1", label="test-failure-current", result="success"),
+        Task.create(id="1", label="test-failure-next", result="success")
+    ]
+    first.backedoutby = None
+
+    current.parent = first
+    current.child = next
+    current.tasks = []  # noqa
+    current.backedoutby = "d25e5c66de225e2d1b989af61a0420874707dd14"
+
+    next.parent = current
+    next.child = last
+    next.tasks = [
+        Task.create(id="1", label="test-failure-current", result="testfailed", classification="fixed by commit", classification_note="d25e5c66de225e2d1b989af61a0420874707dd14"),  # noqa
+        Task.create(id="1", label="test-failure-next", result="testfailed", classification="fixed by commit", classification_note="012c3f1626b3"),  # noqa
+    ]
+    next.backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
+
+    last.parent = current
+    last.child = last
+    last.tasks = []
+    last.backedoutby = None
+
+    assert current.get_regressions("label") == {'test-failure-current': 0}
+    assert next.get_regressions("label") == {'test-failure-next': 0}
+
+
+def test_fixed_by_commit_task_didnt_run_in_parents(monkeypatch):
+    '''
+    Tests the scenario where a task didn't run in a parent push, didn't run in the
+    push of interest and failed in a following push, with 'fixed by commit' information
+    pointing to the back-outs.
+    '''
+    def mock_is_backout(branch, rev):
+        return True
+
+    monkeypatch.setattr(push, "is_backout", mock_is_backout)
+
+    first = Push("first")
+    current = Push("current")
+    next = Push("next")
+    last = Push("last")
+
+    first.parent = first
+    first.child = current
+    first.tasks = []
+    first.backedoutby = None
+
+    current.parent = first
+    current.child = next
+    current.tasks = []
+    current.backedoutby = "d25e5c66de225e2d1b989af61a0420874707dd14"
+
+    next.parent = current
+    next.child = last
+    next.tasks = [Task.create(id="1", label="test-failure-current", result="testfailed", classification="fixed by commit", classification_note="d25e5c66de225e2d1b989af61a0420874707dd14")]  # noqa
+    next.backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
+
+    last.parent = current
+    last.child = last
+    last.tasks = []
+    last.backedoutby = None
+
+    assert current.get_regressions("label") == {'test-failure-current': 0}
+    assert next.get_regressions("label") == {}
+
+
+def test_fixed_by_commit_push_wasnt_backedout(monkeypatch):
+    '''
+    Tests the scenario where a task succeeded in a parent push, didn't run in the
+    push of interest and failed in a following push, with 'fixed by commit' information
+    pointing to a back-out of another push.
+    '''
+    def mock_is_backout(branch, rev):
+        return True
+
+    monkeypatch.setattr(push, "is_backout", mock_is_backout)
+
+    first = Push("first")
+    current = Push("current")
+    next = Push("next")
+    last = Push("last")
+
+    first.parent = first
+    first.child = current
+    first.tasks = [Task.create(id="1", label="test-failure-current", result="success")]
+    first.backedoutby = None
+
+    current.parent = first
+    current.child = next
+    current.tasks = []
+    current.backedoutby = None
+
+    next.parent = current
+    next.child = last
+    next.tasks = [Task.create(id="1", label="test-failure-current", result="testfailed", classification="fixed by commit", classification_note="xxx")]  # noqa
+    next.backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
+
+    last.parent = current
+    last.child = last
+    last.tasks = []
+    last.backedoutby = None
+
+    assert current.get_regressions("label") == {}
+    assert next.get_regressions("label") == {}
+
+
+def test_fixed_by_commit_no_backout(monkeypatch):
+    '''
+    Tests the scenario where two tasks succeeded in a parent push, didn't run in the
+    push of interest and failed in a following push, with 'fixed by commit' information
+    pointing to a bustage fix.
+    '''
+    def mock_is_backout(branch, rev):
+        if rev == "xxx":
+            return False
+
+        return True
+
+    monkeypatch.setattr(push, "is_backout", mock_is_backout)
+
+    first = Push("first")
+    current = Push("current")
+    next = Push("next")
+    last = Push("last")
+
+    first.parent = first
+    first.child = current
+    first.tasks = [Task.create(id="1", label="test-failure-current", result="success"), Task.create(id="1", label="test-failure-next", result="success")]  # noqa
+    first.backedoutby = None
+
+    current.parent = first
+    current.child = next
+    current.tasks = []
+    current.backedoutby = "d25e5c66de225e2d1b989af61a0420874707dd14"
+
+    next.parent = current
+    next.child = last
+    next.tasks = [
+        Task.create(id="1", label="test-failure-current", result="testfailed", classification="fixed by commit", classification_note="xxx"),  # noqa
+        Task.create(id="1", label="test-failure-next", result="testfailed", classification="fixed by commit", classification_note="012c3f1626b3"),  # noqa
+    ]
+    next.backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
+
+    last.parent = current
+    last.child = last
+    last.tasks = []
+    last.backedoutby = None
+
+    assert current.get_regressions("label") == {'test-failure-current': 1}
+    assert next.get_regressions("label") == {'test-failure-current': 1, 'test-failure-next': 0}

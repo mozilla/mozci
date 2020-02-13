@@ -1,3 +1,4 @@
+import math
 from argparse import Namespace
 from collections import defaultdict
 
@@ -17,6 +18,7 @@ from mozci.task import (
 )
 from mozci.util.taskcluster import find_task_id
 
+HGMO_AUTOMATION_RELEVANCE_URL = "https://hg.mozilla.org/integration/{branch}/json-automationrelevance/{rev}"  # noqa
 HGMO_JSON_URL = "https://hg.mozilla.org/integration/{branch}/rev/{rev}?style=json"
 HGMO_JSON_PUSHES_URL = "https://hg.mozilla.org/integration/{branch}/json-pushes?version=2&startID={push_id_start}&endID={push_id_end}"  # noqa
 
@@ -25,6 +27,26 @@ BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
 # The maximum number of parents or children to look for previous/next task runs,
 # when the task did not run on the currently considered push.
 MAX_DEPTH = 14
+
+
+def get_automation_relevance(branch, rev):
+    url = HGMO_AUTOMATION_RELEVANCE_URL.format(branch=branch, rev=rev)
+    r = requests.get(url)
+    r.raise_for_status()
+    return r.json()["changesets"][0]
+
+
+backouts = {}
+
+
+def is_backout(branch, rev):
+    global backouts
+
+    if rev not in backouts:
+        res = get_automation_relevance(branch, rev)
+        backouts[rev] = len(res["backsoutnodes"]) > 0
+
+    return backouts[rev]
 
 
 class Push:
@@ -56,7 +78,13 @@ class Push:
         Returns:
             str or None: The commit revision which backs this push out (or None).
         """
-        return self._hgmo.get('backedoutby') or None
+        global backouts
+        backout_rev = self._hgmo.get('backedoutby')
+        if not backout_rev:
+            return None
+
+        backouts[backout_rev] = True
+        return backout_rev
 
     @property
     def backedout(self):
@@ -197,7 +225,10 @@ class Push:
                         cur_task[key] = val
 
         # Gather information from the treeherder table.
-        add(run_query('push_tasks_from_treeherder', args))
+        try:
+            add(run_query('push_tasks_from_treeherder', args))
+        except MissingDataError:
+            pass
 
         # Gather information from the unittest table. We allow missing data for this table because
         # ActiveData only holds very recent data in it, but we have fallbacks on Taskcluster
@@ -232,6 +263,10 @@ class Push:
 
             if task.get('tags'):
                 task['tags'] = {t['name']: t['value'] for t in task['tags']}
+
+            if task.get('classification_note'):
+                if isinstance(task['classification_note'], list):
+                    task['classification_note'] = task['classification_note'][-1]
 
             if task.get('_groups'):
                 if isinstance(task['_groups'], str):
@@ -384,9 +419,33 @@ class Push:
                     passing_runnables.add(name)
                     continue
 
-                if all(c not in failclass for c in summary.classifications):
+                if all(c not in failclass for c, n in summary.classifications):
                     passing_runnables.add(name)
                     continue
+
+                fixed_by_commit_classification_notes = [
+                    n[:12] for c, n in summary.classifications if c == "fixed by commit"
+                ]
+                if len(fixed_by_commit_classification_notes) > 0:
+                    if (
+                        self.backedout
+                        and self.backedoutby[:12]
+                        in fixed_by_commit_classification_notes
+                    ):
+                        # If the failure was classified as fixed by commit, and the fixing commit
+                        # is a backout of the current push, it is definitely a regression of the
+                        # current push.
+                        candidate_regressions[name] = -math.inf
+                        continue
+                    elif all(
+                        is_backout(self.branch, note)
+                        for note in fixed_by_commit_classification_notes
+                    ):
+                        # If the failure was classified as fixed by commit, and the fixing commit
+                        # is a backout of another push, it is definitely not a regression of the
+                        # current push.
+                        passing_runnables.add(name)
+                        continue
 
                 if name in candidate_regressions:
                     # It failed in one of the pushes between the current and its
@@ -444,7 +503,7 @@ class Push:
                 total_count *= 2
 
             if not prior_regression and total_count <= MAX_DEPTH:
-                regressions[name] = total_count
+                regressions[name] = total_count if total_count > 0 else 0
 
         return regressions
 

@@ -424,7 +424,10 @@ class Push:
                     continue
 
                 fixed_by_commit_classification_notes = [
-                    n[:12] for c, n in summary.classifications if c == "fixed by commit"
+                    n[:12]
+                    for c, n in summary.classifications
+                    if c == "fixed by commit"
+                    if n is not None
                 ]
                 if len(fixed_by_commit_classification_notes) > 0:
                     if (

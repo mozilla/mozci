@@ -11,7 +11,7 @@ where:
         - gte: [push.date, {date: {$eval: from_date}}]
         - lte: [push.date, {date: {$eval: to_date}}]
 limit: 10000000
-format: list
+format: table
 destination: url
 
 context:

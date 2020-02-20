@@ -1,5 +1,6 @@
-import requests
 from adr.util.memoize import memoize
+
+from mozci.util.req import get_session
 
 
 class HGMO():
@@ -32,7 +33,7 @@ class HGMO():
 
     @memoize
     def _get_resource(self, url):
-        r = requests.get(url)
+        r = get_session("hgmo").get(url)
         r.raise_for_status()
         return r.json()
 

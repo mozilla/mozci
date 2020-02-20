@@ -170,7 +170,7 @@ class TestTask(Task):
         lines = [json.loads(l) for l in self.get_artifact(path).splitlines()]
         for line in lines:
             if line['action'] == 'test_groups':
-                self._groups = line["groups"]
+                self._groups = list(set(line["groups"]) - {"default"})
 
             elif line['action'] == 'test_result':
                 self._results.append(GroupResult(

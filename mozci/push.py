@@ -2,6 +2,7 @@ import math
 from argparse import Namespace
 from collections import defaultdict
 
+import requests
 from adr.errors import MissingDataError
 from adr.query import run_query
 from adr.util.memoize import memoize, memoized_property
@@ -15,14 +16,37 @@ from mozci.task import (
     TestTask,
     GroupResult,
 )
-from mozci.util.hgmo import HGMO
 from mozci.util.taskcluster import find_task_id
+
+HGMO_AUTOMATION_RELEVANCE_URL = "https://hg.mozilla.org/integration/{branch}/json-automationrelevance/{rev}"  # noqa
+HGMO_JSON_URL = "https://hg.mozilla.org/integration/{branch}/rev/{rev}?style=json"
+HGMO_JSON_PUSHES_URL = "https://hg.mozilla.org/integration/{branch}/json-pushes?version=2&startID={push_id_start}&endID={push_id_end}"  # noqa
 
 BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
 
 # The maximum number of parents or children to look for previous/next task runs,
 # when the task did not run on the currently considered push.
 MAX_DEPTH = 14
+
+
+def get_automation_relevance(branch, rev):
+    url = HGMO_AUTOMATION_RELEVANCE_URL.format(branch=branch, rev=rev)
+    r = requests.get(url)
+    r.raise_for_status()
+    return r.json()["changesets"][0]
+
+
+backouts = {}
+
+
+def is_backout(branch, rev):
+    global backouts
+
+    if rev not in backouts:
+        res = get_automation_relevance(branch, rev)
+        backouts[rev] = len(res["backsoutnodes"]) > 0
+
+    return backouts[rev]
 
 
 class Push:
@@ -39,9 +63,7 @@ class Push:
 
         self.revs = revs
         self.branch = branch
-        self._hgmo = HGMO.create(self.rev, branch=self.branch)
         self.index = BASE_INDEX.format(branch=self.branch, rev=self.rev)
-
         self._id = None
         self._date = None
 
@@ -56,7 +78,13 @@ class Push:
         Returns:
             str or None: The commit revision which backs this push out (or None).
         """
-        return self._hgmo.get('backedoutby') or None
+        global backouts
+        backout_rev = self._hgmo.get('backedoutby')
+        if not backout_rev:
+            return None
+
+        backouts[backout_rev] = True
+        return backout_rev
 
     @property
     def backedout(self):
@@ -94,10 +122,15 @@ class Push:
         return self._id
 
     def create_push(self, push_id):
-        result = self._hgmo.get_json_pushes(
+        url = HGMO_JSON_PUSHES_URL.format(
+            branch=self.branch,
             push_id_start=push_id - 1,
             push_id_end=push_id
-        )[str(push_id)]
+        )
+
+        r = requests.get(url)
+        r.raise_for_status()
+        result = r.json()["pushes"][str(push_id)]
 
         push = Push(result["changesets"][::-1])
         # avoids the need to query hgmo to find this info
@@ -408,8 +441,8 @@ class Push:
                         candidate_regressions[name] = -math.inf
                         continue
                     elif all(
-                        HGMO.create(n, branch=self.branch).is_backout
-                        for n in fixed_by_commit_classification_notes
+                        is_backout(self.branch, note)
+                        for note in fixed_by_commit_classification_notes
                     ):
                         # If the failure was classified as fixed by commit, and the fixing commit
                         # is a backout of another push, it is definitely not a regression of the
@@ -519,6 +552,18 @@ class Push:
         task = Task(id=find_task_id(index))
         labels = task.get_artifact('public/shadow-scheduler/optimized_tasks.list')
         return set(labels.splitlines())
+
+    @memoized_property
+    def _hgmo(self):
+        """A JSON dict obtained from hg.mozilla.org.
+
+        Returns:
+            dict: Information regarding this push.
+        """
+        url = HGMO_JSON_URL.format(branch=self.branch, rev=self.rev)
+        r = requests.get(url)
+        r.raise_for_status()
+        return r.json()
 
     def __repr__(self):
         return f"{super(Push, self).__repr__()} rev='{self.rev}'"

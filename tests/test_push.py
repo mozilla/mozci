@@ -1,8 +1,17 @@
 # -*- coding: utf-8 -*-
 
-from mozci import push
+import responses
+import pytest
+
 from mozci.push import Push, MAX_DEPTH
 from mozci.task import Task
+from mozci.util.hgmo import HGMO
+
+
+@pytest.fixture(autouse=True, scope='module')
+def reset_hgmo_cache():
+    yield
+    HGMO.CACHE = {}
 
 
 def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_failed_in_grandchild():
@@ -460,10 +469,7 @@ def test_fixed_by_commit(monkeypatch):
     push of interest and failed in a following push, with 'fixed by commit' information
     pointing to the back-outs.
     '''
-    def mock_is_backout(branch, rev):
-        return True
-
-    monkeypatch.setattr(push, "is_backout", mock_is_backout)
+    monkeypatch.setattr(HGMO, 'is_backout', property(lambda cls: True))
 
     first = Push("first")
     current = Push("current")
@@ -506,10 +512,7 @@ def test_fixed_by_commit_task_didnt_run_in_parents(monkeypatch):
     push of interest and failed in a following push, with 'fixed by commit' information
     pointing to the back-outs.
     '''
-    def mock_is_backout(branch, rev):
-        return True
-
-    monkeypatch.setattr(push, "is_backout", mock_is_backout)
+    monkeypatch.setattr(HGMO, 'is_backout', property(lambda cls: True))
 
     first = Push("first")
     current = Push("current")
@@ -546,10 +549,7 @@ def test_fixed_by_commit_push_wasnt_backedout(monkeypatch):
     push of interest and failed in a following push, with 'fixed by commit' information
     pointing to a back-out of another push.
     '''
-    def mock_is_backout(branch, rev):
-        return True
-
-    monkeypatch.setattr(push, "is_backout", mock_is_backout)
+    monkeypatch.setattr(HGMO, 'is_backout', property(lambda cls: True))
 
     first = Push("first")
     current = Push("current")
@@ -586,13 +586,13 @@ def test_fixed_by_commit_no_backout(monkeypatch):
     push of interest and failed in a following push, with 'fixed by commit' information
     pointing to a bustage fix.
     '''
-    def mock_is_backout(branch, rev):
-        if rev == "xxx":
+    def mock_is_backout(cls):
+        if cls.rev == "xxx":
             return False
 
         return True
 
-    monkeypatch.setattr(push, "is_backout", mock_is_backout)
+    monkeypatch.setattr(HGMO, 'is_backout', property(mock_is_backout))
 
     first = Push("first")
     current = Push("current")
@@ -624,3 +624,27 @@ def test_fixed_by_commit_no_backout(monkeypatch):
 
     assert current.get_regressions("label") == {'test-failure-current': 1}
     assert next.get_regressions("label") == {'test-failure-current': 1, 'test-failure-next': 0}
+
+
+@responses.activate
+def test_create_push():
+    responses.add(
+        responses.GET,
+        'https://hg.mozilla.org/integration/autoland/json-pushes?version=2&startID=122&endID=123',
+        json={
+            'pushes': {
+                '123': {
+                    'changesets': ['123456'],
+                    'date': 1213174092,
+                    'user': 'user@example.org',
+                },
+            },
+        },
+        status=200,
+    )
+
+    p1 = Push("abcdef")
+    p2 = p1.create_push(123)
+    assert p2.rev == '123456'
+    assert p2.id == 123
+    assert p2.date == 1213174092

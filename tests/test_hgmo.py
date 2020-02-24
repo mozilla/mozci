@@ -1,40 +1,7 @@
 # -*- coding: utf-8 -*-
-import pytest
-import requests
+import responses
 
 from mozci.util.hgmo import HGMO
-
-
-class MockResponse(object):
-    def __init__(self, url, data):
-        self.status_code = 200
-        self.url = url
-        self.data = data
-
-    def json(self):
-        return self.data
-
-    def raise_for_status(self):
-        pass
-
-
-@pytest.fixture
-def patch_requests(monkeypatch):
-
-    def inner(data, fmt=None):
-        if fmt == 'automation_relevance':
-            data = {
-                'changesets': [
-                    data
-                ]
-            }
-
-        def mock_get(url):
-            return MockResponse(url, data)
-
-        monkeypatch.setattr(requests, 'get', mock_get)
-
-    return inner
 
 
 def test_hgmo_cache():
@@ -49,13 +16,33 @@ def test_hgmo_cache():
     assert h1 != h2
 
 
-def test_hgmo_is_backout(patch_requests):
-    patch_requests({'backsoutnodes': []}, fmt='automation_relevance')
+@responses.activate
+def test_hgmo_is_backout():
+    responses.add(
+        responses.GET,
+        "https://hg.mozilla.org/integration/autoland/rev/abcdef?style=json",
+        json={},
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://hg.mozilla.org/integration/autoland/json-automationrelevance/abcdef",
+        json={"changesets": [{"backsoutnodes": []}]},
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://hg.mozilla.org/integration/autoland/json-automationrelevance/abcdef",
+        json={"changesets": [{"backsoutnodes": ["123456"]}]},
+        status=200,
+    )
+
     h = HGMO('abcdef')
     assert h['backsoutnodes'] == []
     assert not h.is_backout
 
-    patch_requests({'backsoutnodes': ['123456']}, fmt='automation_relevance')
     h = HGMO('abcdef')
     assert h.is_backout
     assert h['backsoutnodes'] == ['123456']

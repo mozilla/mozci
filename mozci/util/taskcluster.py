@@ -4,42 +4,18 @@
 
 import functools
 import requests
-from requests.packages.urllib3.util.retry import Retry
 
 import taskcluster_urls as liburls
-from adr.util import memoize
 
 from mozci.util import yaml
+from mozci.util.req import get_session
 
 
 PRODUCTION_TASKCLUSTER_ROOT_URL = 'https://firefox-ci-tc.services.mozilla.com'
 
-# the maximum number of parallel Taskcluster API calls to make
-CONCURRENCY = 50
-
-
-@memoize
-def get_session():
-    session = requests.Session()
-
-    retry = Retry(total=5, backoff_factor=0.1,
-                  status_forcelist=[500, 502, 503, 504])
-
-    # Default HTTPAdapter uses 10 connections. Mount custom adapter to increase
-    # that limit. Connections are established as needed, so using a large value
-    # should not negatively impact performance.
-    http_adapter = requests.adapters.HTTPAdapter(
-        pool_connections=CONCURRENCY,
-        pool_maxsize=CONCURRENCY,
-        max_retries=retry)
-    session.mount('https://', http_adapter)
-    session.mount('http://', http_adapter)
-
-    return session
-
 
 def _do_request(url, force_get=False, **kwargs):
-    session = get_session()
+    session = get_session("taskcluster")
     if kwargs and not force_get:
         response = session.post(url, **kwargs)
     else:

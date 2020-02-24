@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import responses
 import pytest
 
 from mozci.push import Push, MAX_DEPTH
@@ -860,8 +859,7 @@ def test_intermittent_classification(monkeypatch):
     assert next.get_regressions("label") == {}
 
 
-@responses.activate
-def test_create_push():
+def test_create_push(responses):
     responses.add(
         responses.GET,
         'https://hg.mozilla.org/integration/autoland/json-pushes?version=2&startID=122&endID=123',

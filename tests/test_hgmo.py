@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import responses
-
 from mozci.util.hgmo import HGMO
 
 
@@ -16,8 +14,7 @@ def test_hgmo_cache():
     assert h1 != h2
 
 
-@responses.activate
-def test_hgmo_is_backout():
+def test_hgmo_is_backout(responses):
     responses.add(
         responses.GET,
         "https://hg.mozilla.org/integration/autoland/rev/abcdef?style=json",
@@ -48,8 +45,7 @@ def test_hgmo_is_backout():
     assert h['backsoutnodes'] == ['123456']
 
 
-@responses.activate
-def test_hgmo_json_data():
+def test_hgmo_json_data(responses):
     responses.add(
         responses.GET,
         "https://hg.mozilla.org/integration/autoland/rev/abcdef?style=json",

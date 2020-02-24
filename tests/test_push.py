@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import responses
+
 from mozci import push
 from mozci.push import Push, MAX_DEPTH
 from mozci.task import Task
@@ -624,3 +626,27 @@ def test_fixed_by_commit_no_backout(monkeypatch):
 
     assert current.get_regressions("label") == {'test-failure-current': 1}
     assert next.get_regressions("label") == {'test-failure-current': 1, 'test-failure-next': 0}
+
+
+@responses.activate
+def test_create_push():
+    responses.add(
+        responses.GET,
+        'https://hg.mozilla.org/integration/autoland/json-pushes?version=2&startID=122&endID=123',
+        json={
+            'pushes': {
+                '123': {
+                    'changesets': ['123456'],
+                    'date': 1213174092,
+                    'user': 'user@example.org',
+                },
+            },
+        },
+        status=200,
+    )
+
+    p1 = Push("abcdef")
+    p2 = p1.create_push(123)
+    assert p2.rev == '123456'
+    assert p2.id == 123
+    assert p2.date == 1213174092

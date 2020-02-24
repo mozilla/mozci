@@ -16,6 +16,7 @@ taskcluster_urls = "^12.1"
 flake8 = "^3.7"
 pytest = "^5.3"
 tox = "^3.14"
+responses = "^0.10"
 
 [build-system]
 requires = ["poetry>=1.0.2"]

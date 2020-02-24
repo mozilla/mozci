@@ -44,7 +44,7 @@ class HGMO():
 
     @property
     def data(self):
-        url = self.JSON_PUSHES_TEMPLATE.format(**self.context)
+        url = self.JSON_TEMPLATE.format(**self.context)
         return self._get_resource(url)
 
     def __getitem__(self, k):

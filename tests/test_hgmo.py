@@ -46,3 +46,16 @@ def test_hgmo_is_backout():
     h = HGMO('abcdef')
     assert h.is_backout
     assert h['backsoutnodes'] == ['123456']
+
+
+@responses.activate
+def test_hgmo_json_data():
+    responses.add(
+        responses.GET,
+        "https://hg.mozilla.org/integration/autoland/rev/abcdef?style=json",
+        json={'backedoutby': '123456'},
+        status=200,
+    )
+
+    h = HGMO('abcdef')
+    assert h.get('backedoutby') == '123456'

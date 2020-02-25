@@ -405,7 +405,7 @@ class Push:
                         # If the failure was classified as fixed by commit, and the fixing commit
                         # is a backout of the current push, it is definitely a regression of the
                         # current push.
-                        candidate_regressions[name] = -math.inf
+                        candidate_regressions[name] = (-math.inf, summary.status)
                         continue
                     elif all(
                         HGMO.create(n, branch=self.branch).is_backout
@@ -422,7 +422,7 @@ class Push:
                     # children, we don't want to increase the previous distance.
                     continue
 
-                candidate_regressions[name] = count
+                candidate_regressions[name] = (count, summary.status)
 
             other = other.child
             count += 1
@@ -446,7 +446,7 @@ class Push:
         """
         regressions = {}
 
-        for name, child_count in self.get_candidate_regressions(runnable_type).items():
+        for name, (child_count, status) in self.get_candidate_regressions(runnable_type).items():
             count = 0
             other = self.parent
             prior_regression = False
@@ -470,6 +470,10 @@ class Push:
             # MAX_DEPTH).
             # We can't fully exclude pushes which were not backed-out because of bustage fixes.
             if not self.backedout:
+                total_count *= 2
+
+            # Also penalize cases where the status was intermittent.
+            if status == Status.INTERMITTENT:
                 total_count *= 2
 
             if not prior_regression and total_count <= MAX_DEPTH:

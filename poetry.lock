@@ -4,7 +4,7 @@ description = "Utility for running ActiveData recipes"
 name = "adr"
 optional = false
 python-versions = ">=3.6,<4.0"
-version = "0.17.3"
+version = "0.17.5"
 
 [package.dependencies]
 appdirs = ">=1.4,<2.0"
@@ -364,7 +364,7 @@ description = "A utility library for mocking out the `requests` Python library."
 name = "responses"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-version = "0.10.9"
+version = "0.10.11"
 
 [package.dependencies]
 requests = ">=2.0"
@@ -513,8 +513,8 @@ python-versions = "^3.7"
 
 [metadata.files]
 adr = [
-    {file = "adr-0.17.3-py3-none-any.whl", hash = "sha256:9b7d68bc453f15e6051f299a91ad88f12802d1d8023a31b05de11fb16f7612d6"},
-    {file = "adr-0.17.3.tar.gz", hash = "sha256:5285fb0e737603a0a763df55aa332a47d6b8d85613e82bd1a3b7b9bc1053c2ae"},
+    {file = "adr-0.17.5-py3-none-any.whl", hash = "sha256:cc7fea48469e3fe9168b7cb7e9c7c146aec85809be2fea25fa9d7c2add911c22"},
+    {file = "adr-0.17.5.tar.gz", hash = "sha256:f2d9835fe6bc2c876babde288955d7704f2a1368807188dd6e3e930a9d34af7a"},
 ]
 appdirs = [
     {file = "appdirs-1.4.3-py2.py3-none-any.whl", hash = "sha256:d8b24664561d0d34ddfaec54636d502d7cea6e29c3eaf68f3df6180863e2166e"},
@@ -647,8 +647,8 @@ requests = [
     {file = "requests-2.23.0.tar.gz", hash = "sha256:b3f43d496c6daba4493e7c431722aeb7dbc6288f52a6e04e7b6023b0247817e6"},
 ]
 responses = [
-    {file = "responses-0.10.9-py2.py3-none-any.whl", hash = "sha256:515fd7c024097e5da76e9c4cf719083d181f1c3ddc09c2e0e49284ce863dd263"},
-    {file = "responses-0.10.9.tar.gz", hash = "sha256:8ce8cb4e7e1ad89336f8865af152e0563d2e7f0e0b86d2cf75f015f819409243"},
+    {file = "responses-0.10.11-py2.py3-none-any.whl", hash = "sha256:859a7f8495a069ce835620bb4bb111688f593a6f8873a3335a99c31a5aef9a9a"},
+    {file = "responses-0.10.11.tar.gz", hash = "sha256:33d8994990de31a9fbb8c889c3a378dac296b821f37330c845608ae565e7fca3"},
 ]
 six = [
     {file = "six-1.14.0-py2.py3-none-any.whl", hash = "sha256:8f3cd2e254d8f793e7f3d6d9df77b92252b52637291d0f0da013c76ea2724b6c"},

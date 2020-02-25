@@ -13,7 +13,7 @@ def reset_hgmo_cache():
     HGMO.CACHE = {}
 
 
-def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_failed_in_grandchild(create_pushes):  # noqa
+def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_failed_in_grandchild(create_pushes):
     '''
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     push of interest, and failed in its following pushes.
@@ -24,9 +24,9 @@ def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_failed_in_gran
     # setup
     p[i-1].tasks = [Task.create(id="1", label="test-prova", result="success")]
     p[i].backedoutby = "xxx"
-    p[i+1].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]  # noqa
+    p[i+1].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]
     p[i+1].backedoutby = "xxx"
-    p[i+2].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]  # noqa
+    p[i+2].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]
     p[i+2].backedoutby = "xxx"
 
     assert p[i-2].get_regressions("label") == {}
@@ -36,7 +36,7 @@ def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_failed_in_gran
     assert p[i+2].get_regressions("label") == {}
 
 
-def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_succeeded_in_grandchild(create_pushes):  # noqa
+def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_succeeded_in_grandchild(create_pushes):
     '''
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     push of interest, failed in a following push, and succeeded in a second
@@ -48,7 +48,7 @@ def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_succeeded_in_g
     # setup
     p[i-1].tasks = [Task.create(id="1", label="test-prova", result="success")]
     p[i].backedoutby = "xxx"
-    p[i+1].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]  # noqa
+    p[i+1].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]
     p[i+1].backedoutby = "xxx"
     p[i+2].tasks = [Task.create(id="1", label="test-prova", result="success")]
 
@@ -59,7 +59,7 @@ def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_succeeded_in_g
     assert p[i+2].get_regressions("label") == {}
 
 
-def test_succeeded_in_parent_didnt_run_in_current_passed_in_child_failed_in_grandchild(create_pushes):  # noqa
+def test_succeeded_in_parent_didnt_run_in_current_passed_in_child_failed_in_grandchild(create_pushes):
     '''
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     push of interest, succeeded in a following push, and failed in a second
@@ -70,7 +70,7 @@ def test_succeeded_in_parent_didnt_run_in_current_passed_in_child_failed_in_gran
 
     p[i-1].tasks = [Task.create(id="1", label="test-prova", result="success")]
     p[i+1].tasks = [Task.create(id="1", label="test-prova", result="success")]
-    p[i+2].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]  # noqa
+    p[i+2].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]
     p[i+2].backedoutby = "xxx"
 
     assert p[i-2].get_regressions("label") == {}
@@ -80,7 +80,7 @@ def test_succeeded_in_parent_didnt_run_in_current_passed_in_child_failed_in_gran
     assert p[i+2].get_regressions("label") == {"test-prova": 0}
 
 
-def test_succeeded_in_parent_succeeded_in_current_failed_in_child_failed_in_grandchild(create_pushes):  # noqa
+def test_succeeded_in_parent_succeeded_in_current_failed_in_child_failed_in_grandchild(create_pushes):
     '''
     Tests the scenario where a task succeeded in a parent push, succeeded in the
     push of interest, failed in a following push, and failed in a second
@@ -91,9 +91,9 @@ def test_succeeded_in_parent_succeeded_in_current_failed_in_child_failed_in_gran
 
     p[i-2].tasks = [Task.create(id="1", label="test-prova", result="success")]
     p[i].tasks = [Task.create(id="1", label="test-prova", result="success")]
-    p[i+1].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]  # noqa
+    p[i+1].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]
     p[i+1].backedoutby = "xxx"
-    p[i+2].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]  # noqa
+    p[i+2].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]
     p[i+2].backedoutby = "xxx"
 
     assert p[i-2].get_regressions("label") == {}
@@ -103,7 +103,7 @@ def test_succeeded_in_parent_succeeded_in_current_failed_in_child_failed_in_gran
     assert p[i+2].get_regressions("label") == {}
 
 
-def test_succeeded_in_parent_failed_in_current_succeeded_in_child_succeeded_in_grandchild(create_pushes):  # noqa
+def test_succeeded_in_parent_failed_in_current_succeeded_in_child_succeeded_in_grandchild(create_pushes):
     '''
     Tests the scenario where a task succeeded in a parent push, failed in the
     push of interest, succeeded in a following push, and succeeded in a second
@@ -113,7 +113,7 @@ def test_succeeded_in_parent_failed_in_current_succeeded_in_child_succeeded_in_g
     i = 3  # the index of the push we are mainly interested in
 
     p[i-1].tasks = [Task.create(id="1", label="test-prova", result="success")]
-    p[i].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]  # noqa
+    p[i].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]
     p[i].backedoutby = "xxx"
     p[i+1].tasks = [Task.create(id="1", label="test-prova", result="success")]
     p[i+2].tasks = [Task.create(id="1", label="test-prova", result="success")]
@@ -146,7 +146,7 @@ def test_failed_and_backedout(create_pushes):
     i = 1  # the index of the push we are mainly interested in
 
     p[i-1].tasks = [Task.create(id="1", label="test-prova", result="success")]
-    p[i].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]  # noqa
+    p[i].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]
     p[i].backedoutby = "xxx"
 
     assert p[i].get_regressions("label") == {'test-prova': 0}
@@ -160,7 +160,7 @@ def test_failed_and_not_backedout(create_pushes):
     i = 1  # the index of the push we are mainly interested in
 
     p[i-1].tasks = [Task.create(id="1", label="test-prova", result="success")]
-    p[i].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]  # noqa
+    p[i].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]
 
     assert p[i].get_regressions("label") == {'test-prova': 0}
 
@@ -174,7 +174,7 @@ def test_child_failed_and_not_backedout(create_pushes):
     i = 1  # the index of the push we are mainly interested in
 
     p[i-1].tasks = [Task.create(id="1", label="test-prova", result="success")]
-    p[len(p) - 2].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]  # noqa
+    p[len(p) - 2].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]
 
     assert p[i].get_regressions("label") == {'test-prova': 6}
 
@@ -188,7 +188,7 @@ def test_far_child_failed_and_backedout(create_pushes):
     i = 1  # the index of the push we are mainly interested in
 
     p[i-1].tasks = [Task.create(id="1", label="test-prova", result="success")]
-    p[len(p) - 2].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]  # noqa
+    p[len(p) - 2].tasks = [Task.create(id="1", label="test-prova", result="testfailed", classification="not classified")]
 
     assert p[i].get_regressions("label") == {}
 
@@ -210,8 +210,8 @@ def test_fixed_by_commit(monkeypatch, create_pushes):
     ]
     p[i].backedoutby = "d25e5c66de225e2d1b989af61a0420874707dd14"
     p[i+1].tasks = [
-        Task.create(id="1", label="test-failure-current", result="testfailed", classification="fixed by commit", classification_note="d25e5c66de225e2d1b989af61a0420874707dd14"),  # noqa
-        Task.create(id="1", label="test-failure-next", result="testfailed", classification="fixed by commit", classification_note="012c3f1626b3"),  # noqa
+        Task.create(id="1", label="test-failure-current", result="testfailed", classification="fixed by commit", classification_note="d25e5c66de225e2d1b989af61a0420874707dd14"),
+        Task.create(id="1", label="test-failure-next", result="testfailed", classification="fixed by commit", classification_note="012c3f1626b3"),
     ]
     p[i+1].backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
 
@@ -232,7 +232,7 @@ def test_fixed_by_commit_task_didnt_run_in_parents(monkeypatch, create_pushes):
 
     p[i].backedoutby = "d25e5c66de225e2d1b989af61a0420874707dd14"
 
-    p[i+1].tasks = [Task.create(id="1", label="test-failure-current", result="testfailed", classification="fixed by commit", classification_note="d25e5c66de225e2d1b989af61a0420874707dd14")]  # noqa
+    p[i+1].tasks = [Task.create(id="1", label="test-failure-current", result="testfailed", classification="fixed by commit", classification_note="d25e5c66de225e2d1b989af61a0420874707dd14")]
     p[i+1].backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
 
     assert p[i].get_regressions("label") == {'test-failure-current': 0}
@@ -251,7 +251,7 @@ def test_fixed_by_commit_push_wasnt_backedout(monkeypatch, create_pushes):
     i = 1  # the index of the push we are mainly interested in
 
     p[i-1].tasks = [Task.create(id="1", label="test-failure-current", result="success")]
-    p[i+1].tasks = [Task.create(id="1", label="test-failure-current", result="testfailed", classification="fixed by commit", classification_note="xxx")]  # noqa
+    p[i+1].tasks = [Task.create(id="1", label="test-failure-current", result="testfailed", classification="fixed by commit", classification_note="xxx")]
     p[i+1].backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
 
     assert p[i].get_regressions("label") == {}
@@ -275,12 +275,12 @@ def test_fixed_by_commit_no_backout(monkeypatch, create_pushes):
     p = create_pushes(4)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i-1].tasks = [Task.create(id="1", label="test-failure-current", result="success"), Task.create(id="1", label="test-failure-next", result="success")]  # noqa
+    p[i-1].tasks = [Task.create(id="1", label="test-failure-current", result="success"), Task.create(id="1", label="test-failure-next", result="success")]
     p[i].backedoutby = "d25e5c66de225e2d1b989af61a0420874707dd14"
 
     p[i+1].tasks = [
-        Task.create(id="1", label="test-failure-current", result="testfailed", classification="fixed by commit", classification_note="xxx"),  # noqa
-        Task.create(id="1", label="test-failure-next", result="testfailed", classification="fixed by commit", classification_note="012c3f1626b3"),  # noqa
+        Task.create(id="1", label="test-failure-current", result="testfailed", classification="fixed by commit", classification_note="xxx"),
+        Task.create(id="1", label="test-failure-next", result="testfailed", classification="fixed by commit", classification_note="012c3f1626b3"),
     ]
     p[i+1].backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
 
@@ -301,7 +301,7 @@ def test_intermittent_without_classification_and_not_backedout(monkeypatch, crea
     p[i-1].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
     p[i].tasks = [
         Task.create(id="1", label="test-intermittent", result="success"),
-        Task.create(id="2", label="test-intermittent", result="testfailed", classification="not classified"),  # noqa
+        Task.create(id="2", label="test-intermittent", result="testfailed", classification="not classified"),
     ]
     p[i].backedoutby = "xxx"
 
@@ -322,7 +322,7 @@ def test_far_intermittent_without_classification_and_not_backedout(monkeypatch, 
     p[i-1].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
     p[i+1].tasks = [
         Task.create(id="1", label="test-intermittent", result="success"),
-        Task.create(id="2", label="test-intermittent", result="testfailed", classification="not classified"),  # noqa
+        Task.create(id="2", label="test-intermittent", result="testfailed", classification="not classified"),
     ]
 
     assert p[i].get_regressions("label") == {'test-intermittent': 4}
@@ -342,7 +342,7 @@ def test_intermittent_without_classification_and_backedout(monkeypatch, create_p
     p[i-1].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
     p[i].tasks = [
         Task.create(id="1", label="test-intermittent", result="success"),
-        Task.create(id="2", label="test-intermittent", result="testfailed", classification="not classified"),  # noqa
+        Task.create(id="2", label="test-intermittent", result="testfailed", classification="not classified"),
     ]
     p[i].backedoutby = "xxx"
 
@@ -364,7 +364,7 @@ def test_far_intermittent_without_classification_and_backedout(monkeypatch, crea
     p[i].backedoutby = "xxx"
     p[i+1].tasks = [
         Task.create(id="1", label="test-intermittent", result="success"),
-        Task.create(id="2", label="test-intermittent", result="testfailed", classification="not classified"),  # noqa
+        Task.create(id="2", label="test-intermittent", result="testfailed", classification="not classified"),
     ]
     p[i+1].backedoutby = "yyy"
 
@@ -388,7 +388,7 @@ def test_intermittent_fixed_by_commit(monkeypatch, create_pushes):
     p[i].backedoutby = "d25e5c66de225e2d1b989af61a0420874707dd14"
     p[i+1].tasks = [
         Task.create(id="1", label="test-intermittent", result="success"),
-        Task.create(id="2", label="test-intermittent", result="testfailed", classification="fixed by commit", classification_note="d25e5c66de225e2d1b989af61a0420874707dd14"),  # noqa
+        Task.create(id="2", label="test-intermittent", result="testfailed", classification="fixed by commit", classification_note="d25e5c66de225e2d1b989af61a0420874707dd14"),
     ]
     p[i+1].backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
 
@@ -409,7 +409,7 @@ def test_intermittent_classification(monkeypatch, create_pushes):
 
     p[i-1].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
     p[i].backedoutby = "xxx"
-    p[i+1].tasks = [Task.create(id="1", label="test-intermittent", result="testfailed", classification="intermittent")]  # noqa
+    p[i+1].tasks = [Task.create(id="1", label="test-intermittent", result="testfailed", classification="intermittent")]
     p[i+1].backedoutby = "yyy"
 
     assert p[i].get_regressions("label") == {}

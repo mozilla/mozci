@@ -1,4 +1,5 @@
 import math
+import concurrent.futures
 from argparse import Namespace
 from collections import defaultdict
 
@@ -302,12 +303,19 @@ class Push:
             dict: A dictionary of the form {<group>: [<GroupSummary>]}.
         """
         groups = defaultdict(list)
-        for task in self.tasks:
-            if not isinstance(task, TestTask):
-                continue
 
-            for group in task.groups:
-                groups[group].append(task)
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_task = {
+                executor.submit(lambda task: task.groups, task): task
+                for task in self.tasks
+                if isinstance(task, TestTask)
+            }
+
+            for future in concurrent.futures.as_completed(future_to_task):
+                task = future_to_task[future]
+                for group in future.result():
+                    groups[group].append(task)
+
         groups = {group: GroupSummary(group, tasks) for group, tasks in groups.items()}
         return groups
 

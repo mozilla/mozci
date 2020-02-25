@@ -59,7 +59,7 @@ def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_succeeded_in_g
     assert p[i+2].get_regressions("label") == {}
 
 
-def test_succeeded_in_parent_didnt_run_in_current_passed_in_child_failed_in_grandchild(create_pushes):
+def test_succeeded_in_parent_didnt_run_in_current_passed_in_child_failed_in_grandchild(create_pushes):  # noqa
     '''
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     push of interest, succeeded in a following push, and failed in a second
@@ -80,7 +80,7 @@ def test_succeeded_in_parent_didnt_run_in_current_passed_in_child_failed_in_gran
     assert p[i+2].get_regressions("label") == {"test-prova": 0}
 
 
-def test_succeeded_in_parent_succeeded_in_current_failed_in_child_failed_in_grandchild(create_pushes):
+def test_succeeded_in_parent_succeeded_in_current_failed_in_child_failed_in_grandchild(create_pushes):  # noqa
     '''
     Tests the scenario where a task succeeded in a parent push, succeeded in the
     push of interest, failed in a following push, and failed in a second
@@ -288,40 +288,27 @@ def test_fixed_by_commit_no_backout(monkeypatch, create_pushes):
     assert p[i+1].get_regressions("label") == {'test-failure-current': 1, 'test-failure-next': 0}
 
 
-def test_intermittent_without_classification_and_not_backedout(monkeypatch):
+def test_intermittent_without_classification_and_not_backedout(monkeypatch, create_pushes):
     '''
     Tests the scenario where a task succeeded in a parent push, was intermittent
     in the push of interest, which was not backed-out and didn't have a classification.
     '''
     monkeypatch.setattr(HGMO, 'is_backout', property(lambda cls: True))
 
-    first = Push("first")
-    current = Push("current")
-    last = Push("last")
+    p = create_pushes(3)
+    i = 1  # the index of the push we are mainly interested in
 
-    first.parent = first
-    first.child = current
-    first.tasks = [Task.create(id="1", label="test-intermittent", result="success")]
-    first.backedoutby = None
-
-    current.parent = first
-    current.child = last
-    current.tasks = [
+    p[i-1].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
+    p[i].tasks = [
         Task.create(id="1", label="test-intermittent", result="success"),
         Task.create(id="2", label="test-intermittent", result="testfailed", classification="not classified"),  # noqa
     ]
-    current.backedoutby = None
-    current.backedoutby = "xxx"
+    p[i].backedoutby = "xxx"
 
-    last.parent = current
-    last.child = last
-    last.tasks = []
-    last.backedoutby = None
-
-    assert current.get_regressions("label") == {'test-intermittent': 0}
+    assert p[i].get_regressions("label") == {'test-intermittent': 0}
 
 
-def test_far_intermittent_without_classification_and_not_backedout(monkeypatch):
+def test_far_intermittent_without_classification_and_not_backedout(monkeypatch, create_pushes):
     '''
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     in the push of interest, was intermittent in a following push, which was not
@@ -329,71 +316,40 @@ def test_far_intermittent_without_classification_and_not_backedout(monkeypatch):
     '''
     monkeypatch.setattr(HGMO, 'is_backout', property(lambda cls: True))
 
-    first = Push("first")
-    current = Push("current")
-    next = Push("next")
-    last = Push("last")
+    p = create_pushes(4)
+    i = 1  # the index of the push we are mainly interested in
 
-    first.parent = first
-    first.child = current
-    first.tasks = [Task.create(id="1", label="test-intermittent", result="success")]
-    first.backedoutby = None
-
-    current.parent = first
-    current.child = next
-    current.tasks = []
-    current.backedoutby = None
-
-    next.parent = current
-    next.child = last
-    next.tasks = [
+    p[i-1].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
+    p[i+1].tasks = [
         Task.create(id="1", label="test-intermittent", result="success"),
         Task.create(id="2", label="test-intermittent", result="testfailed", classification="not classified"),  # noqa
     ]
-    next.backedoutby = None
 
-    last.parent = current
-    last.child = last
-    last.tasks = []
-    last.backedoutby = None
-
-    assert current.get_regressions("label") == {'test-intermittent': 4}
-    assert next.get_regressions("label") == {'test-intermittent': 4}
+    assert p[i].get_regressions("label") == {'test-intermittent': 4}
+    assert p[i+1].get_regressions("label") == {'test-intermittent': 4}
 
 
-def test_intermittent_without_classification_and_backedout(monkeypatch):
+def test_intermittent_without_classification_and_backedout(monkeypatch, create_pushes):
     '''
     Tests the scenario where a task succeeded in a parent push, was intermittent
     in the push of interest, which was backed-out and didn't have a classification.
     '''
     monkeypatch.setattr(HGMO, 'is_backout', property(lambda cls: True))
 
-    first = Push("first")
-    current = Push("current")
-    last = Push("last")
+    p = create_pushes(3)
+    i = 1  # the index of the push we are mainly interested in
 
-    first.parent = first
-    first.child = current
-    first.tasks = [Task.create(id="1", label="test-intermittent", result="success")]
-    first.backedoutby = None
-
-    current.parent = first
-    current.child = last
-    current.tasks = [
+    p[i-1].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
+    p[i].tasks = [
         Task.create(id="1", label="test-intermittent", result="success"),
         Task.create(id="2", label="test-intermittent", result="testfailed", classification="not classified"),  # noqa
     ]
-    current.backedoutby = "xxx"
+    p[i].backedoutby = "xxx"
 
-    last.parent = current
-    last.child = last
-    last.tasks = []
-    last.backedoutby = None
-
-    assert current.get_regressions("label") == {'test-intermittent': 0}
+    assert p[i].get_regressions("label") == {'test-intermittent': 0}
 
 
-def test_far_intermittent_without_classification_and_backedout(monkeypatch):
+def test_far_intermittent_without_classification_and_backedout(monkeypatch, create_pushes):
     '''
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     in the push of interest, was intermittent in a following push, which was
@@ -401,39 +357,22 @@ def test_far_intermittent_without_classification_and_backedout(monkeypatch):
     '''
     monkeypatch.setattr(HGMO, 'is_backout', property(lambda cls: True))
 
-    first = Push("first")
-    current = Push("current")
-    next = Push("next")
-    last = Push("last")
+    p = create_pushes(4)
+    i = 1  # the index of the push we are mainly interested in
 
-    first.parent = first
-    first.child = current
-    first.tasks = [Task.create(id="1", label="test-intermittent", result="success")]
-    first.backedoutby = None
-
-    current.parent = first
-    current.child = next
-    current.tasks = []
-    current.backedoutby = "xxx"
-
-    next.parent = current
-    next.child = last
-    next.tasks = [
+    p[i-1].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
+    p[i].backedoutby = "xxx"
+    p[i+1].tasks = [
         Task.create(id="1", label="test-intermittent", result="success"),
         Task.create(id="2", label="test-intermittent", result="testfailed", classification="not classified"),  # noqa
     ]
-    next.backedoutby = "yyy"
+    p[i+1].backedoutby = "yyy"
 
-    last.parent = current
-    last.child = last
-    last.tasks = []
-    last.backedoutby = None
-
-    assert current.get_regressions("label") == {'test-intermittent': 2}
-    assert next.get_regressions("label") == {'test-intermittent': 2}
+    assert p[i].get_regressions("label") == {'test-intermittent': 2}
+    assert p[i+1].get_regressions("label") == {'test-intermittent': 2}
 
 
-def test_intermittent_fixed_by_commit(monkeypatch):
+def test_intermittent_fixed_by_commit(monkeypatch, create_pushes):
     '''
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     in the push of interest, was intermittent in a following push, which was
@@ -441,45 +380,23 @@ def test_intermittent_fixed_by_commit(monkeypatch):
     '''
     monkeypatch.setattr(HGMO, 'is_backout', property(lambda cls: True))
 
-    first = Push("first")
-    second = Push("second")
-    current = Push("current")
-    next = Push("next")
-    last = Push("last")
+    p = create_pushes(5)
+    i = 2  # the index of the push we are mainly interested in
 
-    first.parent = first
-    first.child = second
-    first.tasks = [Task.create(id="1", label="test-intermittent", result="success")]
-    first.backedoutby = None
-
-    second.parent = first
-    second.child = current
-    second.tasks = []
-    second.backedoutby = None
-
-    current.parent = second
-    current.child = next
-    current.tasks = []
-    current.backedoutby = "d25e5c66de225e2d1b989af61a0420874707dd14"
-
-    next.parent = current
-    next.child = last
-    next.tasks = [
+    p[i-2].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
+    p[i-2].backedoutby = None
+    p[i].backedoutby = "d25e5c66de225e2d1b989af61a0420874707dd14"
+    p[i+1].tasks = [
         Task.create(id="1", label="test-intermittent", result="success"),
         Task.create(id="2", label="test-intermittent", result="testfailed", classification="fixed by commit", classification_note="d25e5c66de225e2d1b989af61a0420874707dd14"),  # noqa
     ]
-    next.backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
+    p[i+1].backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
 
-    last.parent = next
-    last.child = last
-    last.tasks = []
-    last.backedoutby = None
-
-    assert current.get_regressions("label") == {'test-intermittent': 0}
-    assert next.get_regressions("label") == {}
+    assert p[i].get_regressions("label") == {'test-intermittent': 0}
+    assert p[i+1].get_regressions("label") == {}
 
 
-def test_intermittent_classification(monkeypatch):
+def test_intermittent_classification(monkeypatch, create_pushes):
     '''
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     in the push of interest, failed in a following push, which was
@@ -487,39 +404,16 @@ def test_intermittent_classification(monkeypatch):
     '''
     monkeypatch.setattr(HGMO, 'is_backout', property(lambda cls: True))
 
-    first = Push("first")
-    second = Push("second")
-    current = Push("current")
-    next = Push("next")
-    last = Push("last")
+    p = create_pushes(5)
+    i = 2  # the index of the push we are mainly interested in
 
-    first.parent = first
-    first.child = second
-    first.tasks = [Task.create(id="1", label="test-intermittent", result="success")]
-    first.backedoutby = None
+    p[i-1].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
+    p[i].backedoutby = "xxx"
+    p[i+1].tasks = [Task.create(id="1", label="test-intermittent", result="testfailed", classification="intermittent")]  # noqa
+    p[i+1].backedoutby = "yyy"
 
-    second.parent = first
-    second.child = current
-    second.tasks = []
-    second.backedoutby = None
-
-    current.parent = second
-    current.child = next
-    current.tasks = []
-    current.backedoutby = "xxx"
-
-    next.parent = current
-    next.child = last
-    next.tasks = [Task.create(id="1", label="test-intermittent", result="testfailed", classification="intermittent")]  # noqa
-    next.backedoutby = "yyy"
-
-    last.parent = next
-    last.child = last
-    last.tasks = []
-    last.backedoutby = None
-
-    assert current.get_regressions("label") == {}
-    assert next.get_regressions("label") == {}
+    assert p[i].get_regressions("label") == {}
+    assert p[i+1].get_regressions("label") == {}
 
 
 def test_create_push(responses):

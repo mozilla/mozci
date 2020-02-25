@@ -27,6 +27,8 @@ MAX_DEPTH = 14
 
 
 class Push:
+    # static thread pool, to avoid spawning threads too often.
+    THREAD_POOL_EXECUTOR = concurrent.futures.ThreadPoolExecutor()
 
     def __init__(self, revs, branch='autoland'):
         """A representation of a single push.
@@ -304,17 +306,16 @@ class Push:
         """
         groups = defaultdict(list)
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_to_task = {
-                executor.submit(lambda task: task.groups, task): task
-                for task in self.tasks
-                if isinstance(task, TestTask)
-            }
+        future_to_task = {
+            Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task): task
+            for task in self.tasks
+            if isinstance(task, TestTask)
+        }
 
-            for future in concurrent.futures.as_completed(future_to_task):
-                task = future_to_task[future]
-                for group in future.result():
-                    groups[group].append(task)
+        for future in concurrent.futures.as_completed(future_to_task):
+            task = future_to_task[future]
+            for group in future.result():
+                groups[group].append(task)
 
         groups = {group: GroupSummary(group, tasks) for group, tasks in groups.items()}
         return groups

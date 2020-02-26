@@ -1,5 +1,6 @@
-import math
+# -*- coding: utf-8 -*-
 import concurrent.futures
+import math
 from argparse import Namespace
 from collections import defaultdict
 
@@ -8,14 +9,7 @@ from adr.query import run_query
 from adr.util.memoize import memoize, memoized_property
 from loguru import logger
 
-from mozci.task import (
-    GroupSummary,
-    LabelSummary,
-    Status,
-    Task,
-    TestTask,
-    GroupResult,
-)
+from mozci.task import GroupResult, GroupSummary, LabelSummary, Status, Task, TestTask
 from mozci.util.hgmo import HGMO
 from mozci.util.taskcluster import find_task_id
 
@@ -30,7 +24,7 @@ class Push:
     # static thread pool, to avoid spawning threads too often.
     THREAD_POOL_EXECUTOR = concurrent.futures.ThreadPoolExecutor()
 
-    def __init__(self, revs, branch='autoland'):
+    def __init__(self, revs, branch="autoland"):
         """A representation of a single push.
 
         Args:
@@ -59,7 +53,7 @@ class Push:
         Returns:
             str or None: The commit revision which backs this push out (or None).
         """
-        return self._hgmo.get('backedoutby') or None
+        return self._hgmo.get("backedoutby") or None
 
     @property
     def backedout(self):
@@ -80,7 +74,7 @@ class Push:
         if self._date:
             return self._date
 
-        self._date = self._hgmo['pushdate'][0]
+        self._date = self._hgmo["pushdate"][0]
         return self._date
 
     @property
@@ -93,14 +87,13 @@ class Push:
         if self._id:
             return self._id
 
-        self._id = self._hgmo['pushid']
+        self._id = self._hgmo["pushid"]
         return self._id
 
     def create_push(self, push_id):
-        result = self._hgmo.json_pushes(
-            push_id_start=push_id - 1,
-            push_id_end=push_id
-        )[str(push_id)]
+        result = self._hgmo.json_pushes(push_id_start=push_id - 1, push_id_end=push_id)[
+            str(push_id)
+        ]
 
         push = Push(result["changesets"][::-1])
         # avoids the need to query hgmo to find this info
@@ -151,7 +144,8 @@ class Push:
         retries = defaultdict(int)
 
         list_keys = (
-            "_result_ok", "_result_group",
+            "_result_ok",
+            "_result_group",
         )
 
         def add(result):
@@ -166,22 +160,24 @@ class Push:
                 ]
 
             for task in result["data"]:
-                if 'id' not in task:
+                if "id" not in task:
                     logger.trace(f"Skipping {task} because of missing id.")
                     continue
 
-                task_id = task['id']
+                task_id = task["id"]
 
                 # If a task is re-run, use the data from the last run.
-                if 'retry_id' in task:
-                    if task['retry_id'] < retries[task_id]:
-                        logger.trace(f"Skipping {task} because there is a newer run of it.")
+                if "retry_id" in task:
+                    if task["retry_id"] < retries[task_id]:
+                        logger.trace(
+                            f"Skipping {task} because there is a newer run of it."
+                        )
                         continue
 
-                    retries[task_id] = task['retry_id']
+                    retries[task_id] = task["retry_id"]
 
                     # We don't need to store the retry ID.
-                    del task['retry_id']
+                    del task["retry_id"]
 
                 cur_task = tasks[task_id]
 
@@ -196,7 +192,7 @@ class Push:
 
         # Gather information from the treeherder table.
         try:
-            add(run_query('push_tasks_from_treeherder', args))
+            add(run_query("push_tasks_from_treeherder", args))
         except MissingDataError:
             pass
 
@@ -205,50 +201,52 @@ class Push:
         # artifacts.
         # TODO: We have fallbacks for groups and results, but not for kind.
         try:
-            add(run_query('push_tasks_results_from_unittest', args))
+            add(run_query("push_tasks_results_from_unittest", args))
         except MissingDataError:
             pass
 
         try:
-            add(run_query('push_tasks_groups_from_unittest', args))
+            add(run_query("push_tasks_groups_from_unittest", args))
         except MissingDataError:
             pass
 
         # If we are missing one of these keys, discard the task.
         required_keys = (
-            'id',
-            'label',
+            "id",
+            "label",
         )
 
         # Normalize and validate.
         normalized_tasks = []
         for task in tasks.values():
             missing = [k for k in required_keys if k not in task]
-            taskstr = task.get('label', task['id'])
+            taskstr = task.get("label", task["id"])
 
             if missing:
-                logger.trace(f"Skipping task '{taskstr}' because it is missing "
-                             f"the following attributes: {', '.join(missing)}")
+                logger.trace(
+                    f"Skipping task '{taskstr}' because it is missing "
+                    f"the following attributes: {', '.join(missing)}"
+                )
                 continue
 
-            if task.get('tags'):
-                task['tags'] = {t['name']: t['value'] for t in task['tags']}
+            if task.get("tags"):
+                task["tags"] = {t["name"]: t["value"] for t in task["tags"]}
 
-            if task.get('classification_note'):
-                if isinstance(task['classification_note'], list):
-                    task['classification_note'] = task['classification_note'][-1]
+            if task.get("classification_note"):
+                if isinstance(task["classification_note"], list):
+                    task["classification_note"] = task["classification_note"][-1]
 
-            if task.get('_groups'):
-                if isinstance(task['_groups'], str):
-                    task['_groups'] = [task['_groups']]
+            if task.get("_groups"):
+                if isinstance(task["_groups"], str):
+                    task["_groups"] = [task["_groups"]]
 
-            if task.get('_result_ok'):
-                oks = task.pop('_result_ok')
+            if task.get("_result_ok"):
+                oks = task.pop("_result_ok")
 
-                if task.get('_result_group'):
-                    groups = task.pop('_result_group')
+                if task.get("_result_group"):
+                    groups = task.pop("_result_group")
 
-                    task['_results'] = [
+                    task["_results"] = [
                         GroupResult(group=group, ok=ok)
                         for group, ok in zip(groups, oks)
                     ]
@@ -273,7 +271,7 @@ class Push:
         Returns:
             set: A set of task labels.
         """
-        return set(self.decision_task.get_artifact('public/target-tasks.json'))
+        return set(self.decision_task.get_artifact("public/target-tasks.json"))
 
     @memoized_property
     def scheduled_task_labels(self):
@@ -284,8 +282,8 @@ class Push:
         Returns:
             set: A set of task labels (str).
         """
-        tasks = self.decision_task.get_artifact('public/task-graph.json').values()
-        return {t['label'] for t in tasks}
+        tasks = self.decision_task.get_artifact("public/task-graph.json").values()
+        return {t["label"] for t in tasks}
 
     @property
     def unscheduled_task_labels(self):
@@ -377,7 +375,7 @@ class Push:
         Returns:
             set: Set of runnable names (str).
         """
-        failclass = ('not classified', 'fixed by commit')
+        failclass = ("not classified", "fixed by commit")
 
         passing_runnables = set()
         candidate_regressions = {}
@@ -455,7 +453,9 @@ class Push:
         """
         regressions = {}
 
-        for name, (child_count, status) in self.get_candidate_regressions(runnable_type).items():
+        for name, (child_count, status) in self.get_candidate_regressions(
+            runnable_type
+        ).items():
             count = 0
             other = self.parent
             prior_regression = False
@@ -499,7 +499,11 @@ class Push:
         Returns:
             set: Set of runnables (str).
         """
-        return set(name for name, count in self.get_regressions(runnable_type).items() if count > 0)
+        return set(
+            name
+            for name, count in self.get_regressions(runnable_type).items()
+            if count > 0
+        )
 
     def get_likely_regressions(self, runnable_type):
         """The set of all runnables that were likely regressed by this push.
@@ -530,7 +534,7 @@ class Push:
         """
         index = self.index + ".source.shadow-scheduler-{}".format(name)
         task = Task(id=find_task_id(index))
-        labels = task.get_artifact('public/shadow-scheduler/optimized_tasks.list')
+        labels = task.get_artifact("public/shadow-scheduler/optimized_tasks.list")
         return set(labels.splitlines())
 
     def __repr__(self):

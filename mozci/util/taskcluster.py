@@ -1,17 +1,17 @@
+# -*- coding: utf-8 -*-
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import functools
-import requests
 
+import requests
 import taskcluster_urls as liburls
 
 from mozci.util import yaml
 from mozci.util.req import get_session
 
-
-PRODUCTION_TASKCLUSTER_ROOT_URL = 'https://firefox-ci-tc.services.mozilla.com'
+PRODUCTION_TASKCLUSTER_ROOT_URL = "https://firefox-ci-tc.services.mozilla.com"
 
 
 def _do_request(url, force_get=False, **kwargs):
@@ -29,12 +29,11 @@ def _do_request(url, force_get=False, **kwargs):
 
 
 def _handle_artifact(path, response):
-    if path.endswith('.json'):
+    if path.endswith(".json"):
         return response.json()
-    if path.endswith('.yml'):
+    if path.endswith(".yml"):
         return yaml.load_stream(response.text)
-    response.raw.read = functools.partial(response.raw.read,
-                                          decode_content=True)
+    response.raw.read = functools.partial(response.raw.read, decode_content=True)
     return response.raw
 
 
@@ -61,12 +60,14 @@ def get_artifact(task_id, path):
 
 
 def list_artifacts(task_id):
-    response = _do_request(get_artifact_url(task_id, '').rstrip('/'))
-    return response.json()['artifacts']
+    response = _do_request(get_artifact_url(task_id, "").rstrip("/"))
+    return response.json()["artifacts"]
 
 
 def get_index_url(index_path):
-    return liburls.api(PRODUCTION_TASKCLUSTER_ROOT_URL, 'index', 'v1', f'task/{index_path}')
+    return liburls.api(
+        PRODUCTION_TASKCLUSTER_ROOT_URL, "index", "v1", f"task/{index_path}"
+    )
 
 
 def find_task_id(index_path, use_proxy=False):
@@ -76,4 +77,4 @@ def find_task_id(index_path, use_proxy=False):
         if e.response.status_code == 404:
             raise KeyError("index path {} not found".format(index_path))
         raise
-    return response.json()['taskId']
+    return response.json()["taskId"]

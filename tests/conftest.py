@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import pytest
 from responses import RequestsMock
 
@@ -26,7 +27,7 @@ def create_push(responses):
         nonlocal prev_push, push_id
 
         if not rev:
-            rev = 'rev{}'.format(push_id)
+            rev = "rev{}".format(push_id)
 
         push = Push(rev, branch)
         push._id = push_id
@@ -71,11 +72,11 @@ def create_pushes(create_push):
         pushes = []
         for i in range(num):
             if i == 0:
-                pushes.append(create_push('first'))
+                pushes.append(create_push("first"))
                 pushes[0].parent = pushes[0]
 
             elif i == num - 1:
-                pushes.append(create_push('last'))
+                pushes.append(create_push("last"))
                 pushes[-1].child = pushes[-1]
 
             else:

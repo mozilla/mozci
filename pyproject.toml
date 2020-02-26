@@ -13,7 +13,7 @@ adr = "^0.17"
 taskcluster_urls = "^12.1"
 
 [tool.poetry.dev-dependencies]
-flake8 = "^3.7"
+pre-commit = "^2.1"
 pytest = "^5.3"
 tox = "^3.14"
 responses = "^0.10"

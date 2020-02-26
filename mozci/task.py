@@ -1,18 +1,16 @@
+# -*- coding: utf-8 -*-
 import json
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List
-from urllib3.response import HTTPResponse
 
 from adr.util import memoize, memoized_property
 from loguru import logger
+from urllib3.response import HTTPResponse
 
-from mozci.util.taskcluster import (
-    get_artifact,
-    list_artifacts,
-)
+from mozci.util.taskcluster import get_artifact, list_artifacts
 
 
 class Status(Enum):
@@ -37,7 +35,7 @@ NO_GROUPS_SUITES = (
 
 
 def is_no_groups_suite(label):
-    return any(f'-{s}-' in label for s in NO_GROUPS_SUITES)
+    return any(f"-{s}-" in label for s in NO_GROUPS_SUITES)
 
 
 # We only want to warn about bad groups once.
@@ -47,7 +45,9 @@ bad_group_warned = False
 def is_bad_group(task_id, group):
     global bad_group_warned
 
-    bad_group = os.path.isabs(group) or group.startswith("file://") or group.startswith("Z:")
+    bad_group = (
+        os.path.isabs(group) or group.startswith("file://") or group.startswith("Z:")
+    )
 
     if not bad_group_warned and (bad_group or "\\" in group):
         bad_group_warned = True
@@ -59,6 +59,7 @@ def is_bad_group(task_id, group):
 @dataclass
 class Task:
     """Contains information pertaining to a single task."""
+
     id: str
     label: str = field(default=None)
     kind: str = field(default=None)
@@ -70,18 +71,18 @@ class Task:
 
     @staticmethod
     def create(**kwargs):
-        if kwargs['label'].startswith('test-'):
+        if kwargs["label"].startswith("test-"):
             return TestTask(**kwargs)
         return Task(**kwargs)
 
     @property
     def failed(self):
-        return self.result in ('busted', 'exception', 'testfailed')
+        return self.result in ("busted", "exception", "testfailed")
 
     @memoized_property
     def artifacts(self):
         """List the artifacts that were uploaded by this task."""
-        return [artifact['name'] for artifact in list_artifacts(self.id)]
+        return [artifact["name"] for artifact in list_artifacts(self.id)]
 
     @memoize
     def get_artifact(self, path):
@@ -109,6 +110,7 @@ class Task:
 @dataclass
 class GroupResult:
     """Contains information relating to a single group failure within a TestTask."""
+
     group: str
     ok: bool
 
@@ -116,6 +118,7 @@ class GroupResult:
 @dataclass
 class TestTask(Task):
     """Subclass containing additional information only relevant to 'test' tasks."""
+
     _results: List[GroupResult] = field(default=None)
     _errors: List = field(default=None)
     _groups: List = field(default=None)
@@ -163,23 +166,24 @@ class TestTask(Task):
         self._errors = []
 
         try:
-            path = [a for a in self.artifacts if a.endswith('errorsummary.log')][0]
+            path = [a for a in self.artifacts if a.endswith("errorsummary.log")][0]
         except IndexError:
             return
 
         lines = [json.loads(l) for l in self.get_artifact(path).splitlines()]
         for line in lines:
-            if line['action'] == 'test_groups':
+            if line["action"] == "test_groups":
                 self._groups = list(set(line["groups"]) - {"default"})
 
-            elif line['action'] == 'test_result':
-                self._results.append(GroupResult(
-                    group=line.get('group'),
-                    ok=line['status'] == line['expected'],
-                ))
+            elif line["action"] == "test_result":
+                self._results.append(
+                    GroupResult(
+                        group=line.get("group"), ok=line["status"] == line["expected"],
+                    )
+                )
 
-            elif line['action'] == 'log':
-                self._errors.append(line['message'])
+            elif line["action"] == "log":
+                self._errors.append(line["message"])
 
         self.__post_init__()
 
@@ -206,7 +210,9 @@ class TestTask(Task):
 class RunnableSummary(ABC):
     @property
     def classifications(self):
-        return [(t.classification, t.classification_note) for t in self.tasks if t.failed]
+        return [
+            (t.classification, t.classification_note) for t in self.tasks if t.failed
+        ]
 
     @property
     @abstractmethod
@@ -217,6 +223,7 @@ class RunnableSummary(ABC):
 @dataclass
 class GroupSummary(RunnableSummary):
     """Summarizes the overall state of a group (across retriggers)."""
+
     name: str
     tasks: List[Task]
 
@@ -260,6 +267,7 @@ class GroupSummary(RunnableSummary):
 @dataclass
 class LabelSummary(RunnableSummary):
     """Summarizes the overall state of a task label (across retriggers)."""
+
     label: str
     tasks: List[Task]
 

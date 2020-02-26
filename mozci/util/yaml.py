@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,9 +15,7 @@ class UnicodeLoader(SafeLoader):
         return self.construct_scalar(node)
 
 
-UnicodeLoader.add_constructor(
-    'tag:yaml.org,2002:str',
-    UnicodeLoader.construct_yaml_str)
+UnicodeLoader.add_constructor("tag:yaml.org,2002:str", UnicodeLoader.construct_yaml_str)
 
 
 def load_stream(stream):

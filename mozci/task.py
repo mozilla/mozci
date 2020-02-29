@@ -29,8 +29,6 @@ NO_GROUPS_SUITES = (
     "telemetry-tests",
     "firefox-ui-functional",
     "junit",
-    "crashtest",
-    "geckoview-reftest",
 )
 
 

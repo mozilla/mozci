@@ -22,13 +22,13 @@ def test_missing_manifests():
         "test-verify-wpt",
         None,
     )
+    ALLOWED_MISSING = 5
 
     result = run_query("test_missing_manifests", Namespace())
 
     for suite, count in result["data"]:
-        assert (
-            suite in BLACKLIST
-        ), f"{suite} is missing manifests information ({count} entries)"
+        if suite not in BLACKLIST:
+            assert count < ALLOWED_MISSING, f"{suite} is missing manifest information"
 
     # Ensure the blacklist doesn't contain more than necessary.
     found_suites = {suite for suite, count in result["data"]}
@@ -42,7 +42,7 @@ def test_missing_result_manifests():
     have information on what manifest the result corresponds to.
     """
     BLACKLIST = {"marionette"}
-    ALLOWED_MISSING = 50
+    ALLOWED_MISSING = 70
 
     result = run_query("test_missing_result_manifests", Namespace())
 
@@ -53,9 +53,7 @@ def test_missing_result_manifests():
             ), f"{suite} is missing result manifest information"
 
     # Ensure the blacklist doesn't contain more than necessary.
-    found_suites = {
-        suite for suite, count in result["data"] if count >= ALLOWED_MISSING
-    }
+    found_suites = {suite for suite, count in result["data"]}
     for suite in BLACKLIST:
         assert suite in found_suites, f"{suite} might be removed from the blacklist"
 

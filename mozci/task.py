@@ -3,6 +3,7 @@ import json
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List
 
@@ -11,6 +12,8 @@ from loguru import logger
 from urllib3.response import HTTPResponse
 
 from mozci.util.taskcluster import get_artifact, list_artifacts
+
+TASKCLUSTER_SWITCH_DATE = datetime(2019, 11, 9, tzinfo=timezone.utc).timestamp()
 
 
 class Status(Enum):
@@ -66,6 +69,7 @@ class Task:
     classification: str = field(default=None)
     classification_note: str = field(default=None)
     tags: Dict = field(default_factory=dict)
+    pushdate: int = field(default=None)
 
     @staticmethod
     def create(**kwargs):
@@ -80,7 +84,12 @@ class Task:
     @memoized_property
     def artifacts(self):
         """List the artifacts that were uploaded by this task."""
-        return [artifact["name"] for artifact in list_artifacts(self.id)]
+        return [
+            artifact["name"]
+            for artifact in list_artifacts(
+                self.id, old_deployment=self.pushdate < TASKCLUSTER_SWITCH_DATE
+            )
+        ]
 
     @memoize
     def get_artifact(self, path):
@@ -95,7 +104,9 @@ class Task:
         Returns:
             Contents of the artifact.
         """
-        data = get_artifact(self.id, path)
+        data = get_artifact(
+            self.id, path, old_deployment=self.pushdate < TASKCLUSTER_SWITCH_DATE
+        )
         if not isinstance(data, HTTPResponse):
             return data
 

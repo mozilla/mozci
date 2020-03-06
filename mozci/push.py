@@ -251,6 +251,9 @@ class Push:
                         for group, ok in zip(groups, oks)
                     ]
 
+            # Store the push date too, so we can check which Taskcluster deployment to use.
+            task["pushdate"] = self.date
+
             normalized_tasks.append(task)
 
         return [Task.create(**task) for task in normalized_tasks]

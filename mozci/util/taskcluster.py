@@ -37,13 +37,16 @@ def _handle_artifact(path, response):
     return response.raw
 
 
-def get_artifact_url(task_id, path):
-    return liburls.api(
-        PRODUCTION_TASKCLUSTER_ROOT_URL,
-        "queue",
-        "v1",
-        f"task/{task_id}/artifacts/{path}",
-    )
+def get_artifact_url(task_id, path, old_deployment=False):
+    if not old_deployment:
+        return liburls.api(
+            PRODUCTION_TASKCLUSTER_ROOT_URL,
+            "queue",
+            "v1",
+            f"task/{task_id}/artifacts/{path}",
+        )
+    else:
+        return f"https://queue.taskcluster.net/v1/task/{task_id}/artifacts/{path}"
 
 
 def get_artifact(task_id, path):
@@ -55,12 +58,20 @@ def get_artifact(task_id, path):
     dict) is returned.
     For other types of content, a file-like object is returned.
     """
-    response = _do_request(get_artifact_url(task_id, path))
+    try:
+        response = _do_request(get_artifact_url(task_id, path))
+    except requests.exceptions.HTTPError:
+        response = _do_request(get_artifact_url(task_id, path, old_deployment=True))
     return _handle_artifact(path, response)
 
 
 def list_artifacts(task_id):
-    response = _do_request(get_artifact_url(task_id, "").rstrip("/"))
+    try:
+        response = _do_request(get_artifact_url(task_id, "").rstrip("/"))
+    except requests.exceptions.HTTPError:
+        response = _do_request(
+            get_artifact_url(task_id, "", old_deployment=True).rstrip("/")
+        )
     return response.json()["artifacts"]
 
 

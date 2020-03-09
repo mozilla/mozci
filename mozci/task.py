@@ -132,8 +132,8 @@ class TestTask(Task):
             assert self._results is None, f"{self.label} should have no results"
             self._results = []
 
-        # XXX: Once bug 1613937 and bug 1613939 are fixed, we can remove the filtering
-        # and slash replacing, and turn the warning on bad group names into an assertion.
+        # XXX: A while after bug 1613937 and bug 1613939 have been fixed, we can
+        # remove the filtering and slash replacing.
 
         if self._groups is not None:
             self._groups = [

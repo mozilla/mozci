@@ -1,0 +1,13 @@
+from: unittest
+groupby:
+    - run.suite.name
+where:
+    and:
+        - missing: run.suite.groups
+        - eq: {etl.id: 0}
+        - eq: {repo.branch.name: autoland}
+        - ne: {treeherder.tier: 3}
+        - ne: {task.kind: "decision-task"}
+        - gte: {action.start_time: {date: today-2day}}
+limit: 1000
+format: table

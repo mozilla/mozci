@@ -282,8 +282,11 @@ class Push:
         Returns:
             set: A set of task labels (str).
         """
-        tasks = self.decision_task.get_artifact("public/task-graph.json").values()
-        return {t["label"] for t in tasks}
+        try:
+            tasks = self.decision_task.get_artifact("public/task-graph.json").values()
+            return {t["label"] for t in tasks}
+        except Exception as e:
+            return set()
 
     @property
     def unscheduled_task_labels(self):
@@ -534,6 +537,8 @@ class Push:
         """
         index = self.index + ".source.shadow-scheduler-{}".format(name)
         task = Task(id=find_task_id(index))
+        if task.id==None:
+            return set()
         labels = task.get_artifact("public/shadow-scheduler/optimized_tasks.list")
         return set(labels.splitlines())
 

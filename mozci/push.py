@@ -21,16 +21,17 @@ MAX_DEPTH = 14
 
 
 class Push:
+    """A representation of a single push.
+
+    Args:
+        revs (list): List of revisions of commits in the push (top-most is the first element).
+        branch (str): Branch to look on (default: autoland).
+    """
+
     # static thread pool, to avoid spawning threads too often.
     THREAD_POOL_EXECUTOR = concurrent.futures.ThreadPoolExecutor()
 
     def __init__(self, revs, branch="autoland"):
-        """A representation of a single push.
-
-        Args:
-            revs (list): List of revisions of commits in the push (top-most is the first element).
-            branch (str): Branch to look on (default: autoland).
-        """
         if isinstance(revs, str):
             revs = [revs]
 

@@ -77,7 +77,7 @@ class Task:
     def failed(self):
         return self.result in ("busted", "exception", "testfailed")
 
-    @memoized_property
+    @memoize
     def artifacts(self):
         """List the artifacts that were uploaded by this task."""
         return [artifact["name"] for artifact in list_artifacts(self.id)]
@@ -206,7 +206,6 @@ class TestTask(Task):
 
 @dataclass
 class RunnableSummary(ABC):
-    @property
     def classifications(self):
         return [
             (t.classification, t.classification_note) for t in self.tasks if t.failed
@@ -228,7 +227,7 @@ class GroupSummary(RunnableSummary):
     def __post_init__(self):
         assert all(self.name in t.groups for t in self.tasks)
 
-    @memoized_property
+    @memoize
     def status(self):
         overall_status_by_label = {}
         for task in self.tasks:
@@ -272,7 +271,7 @@ class LabelSummary(RunnableSummary):
     def __post_init__(self):
         assert all(t.label == self.label for t in self.tasks)
 
-    @memoized_property
+    @memoize
     def status(self):
         overall_status = None
         for task in self.tasks:

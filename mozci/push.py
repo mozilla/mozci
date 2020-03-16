@@ -46,7 +46,7 @@ class Push:
     def rev(self):
         return self.revs[0]
 
-    @memoized_property
+    @memoize
     def backedoutby(self):
         """The revision of the commit which backs out this one or None.
 
@@ -55,14 +55,13 @@ class Push:
         """
         return self._hgmo.get("backedoutby") or None
 
-    @property
     def backedout(self):
         """Whether the push was backed out or not.
 
         Returns:
             bool: True if this push was backed out.
         """
-        return bool(self.backedoutby)
+        return bool(self.backedoutby())
 
     @property
     def date(self):
@@ -102,7 +101,7 @@ class Push:
 
         return push
 
-    @memoized_property
+    @memoize
     def parent(self):
         """Returns the parent push of this push.
 
@@ -111,7 +110,7 @@ class Push:
         """
         return self.create_push(self.id - 1)
 
-    @memoized_property
+    @memoize
     def child(self):
         """Returns the child push of this push.
 
@@ -120,7 +119,7 @@ class Push:
         """
         return self.create_push(self.id + 1)
 
-    @memoized_property
+    @memoize
     def decision_task(self):
         """A representation of the decision task.
 
@@ -131,7 +130,7 @@ class Push:
         task_id = find_task_id(index)
         return Task(id=task_id)
 
-    @memoized_property
+    @memoize
     def tasks(self):
         """All tasks that ran on the push, including retriggers and backfills.
 
@@ -255,16 +254,15 @@ class Push:
 
         return [Task.create(**task) for task in normalized_tasks]
 
-    @property
     def task_labels(self):
         """The set of task labels that ran on this push.
 
         Returns:
             set: A set of task labels (str).
         """
-        return set(t.label for t in self.tasks)
+        return set(t.label for t in self.tasks())
 
-    @memoized_property
+    @memoize
     def target_task_labels(self):
         """The set of all task labels that could possibly run on this push.
 
@@ -273,7 +271,7 @@ class Push:
         """
         return set(self.decision_task.get_artifact("public/target-tasks.json"))
 
-    @memoized_property
+    @memoize
     def scheduled_task_labels(self):
         """The set of task labels that were originally scheduled to run on this push.
 
@@ -298,7 +296,7 @@ class Push:
         """
         return self.task_labels - self.scheduled_task_labels
 
-    @memoized_property
+    @memoize
     def group_summaries(self):
         """All group summaries combining retriggers.
 
@@ -321,7 +319,7 @@ class Push:
         groups = {group: GroupSummary(group, tasks) for group, tasks in groups.items()}
         return groups
 
-    @memoized_property
+    @memoize
     def label_summaries(self):
         """All label summaries combining retriggers.
 
@@ -329,12 +327,12 @@ class Push:
             dict: A dictionary of the form {<label>: [<LabelSummary>]}.
         """
         labels = defaultdict(list)
-        for task in self.tasks:
+        for task in self.tasks():
             labels[task.label].append(task)
         labels = {label: LabelSummary(label, tasks) for label, tasks in labels.items()}
         return labels
 
-    @memoized_property
+    @memoize
     def duration(self):
         """The total duration of all tasks that ran on the push.
 
@@ -343,7 +341,7 @@ class Push:
         """
         return int(sum(t.duration for t in self.tasks) / 3600)
 
-    @memoized_property
+    @memoize
     def scheduled_duration(self):
         """The total runtime of tasks excluding retriggers and backfills.
 
@@ -386,7 +384,7 @@ class Push:
         count = 0
         other = self
         while count < MAX_DEPTH + 1:
-            for name, summary in getattr(other, f"{runnable_type}_summaries").items():
+            for name, summary in getattr(other, f"{runnable_type}_summaries")().items():
                 if name in passing_runnables:
                     # It passed in one of the pushes between the current and its
                     # children, so it is definitely not a regression in the current.
@@ -396,20 +394,20 @@ class Push:
                     passing_runnables.add(name)
                     continue
 
-                if all(c not in failclass for c, n in summary.classifications):
+                if all(c not in failclass for c, n in summary.classifications()):
                     passing_runnables.add(name)
                     continue
 
                 fixed_by_commit_classification_notes = [
                     n[:12]
-                    for c, n in summary.classifications
+                    for c, n in summary.classifications()
                     if c == "fixed by commit"
                     if n is not None
                 ]
                 if len(fixed_by_commit_classification_notes) > 0:
                     if (
-                        self.backedout
-                        and self.backedoutby[:12]
+                        self.backedout()
+                        and self.backedoutby()[:12]
                         in fixed_by_commit_classification_notes
                     ):
                         # If the failure was classified as fixed by commit, and the fixing commit
@@ -434,7 +432,7 @@ class Push:
 
                 candidate_regressions[name] = (count, summary.status)
 
-            other = other.child
+            other = other.child()
             count += 1
 
         return candidate_regressions
@@ -460,18 +458,18 @@ class Push:
             runnable_type
         ).items():
             count = 0
-            other = self.parent
+            other = self.parent()
             prior_regression = False
 
             while count < MAX_DEPTH:
-                runnable_summaries = getattr(other, f"{runnable_type}_summaries")
+                runnable_summaries = getattr(other, f"{runnable_type}_summaries")()
 
                 if name in runnable_summaries:
                     if runnable_summaries[name].status != Status.PASS:
                         prior_regression = True
                     break
 
-                other = other.parent
+                other = other.parent()
                 count += 1
 
             total_count = count + child_count

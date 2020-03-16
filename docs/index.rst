@@ -31,6 +31,7 @@ See the :doc:`API docs <api/index>` for more details.
    :maxdepth: 2
    :caption: Contents:
 
+   usage
    api/index
 
 

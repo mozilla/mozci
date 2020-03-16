@@ -28,7 +28,7 @@ print("\n".join([t.label for t in push.tasks if t.failed])
 ```
 
 This will print all the failing tasks from a given push. See the
-[documentation](https://readthedocs.org/projects/mozci) for more usage details and API docs.
+[documentation](https://mozci.readthedocs.io/en/latest/) for more usage details and API docs.
 
 
 ## Contributing

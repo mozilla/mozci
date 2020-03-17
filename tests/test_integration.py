@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
+import os
 from argparse import Namespace
 
+import pytest
 from adr.query import run_query
 
 from mozci import task
+
+pytestmark = pytest.mark.skipif(
+    os.environ.get("TRAVIS_EVENT_TYPE") != "cron", reason="Not run by a cron task"
+)
 
 
 def test_missing_manifests():

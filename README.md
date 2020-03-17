@@ -51,3 +51,10 @@ $ tox
 
 This should run successfully prior to submitting PRs (unless you need help figuring out the
 problem).
+
+There are also some integration tests that will hit live data sources. These are run in a cron task
+and are excluded from the default test run. But if needed, you can run them locally via:
+
+```bash
+$ tox -e integration
+```

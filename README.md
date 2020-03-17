@@ -34,7 +34,7 @@ This will print all the failing tasks from a given push. See the
 ## Contributing
 
 Mozci uses [poetry](https://python-poetry.org/) to manage the project. So first make sure that is
-installed. Then run:
+installed. Then clone the repo and run:
 
 ```bash
 $ poetry install

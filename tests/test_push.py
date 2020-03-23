@@ -383,7 +383,7 @@ def test_fixed_by_commit_no_backout(monkeypatch, create_pushes):
     """
 
     def mock_is_backout(cls):
-        if cls.rev == "xxx":
+        if cls.context['rev'] == "xxx":
             return False
 
         return True

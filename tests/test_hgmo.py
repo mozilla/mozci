@@ -17,13 +17,6 @@ def test_hgmo_cache():
 def test_hgmo_is_backout(responses):
     responses.add(
         responses.GET,
-        "https://hg.mozilla.org/integration/autoland/rev/abcdef?style=json",
-        json={},
-        status=200,
-    )
-
-    responses.add(
-        responses.GET,
         "https://hg.mozilla.org/integration/autoland/json-automationrelevance/abcdef",
         json={"changesets": [{"backsoutnodes": []}]},
         status=200,
@@ -37,12 +30,12 @@ def test_hgmo_is_backout(responses):
     )
 
     h = HGMO("abcdef")
-    assert h["backsoutnodes"] == []
     assert not h.is_backout
+    assert h.changesets[0]["backsoutnodes"] == []
 
     h = HGMO("abcdef")
     assert h.is_backout
-    assert h["backsoutnodes"] == ["123456"]
+    assert h.changesets[0]["backsoutnodes"] == ["123456"]
 
 
 def test_hgmo_json_data(responses):

@@ -33,19 +33,30 @@ class Push:
 
     def __init__(self, revs, branch="autoland"):
         if isinstance(revs, str):
+            self._revs = None
             revs = [revs]
+        else:
+            self._revs = revs
 
-        self.revs = revs
         self.branch = branch
-        self._hgmo = HGMO.create(self.rev, branch=self.branch)
-        self.index = BASE_INDEX.format(branch=self.branch, rev=self.rev)
+        self._hgmo = HGMO.create(revs[0], branch=self.branch)
 
         self._id = None
         self._date = None
 
+        # Need to use full hash in the index.
+        if len(revs[0]) == 40:
+            self.rev = revs[0]
+        else:
+            self.rev = self._hgmo["node"]
+
+        self.index = BASE_INDEX.format(branch=self.branch, rev=self.rev)
+
     @property
-    def rev(self):
-        return self.revs[0]
+    def revs(self):
+        if not self._revs:
+            self._revs = [c["node"] for c in self._hgmo.changesets]
+        return self._revs
 
     @memoized_property
     def backedoutby(self):

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from adr.util.memoize import memoize
 
+from mozci.errors import PushNotFound
 from mozci.util.req import get_session
 
 
@@ -35,6 +36,10 @@ class HGMO:
     @memoize
     def _get_resource(self, url):
         r = get_session("hgmo").get(url)
+
+        if r.status_code == 404:
+            raise PushNotFound(**self.context)
+
         r.raise_for_status()
         return r.json()
 

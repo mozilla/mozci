@@ -2,6 +2,7 @@
 
 import pytest
 
+from mozci.errors import PushNotFound
 from mozci.push import MAX_DEPTH, Push
 from mozci.task import Task
 from mozci.util.hgmo import HGMO
@@ -624,3 +625,29 @@ def test_create_push(responses):
     assert p2.rev == "123456"
     assert p2.id == 123
     assert p2.date == 1213174092
+
+
+def test_push_does_not_exist(responses):
+    # We hit hgmo when 'rev' is less than 40 characters.
+    rev = "foobar"
+    responses.add(
+        responses.GET,
+        HGMO.JSON_TEMPLATE.format(branch="integration/autoland", rev=rev),
+        json={f"error": "unknown revision '{rev}'"},
+        status=404,
+    )
+
+    with pytest.raises(PushNotFound):
+        Push(rev)
+
+    # Otherwise we need to hit hgmo some other way.
+    rev = "a" * 40
+    responses.add(
+        responses.GET,
+        HGMO.JSON_TEMPLATE.format(branch="integration/autoland", rev=rev),
+        json={f"error": "unknown revision '{rev}'"},
+        status=404,
+    )
+    p = Push(rev)
+    with pytest.raises(PushNotFound):
+        p.id

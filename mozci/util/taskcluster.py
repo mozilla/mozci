@@ -60,8 +60,12 @@ def get_artifact(task_id, path):
     """
     try:
         response = _do_request(get_artifact_url(task_id, path))
-    except requests.exceptions.HTTPError:
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code != 404:
+            raise
+
         response = _do_request(get_artifact_url(task_id, path, old_deployment=True))
+
     return _handle_artifact(path, response)
 
 

@@ -23,24 +23,25 @@ def create_push(responses):
     prev_push = None
     push_id = 1
 
-    def inner(rev=None, branch="autoland", json=None, automationrelevance=None):
+    def inner(
+        rev=None, branch="integration/autoland", json=None, automationrelevance=None
+    ):
         nonlocal prev_push, push_id
 
         if not rev:
             rev = "rev{}".format(push_id)
 
-        push = Push(rev, branch)
-        push._id = push_id
-        push.backedoutby = None
-        push.tasks = []
+        if json is None:
+            json = {
+                "node": rev,
+            }
 
-        if json is not None:
-            responses.add(
-                responses.GET,
-                HGMO.JSON_TEMPLATE.format(branch=branch, rev=rev),
-                json=json,
-                status=200,
-            )
+        responses.add(
+            responses.GET,
+            HGMO.JSON_TEMPLATE.format(branch=branch, rev=rev),
+            json=json,
+            status=200,
+        )
 
         if automationrelevance is not None:
             responses.add(
@@ -49,6 +50,11 @@ def create_push(responses):
                 json=automationrelevance,
                 status=200,
             )
+
+        push = Push(rev, branch)
+        push._id = push_id
+        push.backedoutby = None
+        push.tasks = []
 
         if prev_push:
             push.parent = prev_push

@@ -7,7 +7,7 @@ from mozci.task import Task
 from mozci.util.hgmo import HGMO
 
 
-@pytest.fixture(autouse=True, scope="module")
+@pytest.fixture(autouse=True)
 def reset_hgmo_cache():
     yield
     HGMO.CACHE = {}
@@ -383,7 +383,7 @@ def test_fixed_by_commit_no_backout(monkeypatch, create_pushes):
     """
 
     def mock_is_backout(cls):
-        if cls.context['rev'] == "xxx":
+        if cls.context["rev"] == "xxx":
             return False
 
         return True
@@ -604,6 +604,18 @@ def test_create_push(responses):
                 },
             },
         },
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        HGMO.JSON_TEMPLATE.format(branch="integration/autoland", rev="abcdef"),
+        json={"node": "abcdef"},
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        HGMO.JSON_TEMPLATE.format(branch="integration/autoland", rev="123456"),
+        json={"node": "123456"},
         status=200,
     )
 

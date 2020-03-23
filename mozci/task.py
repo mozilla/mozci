@@ -6,10 +6,12 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List
 
+import requests
 from adr.util import memoize, memoized_property
 from loguru import logger
 from urllib3.response import HTTPResponse
 
+from mozci.errors import ArtifactNotFound
 from mozci.util.taskcluster import get_artifact, list_artifacts
 
 
@@ -94,8 +96,18 @@ class Task:
 
         Returns:
             Contents of the artifact.
+
+        Raises:
+            mozci.errors.ArtifactNotFound: When the requested artifact does not
+                                           exist.
         """
-        data = get_artifact(self.id, path)
+        try:
+            data = get_artifact(self.id, path)
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                raise ArtifactNotFound(path, self.id, self.label) from e
+            raise
+
         if not isinstance(data, HTTPResponse):
             return data
 

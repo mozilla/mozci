@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Dict, List
 
 import requests
-from adr.util import memoize, memoized_property
+from adr.util import memoized_property
 from loguru import logger
 from urllib3.response import HTTPResponse
 
@@ -84,7 +84,6 @@ class Task:
         """List the artifacts that were uploaded by this task."""
         return [artifact["name"] for artifact in list_artifacts(self.id)]
 
-    @memoize
     def get_artifact(self, path):
         """Downloads and returns the content of an artifact.
 

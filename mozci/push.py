@@ -3,10 +3,11 @@ import concurrent.futures
 import math
 from argparse import Namespace
 from collections import defaultdict
+from functools import lru_cache
 
 from adr.errors import MissingDataError
 from adr.query import run_query
-from adr.util.memoize import memoize, memoized_property
+from adr.util.memoize import memoized_property
 from loguru import logger
 
 from mozci.task import GroupResult, GroupSummary, LabelSummary, Status, Task, TestTask
@@ -373,7 +374,7 @@ class Push:
 
         return int(duration / 3600)
 
-    @memoize
+    @lru_cache(maxsize=None)
     def get_candidate_regressions(self, runnable_type):
         """Retrieve the set of "runnables" that are regression candidates for this push.
 
@@ -448,7 +449,7 @@ class Push:
 
         return candidate_regressions
 
-    @memoize
+    @lru_cache(maxsize=None)
     def get_regressions(self, runnable_type):
         """All regressions, both likely and definite.
 
@@ -533,7 +534,7 @@ class Push:
             if count == 0
         )
 
-    @memoize
+    @lru_cache(maxsize=None)
     def get_shadow_scheduler_tasks(self, name):
         """Returns all tasks the given shadow scheduler would have scheduled,
         or None if the given scheduler didn't run.

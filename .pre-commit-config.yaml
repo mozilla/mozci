@@ -20,7 +20,6 @@ repos:
     rev: v2.5.0
     hooks:
     -   id: check-ast
-    -   id: check-docstring-first
     -   id: check-executables-have-shebangs
     -   id: check-merge-conflict
     -   id: check-symlinks

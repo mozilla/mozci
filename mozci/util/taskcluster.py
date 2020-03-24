@@ -4,6 +4,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import functools
+from functools import lru_cache
 
 import requests
 import taskcluster_urls as liburls
@@ -49,6 +50,7 @@ def get_artifact_url(task_id, path, old_deployment=False):
         return f"https://queue.taskcluster.net/v1/task/{task_id}/artifacts/{path}"
 
 
+@lru_cache(maxsize=None)
 def get_artifact(task_id, path):
     """
     Returns the artifact with the given path for the given task id.

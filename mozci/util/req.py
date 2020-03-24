@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
+from functools import lru_cache
+
 import requests
-from adr.util import memoize
 from requests.packages.urllib3.util.retry import Retry
 
 
-@memoize
+@lru_cache(maxsize=None)
 def get_session(name, concurrency=50):
     session = requests.Session()
 

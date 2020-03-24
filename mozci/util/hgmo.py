@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from adr.util.memoize import memoize
+from functools import lru_cache
 
 from mozci.errors import PushNotFound
 from mozci.util.req import get_session
@@ -33,7 +33,7 @@ class HGMO:
         HGMO.CACHE[key] = instance
         return instance
 
-    @memoize
+    @lru_cache(maxsize=None)
     def _get_resource(self, url):
         r = get_session("hgmo").get(url)
 

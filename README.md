@@ -58,3 +58,23 @@ and are excluded from the default test run. But if needed, you can run them loca
 ```bash
 $ tox -e integration
 ```
+
+### Windows installation
+
+The `poetry install` command may lock up on Windows10 (Python3.7.6) you can get around this with:
+
+    python -m pip install virtualenv
+    python -m virtualenv .venv                   # IMPORTANT: Notice the dot in the name
+    .venv\Scripts\activate
+    pip install pip-tools
+    poetry export --dev --without-hashes -f requirements.txt > requirements.in
+    pip-compile --upgrade --generate-hashes --output-file requirements.txt requirements.in 
+    pip install -r requirements.txt
+
+### Running tests
+
+Tests are run from the main `mozci` project directory. Be sure you have activated the virtual environment before running tests (`.venv\Scripts\activate`)
+
+    set PYTHONPATH=.
+    pytest tests
+    

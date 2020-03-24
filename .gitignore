@@ -110,3 +110,4 @@ venv.bak/
 /example.py
 /*.iml
 /requirements.txt
+/requirements.in

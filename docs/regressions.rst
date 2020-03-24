@@ -117,7 +117,7 @@ A *possible regression* is a regression whose associated ``total_distance`` is a
 words, it could be a regression, or it could be regressed from one of its parent pushes. We aren't
 sure. The higher the ``total_distance`` the less sure we are.
 
-Likely regressions can be obtained by calling :meth:`Push.get_possible_regressions()
+Possible regressions can be obtained by calling :meth:`Push.get_possible_regressions()
 <mozci.push.Push.get_possible_regressions()>`.
 
 .. note::

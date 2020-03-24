@@ -32,6 +32,7 @@ See the :doc:`API docs <api/index>` for more details.
    :caption: Contents:
 
    usage
+   regressions
    api/index
 
 

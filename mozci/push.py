@@ -16,9 +16,10 @@ from mozci.util.taskcluster import find_task_id
 
 BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
 
-# The maximum number of parents or children to look for previous/next task runs,
-# when the task did not run on the currently considered push.
 MAX_DEPTH = 14
+"""The maximum number of parents or children to look for previous/next task runs,
+when the task did not run on the currently considered push.
+"""
 
 
 class Push:

@@ -55,6 +55,7 @@ def create_push(responses):
         push._id = push_id
         push.backedoutby = None
         push.tasks = []
+        push._revs = [push.rev]
 
         if prev_push:
             push.parent = prev_push

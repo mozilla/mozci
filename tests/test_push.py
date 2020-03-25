@@ -185,6 +185,83 @@ def test_succeeded_in_parent_failed_in_current_succeeded_in_child_succeeded_in_g
     assert p[i + 2].get_regressions("label") == {}
 
 
+def test_failure_on_backout(monkeypatch, create_pushes):
+    """
+    Tests the scenario where a task succeeded in a parent push, didn't run in the
+    push of interest and failed in the push containing the backout of the push of interest.
+    """
+    monkeypatch.setattr(HGMO, "is_backout", property(lambda cls: True))
+
+    p = create_pushes(3)
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].backedoutby = "last"
+    p[i + 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="not classified",
+        )
+    ]
+
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {"test-failure": 2}
+
+
+def test_failure_on_multiple_backouts(monkeypatch, create_pushes):
+    """
+    Tests the scenario where a task succeeded in a parent push, didn't run in the
+    push of interest and failed in the push containing the backout of the push of interest.
+    The push containing the backout of the push of interest backs out multiple revisions.
+    """
+    monkeypatch.setattr(HGMO, "is_backout", property(lambda cls: True))
+
+    p = create_pushes(3)
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].backedoutby = "myrev"
+    p[i + 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="not classified",
+        )
+    ]
+    p[i + 1]._revs = ["last", "myrev"]
+
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {"test-failure": 2}
+
+
+def test_failure_after_backout(monkeypatch, create_pushes):
+    """
+    Tests the scenario where a task succeeded in a parent push, didn't run in the
+    push of interest and failed in a push after the backout of the push of interest.
+    """
+    p = create_pushes(4)
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].backedoutby = "rev3"
+    p[i + 1].tasks = []
+    p[i + 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="not classified",
+        )
+    ]
+
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {"test-failure": 4}
+    assert p[i + 2].get_regressions("label") == {"test-failure": 4}
+
+
 def test_succeeded_and_backedout(create_pushes):
     """
     Tests the scenario where a task succeeded in a push which was backed-out.

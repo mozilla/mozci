@@ -446,6 +446,8 @@ class Push:
                 candidate_regressions[name] = (count, summary.status)
 
             other = other.child
+            # Any failure that comes after this push has been backed-out, can't
+            # be blamed on this push.
             if self.backedoutby in other.revs:
                 break
             count += 1

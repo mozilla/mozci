@@ -446,6 +446,8 @@ class Push:
                 candidate_regressions[name] = (count, summary.status)
 
             other = other.child
+            if self.backedoutby in other.revs:
+                break
             count += 1
 
         return candidate_regressions

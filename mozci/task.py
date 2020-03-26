@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List
 
+import adr
 import requests
 from adr.util import memoized_property
 from loguru import logger
@@ -183,10 +184,35 @@ class TestTask(Task):
                 if not is_bad_group(self.id, result.group)
             ]
 
+        # I'm storing in the cache in here rather than at the end of _load_errorsummary()
+        # because there's various modifications of various self properties.
+        # cachy's put() overwrites the value in the cache; add() would only add if its empty
+        # Only store data if there's something to store
+        if self._errors or self._groups or self._results:
+            logger.debug("Storing {} in the cache".format(self.id))
+            adr.config.cache.put(
+                self.id,
+                {
+                    "errors": self._errors,
+                    "groups": self._groups,
+                    "results": self._results,
+                },
+                1,  # XXX: What should the value in minutes be?
+            )
+
     def _load_errorsummary(self):
+        # I don't believe we need to invalidate the data since once we parse
+        # the error summary artifact we should not expect a different result in
+        # the future since the artifact doesn't change
+        data = adr.config.cache.get(self.id)
+        if data:
+            self._errors = data["errors"]
+            self._groups = data["groups"]
+            self._results = data["results"]
+            return None
         # This may clobber the values that were populated by ActiveData, but
         # since the artifact is already downloaded, parsed and we need to
-        # iterate over it anyway.. It doesn't really hurt and simplifies some
+        # iterate over it anyway. It doesn't really hurt and simplifies some
         # logic. It also ensures we don't attempt to load the errorsummary more
         # than once.
         self._groups = []

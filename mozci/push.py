@@ -491,17 +491,36 @@ class Push:
 
             total_count = count + child_count
 
-            # When the push was not backed-out, it's less likely to be the cause of a failure.
-            # So, we penalize it by doubling its count (basically, we consider the push to be
-            # further away from the failure, which makes it more likely to fall outside of
-            # MAX_DEPTH).
-            # We can't fully exclude pushes which were not backed-out because of bustage fixes.
-            if not self.backedout:
-                total_count *= 2
+            # Penalizations are ineffective when we have a 'fixed by commit' classification.
+            if total_count != -math.inf:
+                # When the push was not backed-out, it's less likely to be the cause of a failure.
+                # So, we penalize it by doubling its count (basically, we consider the push to be
+                # further away from the failure, which makes it more likely to fall outside of
+                # MAX_DEPTH).
+                # We can't fully exclude pushes which were not backed-out because of bustage fixes.
+                if not self.backedout:
+                    total_count *= 2
+                # Also penalize cases where the failure still occurs after the backout of the push.
+                # If a failure is occurring on a push and on its backout, it was probably not caused
+                # by the push itself.
+                # Note we can't totally exclude it, as there could be another push in between that
+                # causes another failure in the same label/group.
+                else:
+                    other = self.child
+                    while self.backedoutby not in other.revs:
+                        other = other.child
+                        continue
+                    failures_after_backout = other.get_candidate_regressions(
+                        runnable_type
+                    )
+                    if name in failures_after_backout:
+                        total_count = round(
+                            total_count * (2 - 0.4 * failures_after_backout[name][0])
+                        )
 
-            # Also penalize cases where the status was intermittent.
-            if status == Status.INTERMITTENT:
-                total_count *= 2
+                # Also penalize cases where the status was intermittent.
+                if status == Status.INTERMITTENT:
+                    total_count *= 2
 
             if not prior_regression and total_count <= MAX_DEPTH:
                 regressions[name] = total_count if total_count > 0 else 0

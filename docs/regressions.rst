@@ -16,10 +16,8 @@ There are currently two different vectors of regression that ``mozci`` can check
 
 * **label** - is a task label (e.g ``test-linux1804-64/debug-mochitest-e10s-1``)
 * **group** - is a grouping of tests, typically a manifest (e.g ``dom/indexedDB/test/mochitest.ini``).
-* **runnable** is the unique label identifying a set of tasks, or the unique group identifying a
-set of tests.
-* **classification** an annotation that Sheriffs apply to tasks manually. It is also known as
-    "starring" because it puts a little asterisk next to the task in Treeherder.
+* **runnable** is the unique label identifying a set of tasks, or the unique group identifying a set of tests.
+* **classification** an annotation that Sheriffs apply to tasks manually. It is also known as "starring" because it puts a little asterisk next to the task in Treeherder.
 
 
 Runnable Summary

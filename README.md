@@ -68,7 +68,7 @@ The `poetry install` command may lock up on Windows10 (Python3.7.6) you can get 
     .venv\Scripts\activate
     pip install pip-tools
     poetry export --dev --without-hashes -f requirements.txt > requirements.in
-    pip-compile --upgrade --generate-hashes --output-file requirements.txt requirements.in 
+    pip-compile --upgrade --generate-hashes --output-file requirements.txt requirements.in
     pip install -r requirements.txt
 
 ### Running tests
@@ -77,4 +77,7 @@ Tests are run from the main `mozci` project directory. Be sure you have activate
 
     set PYTHONPATH=.
     pytest tests
-    
+
+Once you have confirmed the virtual environment can pass tests
+
+    tox -e pre-commit

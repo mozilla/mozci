@@ -79,6 +79,24 @@ class Push:
         """
         return bool(self.backedoutby)
 
+    @memoized_property
+    def bugs(self):
+        """The bugs associated with the commits of this push.
+
+        Returns:
+            list: A list of bug IDs.
+        """
+        return set(
+            sum(
+                (
+                    bug["no"]
+                    for changeset in self._hgmo.changesets
+                    for bug in changeset["bugs"]
+                ),
+                [],
+            )
+        )
+
     @property
     def date(self):
         """The push date.
@@ -511,13 +529,39 @@ class Push:
                 candidate_regressions[name] = (count, summary.status)
 
             other = other.child
-            # Any failure that comes after this push has been backed-out, can't
-            # be blamed on this push.
-            if self.backedoutby in other.revs:
-                break
             count += 1
 
         return candidate_regressions
+
+    @memoized_property
+    def bustage_fixed_by(self):
+        """The revision of the commit which 'bustage fixes' this one or None.
+
+        We detect if a push was 'bustage fixed' with a simple heuristic:
+        - there is a close enough child push where the task/group passes;
+        - the child push where the task/group passes is associated to the same bug
+          as the push of interest.
+
+        Returns:
+            str or None: The commit revision which 'bustage fixes' this push (or None).
+        """
+        if self.backedout:
+            return False
+
+        count = 0
+        other = self.child
+        while count < MAX_DEPTH:
+            if len(self.bugs & other.bugs) > 0 and any(
+                name in other.label_summaries
+                and other.label_summaries[name].status == Status.PASS
+                for name in self.get_candidate_regressions("label").keys()
+            ):
+                return other.rev
+
+            other = other.child
+            count += 1
+
+        return None
 
     @lru_cache(maxsize=None)
     def get_regressions(self, runnable_type):
@@ -536,9 +580,25 @@ class Push:
         """
         regressions = {}
 
+        # If the push was not backed-out and was not "bustage fixed", it can't
+        # have caused regressions.
+        if not self.backedout and not self.bustage_fixed_by:
+            return regressions
+
+        # Any failure that comes after this push has been backed-out or bustage fixed,
+        # can't be blamed on this push.
+        other = self.child
+        for child_count_cutoff in range(MAX_DEPTH + 1):
+            if self.backedoutby in other.revs or self.bustage_fixed_by in other.revs:
+                break
+            other = other.child
+
         for name, (count, status) in self.get_candidate_regressions(
             runnable_type
         ).items():
+            if count > child_count_cutoff:
+                continue
+
             other = self.parent
             prior_regression = False
 
@@ -553,11 +613,10 @@ class Push:
                 other = other.parent
                 count += 1
 
-            # When the push was not backed-out, it's less likely to be the cause of a failure.
-            # So, we penalize it by doubling its count (basically, we consider the push to be
-            # further away from the failure, which makes it more likely to fall outside of
-            # MAX_DEPTH).
-            # We can't fully exclude pushes which were not backed-out because of bustage fixes.
+            # Given that our "bustage fix" detection is a heuristic which might fail, we
+            # penalize regressions for pushes which weren't backed-out by doubling their count
+            # (basically, we consider the push to be further away from the failure, which makes
+            # it more likely to fall outside of MAX_DEPTH).
             if not self.backedout:
                 count *= 2
 

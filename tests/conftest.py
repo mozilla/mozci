@@ -62,6 +62,7 @@ def create_push(monkeypatch, responses):
         push._id = push_id
         push_rev_to_id[rev] = push_id
         push.backedoutby = None
+        push.bugs = {push_id}
         push.tasks = []
         push._revs = [push.rev]
 

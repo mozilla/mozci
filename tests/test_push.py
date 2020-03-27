@@ -190,12 +190,14 @@ def test_failure_on_backout(create_pushes):
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     push of interest and failed in the push containing the backout of the push of interest.
     """
-    p = create_pushes(3)
+    p = create_pushes(5)
     i = 1  # the index of the push we are mainly interested in
 
     p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
-    p[i].backedoutby = p[i + 1].rev
-    p[i + 1].tasks = [
+    p[i].backedoutby = p[i + 2].rev
+    p[i + 1].tasks = []
+    p[i + 1].backedoutby = p[i + 3].rev
+    p[i + 2].tasks = [
         Task.create(
             id="1",
             label="test-failure",
@@ -206,6 +208,7 @@ def test_failure_on_backout(create_pushes):
 
     assert p[i].get_regressions("label") == {}
     assert p[i + 1].get_regressions("label") == {"test-failure": 2}
+    assert p[i + 2].get_regressions("label") == {}
 
 
 def test_failure_on_multiple_backouts(create_pushes):
@@ -214,12 +217,14 @@ def test_failure_on_multiple_backouts(create_pushes):
     push of interest and failed in the push containing the backout of the push of interest.
     The push containing the backout of the push of interest backs out multiple revisions.
     """
-    p = create_pushes(3)
+    p = create_pushes(5)
     i = 1  # the index of the push we are mainly interested in
 
     p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
     p[i].backedoutby = "myrev"
-    p[i + 1].tasks = [
+    p[i + 1].tasks = []
+    p[i + 1].backedoutby = p[i + 3].rev
+    p[i + 2].tasks = [
         Task.create(
             id="1",
             label="test-failure",
@@ -227,10 +232,11 @@ def test_failure_on_multiple_backouts(create_pushes):
             classification="not classified",
         )
     ]
-    p[i + 1]._revs = [p[i + 1].rev, "myrev"]
+    p[i + 2]._revs = [p[i + 1].rev, "myrev"]
 
     assert p[i].get_regressions("label") == {}
     assert p[i + 1].get_regressions("label") == {"test-failure": 2}
+    assert p[i + 2].get_regressions("label") == {}
 
 
 def test_failure_after_backout(create_pushes):
@@ -238,7 +244,7 @@ def test_failure_after_backout(create_pushes):
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     push of interest and failed in a push after the backout of the push of interest.
     """
-    p = create_pushes(4)
+    p = create_pushes(5)
     i = 1  # the index of the push we are mainly interested in
 
     p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
@@ -252,10 +258,11 @@ def test_failure_after_backout(create_pushes):
             classification="not classified",
         )
     ]
+    p[i + 2].backedoutby = p[i + 3].rev
 
     assert p[i].get_regressions("label") == {}
-    assert p[i + 1].get_regressions("label") == {"test-failure": 4}
-    assert p[i + 2].get_regressions("label") == {"test-failure": 4}
+    assert p[i + 1].get_regressions("label") == {}
+    assert p[i + 2].get_regressions("label") == {"test-failure": 2}
 
 
 def test_succeeded_and_backedout(create_pushes):
@@ -292,9 +299,129 @@ def test_failed_and_backedout(create_pushes):
     assert p[i].get_regressions("label") == {"test-prova": 0}
 
 
-def test_failed_and_not_backedout(create_pushes):
+def test_failed_and_bustage_fixed(create_pushes):
     """
-    Tests the scenario where a task failed in a push which was not backed-out.
+    Tests the scenario where a task failed in a push which was linked to the same bug
+    as a child push where the failure was not happening anymore.
+    """
+    p = create_pushes(3)
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova1", result="success")]
+    p[i].tasks = [
+        Task.create(
+            id="1",
+            label="test-prova1",
+            result="testfailed",
+            classification="not classified",
+        ),
+        Task.create(id="1", label="test-prova2", result="success",),
+    ]
+    p[i].bugs = {123}
+    p[i + 1].tasks = [Task.create(id="1", label="test-prova1", result="success")]
+    p[i + 1].bugs = {123}
+
+    assert p[i].get_regressions("label") == {"test-prova1": 0}
+
+
+def test_failed_and_bustage_fixed_intermittently(create_pushes):
+    """
+    Tests the scenario where a task failed intermittently in a push which was linked
+    to the same bug as a child push where the failure was not happening anymore.
+    """
+    p = create_pushes(3)
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i].tasks = [
+        Task.create(
+            id="4",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        ),
+        Task.create(id="5", label="test-prova", result="success",),
+    ]
+    p[i].bugs = {123}
+    p[i + 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i + 1].bugs = {123}
+
+    assert p[i].get_regressions("label") == {"test-prova": 0}
+
+
+def test_failed_with_child_push_fixing_same_bug(create_pushes):
+    """
+    Tests the scenario where a task failed in a push which was linked to the same bug
+    as a child push where the same task didn't run.
+    """
+    p = create_pushes(3)
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i].tasks = [
+        Task.create(
+            id="1",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        )
+    ]
+    p[i].bugs = {123}
+    p[i + 1].bugs = {123}
+
+    assert p[i].get_regressions("label") == {}
+
+
+def test_failed_with_child_push_still_failing_fixing_same_bug(create_pushes):
+    """
+    Tests the scenario where a task failed in a push which was linked to the same bug
+    as a child push where the task kept failing.
+    This test ensures a child push is not considered a bustage fix if there are no clear
+    matching task failures/passes to justify it.
+    """
+    p = create_pushes(3)
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [
+        Task.create(id="1", label="test-failure", result="success"),
+        Task.create(id="2", label="test-success", result="success",),
+        Task.create(id="3", label="test-classified-intermittent", result="success",),
+    ]
+    p[i].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="not classified",
+        ),
+        Task.create(id="2", label="test-success", result="success",),
+        Task.create(
+            id="3",
+            label="test-classified-intermittent",
+            result="testfailed",
+            classification="intermittent",
+        ),
+    ]
+    p[i].bugs = {123}
+    p[i + 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="not classified",
+        ),
+        Task.create(id="2", label="test-success", result="success",),
+        Task.create(id="3", label="test-classified-intermittent", result="success",),
+    ]
+    p[i + 1].bugs = {123}
+
+    assert p[i].get_regressions("label") == {}
+
+
+def test_failed_and_not_backedout_nor_bustage_fixed(create_pushes):
+    """
+    Tests the scenario where a task failed in a push which was not backed-out nor
+    bustage fixed.
     """
     p = create_pushes(3)
     i = 1  # the index of the push we are mainly interested in
@@ -309,7 +436,31 @@ def test_failed_and_not_backedout(create_pushes):
         )
     ]
 
-    assert p[i].get_regressions("label") == {"test-prova": 0}
+    assert p[i].get_regressions("label") == {}
+
+
+def test_child_failed_and_bustage_fixed(create_pushes):
+    """
+    Tests the scenario where a task didn't run in the push of interest, which was not
+    backed-out but bustage fixed, and failed in a following push.
+    """
+    p = create_pushes(3 + (MAX_DEPTH // 4))
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i].bugs = {123}
+    p[len(p) - 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        )
+    ]
+    p[len(p) - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[len(p) - 1].bugs = {123}
+
+    assert p[i].get_regressions("label") == {"test-prova": 6}
 
 
 def test_child_failed_and_not_backedout(create_pushes):
@@ -330,7 +481,7 @@ def test_child_failed_and_not_backedout(create_pushes):
         )
     ]
 
-    assert p[i].get_regressions("label") == {"test-prova": 6}
+    assert p[i].get_regressions("label") == {}
 
 
 def test_far_child_failed_and_backedout(create_pushes):
@@ -741,8 +892,8 @@ def test_far_intermittent_without_classification_and_not_backedout(create_pushes
         ),
     ]
 
-    assert p[i].get_regressions("label") == {"test-intermittent": 4}
-    assert p[i + 1].get_regressions("label") == {"test-intermittent": 4}
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {}
 
 
 def test_intermittent_without_classification_and_backedout(create_pushes):

@@ -536,14 +536,13 @@ class Push:
         """
         regressions = {}
 
-        for name, (child_count, status) in self.get_candidate_regressions(
+        for name, (count, status) in self.get_candidate_regressions(
             runnable_type
         ).items():
-            count = 0
             other = self.parent
             prior_regression = False
 
-            while count < MAX_DEPTH:
+            while count >= 0 and count < MAX_DEPTH:
                 runnable_summaries = getattr(other, f"{runnable_type}_summaries")
 
                 if name in runnable_summaries:
@@ -554,22 +553,20 @@ class Push:
                 other = other.parent
                 count += 1
 
-            total_count = count + child_count
-
             # When the push was not backed-out, it's less likely to be the cause of a failure.
             # So, we penalize it by doubling its count (basically, we consider the push to be
             # further away from the failure, which makes it more likely to fall outside of
             # MAX_DEPTH).
             # We can't fully exclude pushes which were not backed-out because of bustage fixes.
             if not self.backedout:
-                total_count *= 2
+                count *= 2
 
             # Also penalize cases where the status was intermittent.
             if status == Status.INTERMITTENT:
-                total_count *= 2
+                count *= 2
 
-            if not prior_regression and total_count <= MAX_DEPTH:
-                regressions[name] = total_count if total_count > 0 else 0
+            if not prior_regression and count <= MAX_DEPTH:
+                regressions[name] = count if count > 0 else 0
 
         return regressions
 

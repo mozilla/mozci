@@ -26,7 +26,7 @@ class HGMO:
 
     @staticmethod
     def create(rev, branch="autoland"):
-        key = (branch, rev)
+        key = (branch, rev[:12])
         if key in HGMO.CACHE:
             return HGMO.CACHE[key]
         instance = HGMO(rev, branch)

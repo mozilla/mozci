@@ -185,13 +185,11 @@ def test_succeeded_in_parent_failed_in_current_succeeded_in_child_succeeded_in_g
     assert p[i + 2].get_regressions("label") == {}
 
 
-def test_failure_on_backout(monkeypatch, create_pushes):
+def test_failure_on_backout(create_pushes):
     """
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     push of interest and failed in the push containing the backout of the push of interest.
     """
-    monkeypatch.setattr(HGMO, "is_backout", property(lambda cls: True))
-
     p = create_pushes(3)
     i = 1  # the index of the push we are mainly interested in
 
@@ -210,14 +208,12 @@ def test_failure_on_backout(monkeypatch, create_pushes):
     assert p[i + 1].get_regressions("label") == {"test-failure": 2}
 
 
-def test_failure_on_multiple_backouts(monkeypatch, create_pushes):
+def test_failure_on_multiple_backouts(create_pushes):
     """
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     push of interest and failed in the push containing the backout of the push of interest.
     The push containing the backout of the push of interest backs out multiple revisions.
     """
-    monkeypatch.setattr(HGMO, "is_backout", property(lambda cls: True))
-
     p = create_pushes(3)
     i = 1  # the index of the push we are mainly interested in
 
@@ -237,7 +233,7 @@ def test_failure_on_multiple_backouts(monkeypatch, create_pushes):
     assert p[i + 1].get_regressions("label") == {"test-failure": 2}
 
 
-def test_failure_after_backout(monkeypatch, create_pushes):
+def test_failure_after_backout(create_pushes):
     """
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     push of interest and failed in a push after the backout of the push of interest.
@@ -364,10 +360,21 @@ def test_fixed_by_commit(monkeypatch, create_pushes):
     push of interest and failed in a following push, with 'fixed by commit' information
     pointing to the back-outs.
     """
-    monkeypatch.setattr(HGMO, "is_backout", property(lambda cls: True))
-
     p = create_pushes(3)
     i = 1  # the index of the push we are mainly interested in
+
+    monkeypatch.setattr(
+        HGMO,
+        "backouts",
+        property(
+            lambda cls: {
+                "d25e5c66de225e2d1b989af61a0420874707dd14": [p[1].rev],
+                "012c3f1626b3e9bcd803d19aaf9584a81c5c95de": [p[i + 1].rev],
+            }
+        ),
+    )
+
+    monkeypatch.setattr(HGMO, "pushid", property(lambda cls: 1))
 
     p[i - 1].tasks = [
         Task.create(id="1", label="test-failure-current", result="success"),
@@ -402,10 +409,21 @@ def test_fixed_by_commit_task_didnt_run_in_parents(monkeypatch, create_pushes):
     push of interest and failed in a following push, with 'fixed by commit' information
     pointing to the back-outs.
     """
-    monkeypatch.setattr(HGMO, "is_backout", property(lambda cls: True))
-
     p = create_pushes(4)
     i = 1  # the index of the push we are mainly interested in
+
+    monkeypatch.setattr(
+        HGMO,
+        "backouts",
+        property(
+            lambda cls: {
+                "d25e5c66de225e2d1b989af61a0420874707dd14": [p[1].rev],
+                "012c3f1626b3e9bcd803d19aaf9584a81c5c95de": [p[i + 1].rev],
+            }
+        ),
+    )
+
+    monkeypatch.setattr(HGMO, "pushid", property(lambda cls: 1))
 
     p[i].backedoutby = "d25e5c66de225e2d1b989af61a0420874707dd14"
 
@@ -430,10 +448,16 @@ def test_fixed_by_commit_push_wasnt_backedout(monkeypatch, create_pushes):
     push of interest and failed in a following push, with 'fixed by commit' information
     pointing to a back-out of another push.
     """
-    monkeypatch.setattr(HGMO, "is_backout", property(lambda cls: True))
-
     p = create_pushes(4)
     i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == "xxx":
+            return {"xxx": [p[i - 1].rev]}
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [
         Task.create(id="1", label="test-failure-current", result="success")
@@ -453,23 +477,192 @@ def test_fixed_by_commit_push_wasnt_backedout(monkeypatch, create_pushes):
     assert p[i + 1].get_regressions("label") == {}
 
 
+def test_fixed_by_commit_another_push_possible_classification(
+    monkeypatch, create_pushes
+):
+    """
+    Tests the scenario where a task succeeded in a parent push, didn't run in the
+    push of interest and failed in a following push, with 'fixed by commit' information
+    pointing to a back-out of another push.
+    """
+    p = create_pushes(6)
+    i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == p[i + 3].rev:
+            return {p[i + 3].rev: [p[i + 1].rev]}
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].backedoutby = p[i + 4].rev
+    p[i + 1].tasks = []
+    p[i + 1].backedoutby = p[i + 3].rev
+    p[i + 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note=p[i + 3].rev,
+        )
+    ]
+
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {"test-failure": 0}
+
+
+def test_fixed_by_commit_failure_on_another_push_possible_classification(
+    monkeypatch, create_pushes
+):
+    """
+    Tests the scenario where a task succeeded in a parent push, didn't run in the
+    push of interest and failed in a following push, with 'fixed by commit' information
+    pointing to a back-out of the following push.
+    """
+    p = create_pushes(6)
+    i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == p[i + 3].rev:
+            return {p[i + 3].rev: [p[i + 1].rev]}
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].backedoutby = p[i + 4].rev
+    p[i + 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note=p[i + 3].rev,
+        )
+    ]
+    p[i + 1].backedoutby = p[i + 3].rev
+
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {"test-failure": 0}
+
+
+def test_fixed_by_commit_another_push_wrong_classification(monkeypatch, create_pushes):
+    """
+    Tests the scenario where a task succeeded in a parent push, failed in the
+    push of interest and failed in a following push, with wrong 'fixed by commit' information
+    pointing to a back-out of another push.
+    """
+    p = create_pushes(4)
+    i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == "rev4.1":
+            return {"rev4.1": [p[i + 1].rev], "rev4.2": [p[i].rev]}
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note="rev4.1",
+        )
+    ]
+    p[i].backedoutby = "rev4.2"
+    p[i + 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note="rev4.1",
+        )
+    ]
+    p[i + 1].backedoutby = "rev4.1"
+    p[i + 2]._revs = ["rev4.1", "rev4.2"]
+
+    assert p[i].get_regressions("label") == {"test-failure": 0}
+    assert p[i + 1].get_regressions("label") == {}
+
+
+def test_fixed_by_commit_multiple_backout(monkeypatch, create_pushes):
+    """
+    Tests the scenario where a task succeeded in a parent push, failed in the
+    push of interest and failed in a following push, with 'fixed by commit' information
+    pointing to a back-out of both revisions from this push and another push.
+    """
+    p = create_pushes(4)
+    i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == "rev4.1":
+            return {"rev4.1": [p[i + 1].rev, "rev1.2"], "rev4.2": ["rev1.1"]}
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+
+    def mock_pushid(cls):
+        if cls.context["rev"] == "rev1.1":
+            return int(p[i]._id)
+        elif cls.context["rev"] == "rev1.2":
+            return int(p[i]._id)
+        elif cls.context["rev"] == "rev3":
+            return int(3)
+        else:
+            raise Exception(cls.context["rev"])
+
+    monkeypatch.setattr(HGMO, "pushid", property(mock_pushid))
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i]._revs = ["rev1.1", "rev1.2"]
+    p[i].backedoutby = "rev4.2"
+    p[i + 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note="rev4.1",
+        )
+    ]
+    p[i + 1].backedoutby = "rev4.1"
+    p[i + 2]._revs = ["rev4.1", "rev4.2"]
+
+    assert p[i].get_regressions("label") == {"test-failure": 0}
+    assert p[i + 1].get_regressions("label") == {"test-failure": 0}
+
+
 def test_fixed_by_commit_no_backout(monkeypatch, create_pushes):
     """
     Tests the scenario where two tasks succeeded in a parent push, didn't run in the
     push of interest and failed in a following push, with 'fixed by commit' information
     pointing to a bustage fix.
     """
-
-    def mock_is_backout(cls):
-        if cls.context["rev"] == "xxx":
-            return False
-
-        return True
-
-    monkeypatch.setattr(HGMO, "is_backout", property(mock_is_backout))
-
     p = create_pushes(5)
     i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == "xxx":
+            return {}
+
+        if cls.context["rev"] == "012c3f1626b3":
+            return {"012c3f1626b3e9bcd803d19aaf9584a81c5c95de": p[i + 1].rev}
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+
+    monkeypatch.setattr(HGMO, "pushid", property(lambda cls: 1))
 
     p[i - 1].tasks = [
         Task.create(id="1", label="test-failure-current", result="success"),
@@ -505,15 +698,11 @@ def test_fixed_by_commit_no_backout(monkeypatch, create_pushes):
     }
 
 
-def test_intermittent_without_classification_and_not_backedout(
-    monkeypatch, create_pushes
-):
+def test_intermittent_without_classification_and_not_backedout(create_pushes):
     """
     Tests the scenario where a task succeeded in a parent push, was intermittent
     in the push of interest, which was not backed-out and didn't have a classification.
     """
-    monkeypatch.setattr(HGMO, "is_backout", property(lambda cls: True))
-
     p = create_pushes(3)
     i = 1  # the index of the push we are mainly interested in
 
@@ -532,16 +721,12 @@ def test_intermittent_without_classification_and_not_backedout(
     assert p[i].get_regressions("label") == {"test-intermittent": 0}
 
 
-def test_far_intermittent_without_classification_and_not_backedout(
-    monkeypatch, create_pushes
-):
+def test_far_intermittent_without_classification_and_not_backedout(create_pushes):
     """
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     in the push of interest, was intermittent in a following push, which was not
     backed-out and didn't have a classification.
     """
-    monkeypatch.setattr(HGMO, "is_backout", property(lambda cls: True))
-
     p = create_pushes(4)
     i = 1  # the index of the push we are mainly interested in
 
@@ -560,13 +745,11 @@ def test_far_intermittent_without_classification_and_not_backedout(
     assert p[i + 1].get_regressions("label") == {"test-intermittent": 4}
 
 
-def test_intermittent_without_classification_and_backedout(monkeypatch, create_pushes):
+def test_intermittent_without_classification_and_backedout(create_pushes):
     """
     Tests the scenario where a task succeeded in a parent push, was intermittent
     in the push of interest, which was backed-out and didn't have a classification.
     """
-    monkeypatch.setattr(HGMO, "is_backout", property(lambda cls: True))
-
     p = create_pushes(3)
     i = 1  # the index of the push we are mainly interested in
 
@@ -585,16 +768,12 @@ def test_intermittent_without_classification_and_backedout(monkeypatch, create_p
     assert p[i].get_regressions("label") == {"test-intermittent": 0}
 
 
-def test_far_intermittent_without_classification_and_backedout(
-    monkeypatch, create_pushes
-):
+def test_far_intermittent_without_classification_and_backedout(create_pushes):
     """
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     in the push of interest, was intermittent in a following push, which was
     backed-out and didn't have a classification.
     """
-    monkeypatch.setattr(HGMO, "is_backout", property(lambda cls: True))
-
     p = create_pushes(5)
     i = 1  # the index of the push we are mainly interested in
 
@@ -621,10 +800,16 @@ def test_intermittent_fixed_by_commit(monkeypatch, create_pushes):
     in the push of interest, was intermittent in a following push, which was
     backed-out and had a 'fixed by commit' classification.
     """
-    monkeypatch.setattr(HGMO, "is_backout", property(lambda cls: True))
-
     p = create_pushes(6)
     i = 2  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == p[i + 2].rev:
+            return {p[i + 2].rev: [p[i].rev, p[i + 2].rev]}
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
     p[i - 2].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
     p[i - 2].backedoutby = None
@@ -645,14 +830,12 @@ def test_intermittent_fixed_by_commit(monkeypatch, create_pushes):
     assert p[i + 1].get_regressions("label") == {}
 
 
-def test_intermittent_classification(monkeypatch, create_pushes):
+def test_intermittent_classification(create_pushes):
     """
     Tests the scenario where a task succeeded in a parent push, didn't run in the
     in the push of interest, failed in a following push, which was
     backed-out and had a 'intermittent' classification.
     """
-    monkeypatch.setattr(HGMO, "is_backout", property(lambda cls: True))
-
     p = create_pushes(5)
     i = 1  # the index of the push we are mainly interested in
 

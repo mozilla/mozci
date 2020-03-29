@@ -13,7 +13,7 @@ def responses():
 
 
 @pytest.fixture
-def create_push(responses):
+def create_push(monkeypatch, responses):
     """Returns a factory method that creates a `Push` instance.
 
     Each subsequent call to the factory will set the previously created
@@ -22,6 +22,13 @@ def create_push(responses):
 
     prev_push = None
     push_id = 1
+
+    push_rev_to_id = {}
+
+    def mock_pushid(cls):
+        return push_rev_to_id[cls.context["rev"]]
+
+    monkeypatch.setattr(HGMO, "pushid", property(mock_pushid))
 
     def inner(
         rev=None, branch="integration/autoland", json=None, automationrelevance=None
@@ -53,6 +60,7 @@ def create_push(responses):
 
         push = Push(rev, branch)
         push._id = push_id
+        push_rev_to_id[rev] = push_id
         push.backedoutby = None
         push.tasks = []
         push._revs = [push.rev]

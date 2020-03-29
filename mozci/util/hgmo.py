@@ -66,5 +66,13 @@ class HGMO:
         return self._get_resource(url)["pushes"]
 
     @property
-    def is_backout(self):
-        return len(self.changesets[0]["backsoutnodes"]) > 0
+    def pushid(self):
+        return self.changesets[0]["pushid"]
+
+    @property
+    def backouts(self):
+        return {
+            changeset["node"]: [node["node"] for node in changeset["backsoutnodes"]]
+            for changeset in self.changesets
+            if len(changeset["backsoutnodes"])
+        }

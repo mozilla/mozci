@@ -375,6 +375,82 @@ class Push:
 
         return int(duration / 3600)
 
+    def _check_classification(self, failure_push, classifications):
+        """Checks a 'fixed by commit' classification to figure out what push it references.
+
+        Returns:
+            bool or None: True, if the classification references this push.
+                          False, if the classification references another push.
+                          None, if it is not clear what the classification references.
+        """
+        fixed_by_commit_classification_notes = [
+            n[:12]
+            for c, n in classifications
+            if c == "fixed by commit"
+            if n is not None
+        ]
+
+        if len(fixed_by_commit_classification_notes) == 0:
+            return None
+
+        # If the failure was classified as fixed by commit, and the fixing commit
+        # is a backout of the current push, it is definitely a regression of the
+        # current push.
+        if (
+            self.backedout
+            and self.backedoutby[:12] in fixed_by_commit_classification_notes
+        ):
+            return True
+
+        # If the failure was classified as fixed by commit, and the fixing commit
+        # is a backout of another push, it is definitely not a regression of the
+        # current push.
+        # Unless some condition holds which makes us doubt about the correctness of the
+        # classification.
+        # - the backout commit also backs out one of the commits of this push;
+        # - the other push backed-out by the commit which is mentioned in the classification
+        #   is landed after the push where the failure occurs (so, it can't have caused it);
+        # - the backout push also contains a commit backing out one of the commits of this push.
+        for classification_note in fixed_by_commit_classification_notes:
+            fix_hgmo = HGMO.create(classification_note, branch=self.branch)
+            if len(fix_hgmo.backouts) == 0:
+                continue
+
+            # If the backout commit also backs out one of the commits of this push, then
+            # we can consider it as a regression of this push.
+            # NOTE: this should never happen in practice because of current development
+            # practices.
+            for backout, backedouts in fix_hgmo.backouts.items():
+                if backout[:12] != classification_note[:12]:
+                    continue
+
+                if any(
+                    rev[:12] in {backedout[:12] for backedout in backedouts}
+                    for rev in self.revs
+                ):
+                    return True
+
+            # Otherwise, as long as the commit which was backed-out was landed **before**
+            # the appearance of this failure, we can be sure it was its cause and so
+            # the current push is not at fault.
+            for backout, backedouts in fix_hgmo.backouts.items():
+                if backout[:12] != classification_note[:12]:
+                    continue
+
+                if any(
+                    HGMO.create(backedout, branch=self.branch).pushid <= failure_push.id
+                    for backedout in backedouts
+                ):
+                    return False
+
+            # Otherwise, if the backout push also contains the backout commit of this push,
+            # we can consider it as a regression of this push.
+            for backout in fix_hgmo.backouts.keys():
+                if backout[:12] == self.backedoutby[:12]:
+                    return True
+
+        return None
+
     @lru_cache(maxsize=None)
     def get_candidate_regressions(self, runnable_type):
         """Retrieve the set of "runnables" that are regression candidates for this push.
@@ -411,32 +487,14 @@ class Push:
                     passing_runnables.add(name)
                     continue
 
-                fixed_by_commit_classification_notes = [
-                    n[:12]
-                    for c, n in summary.classifications
-                    if c == "fixed by commit"
-                    if n is not None
-                ]
-                if len(fixed_by_commit_classification_notes) > 0:
-                    if (
-                        self.backedout
-                        and self.backedoutby[:12]
-                        in fixed_by_commit_classification_notes
-                    ):
-                        # If the failure was classified as fixed by commit, and the fixing commit
-                        # is a backout of the current push, it is definitely a regression of the
-                        # current push.
-                        candidate_regressions[name] = (-math.inf, summary.status)
-                        continue
-                    elif all(
-                        HGMO.create(n, branch=self.branch).is_backout
-                        for n in fixed_by_commit_classification_notes
-                    ):
-                        # If the failure was classified as fixed by commit, and the fixing commit
-                        # is a backout of another push, it is definitely not a regression of the
-                        # current push.
-                        passing_runnables.add(name)
-                        continue
+                classification = self._check_classification(
+                    other, summary.classifications
+                )
+                if classification is True:
+                    candidate_regressions[name] = (-math.inf, summary.status)
+                elif classification is False:
+                    passing_runnables.add(name)
+                    continue
 
                 if name in candidate_regressions:
                     # It failed in one of the pushes between the current and its

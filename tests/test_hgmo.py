@@ -14,7 +14,7 @@ def test_hgmo_cache():
     assert h1 != h2
 
 
-def test_hgmo_is_backout(responses):
+def test_hgmo_backouts(responses):
     responses.add(
         responses.GET,
         "https://hg.mozilla.org/integration/autoland/json-automationrelevance/abcdef",
@@ -25,17 +25,34 @@ def test_hgmo_is_backout(responses):
     responses.add(
         responses.GET,
         "https://hg.mozilla.org/integration/autoland/json-automationrelevance/abcdef",
-        json={"changesets": [{"backsoutnodes": ["123456"]}]},
+        json={"changesets": [{"node": "789", "backsoutnodes": [{"node": "123456"}]}]},
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://hg.mozilla.org/integration/autoland/json-automationrelevance/abcdef",
+        json={
+            "changesets": [
+                {"node": "789", "backsoutnodes": [{"node": "123456"}]},
+                {"node": "jkl", "backsoutnodes": [{"node": "asd"}, {"node": "fgh"}]},
+            ]
+        },
         status=200,
     )
 
     h = HGMO("abcdef")
-    assert not h.is_backout
+    assert h.backouts == {}
     assert h.changesets[0]["backsoutnodes"] == []
 
     h = HGMO("abcdef")
-    assert h.is_backout
-    assert h.changesets[0]["backsoutnodes"] == ["123456"]
+    assert h.backouts == {"789": ["123456"]}
+    assert h.changesets[0]["backsoutnodes"] == [{"node": "123456"}]
+
+    h = HGMO("abcdef")
+    assert h.backouts == {"789": ["123456"], "jkl": ["asd", "fgh"]}
+    assert h.changesets[0]["backsoutnodes"] == [{"node": "123456"}]
+    assert h.changesets[1]["backsoutnodes"] == [{"node": "asd"}, {"node": "fgh"}]
 
 
 def test_hgmo_json_data(responses):

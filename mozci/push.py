@@ -376,7 +376,7 @@ class Push:
 
         return int(duration / 3600)
 
-    def _check_classification(self, failure_push, classifications):
+    def _check_classification(self, other, classifications):
         """Checks a 'fixed by commit' classification to figure out what push it references.
 
         Returns:
@@ -417,7 +417,7 @@ class Push:
                 fix_hgmo = HGMO.create(classification_note, branch=self.branch)
             except PushNotFound:
                 logger.warning(
-                    "Classification note ({classification_note}) references a revision which does not exist on push {failure_push.rev}"
+                    "Classification note ({classification_note}) references a revision which does not exist on push {other.rev}"
                 )
                 return None
             if len(fix_hgmo.backouts) == 0:
@@ -445,7 +445,7 @@ class Push:
                     continue
 
                 if any(
-                    HGMO.create(backedout, branch=self.branch).pushid <= failure_push.id
+                    HGMO.create(backedout, branch=self.branch).pushid <= other.id
                     for backedout in backedouts
                 ):
                     return False

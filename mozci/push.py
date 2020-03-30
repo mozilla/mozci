@@ -376,7 +376,7 @@ class Push:
 
         return int(duration / 3600)
 
-    def _check_classification(self, other, classifications):
+    def _is_classified_as_cause(self, other, classifications):
         """Checks a 'fixed by commit' classification to figure out what push it references.
 
         Returns:
@@ -494,12 +494,12 @@ class Push:
                     passing_runnables.add(name)
                     continue
 
-                classification = self._check_classification(
+                is_classified_as_cause = self._is_classified_as_cause(
                     other, summary.classifications
                 )
-                if classification is True:
+                if is_classified_as_cause is True:
                     candidate_regressions[name] = (-math.inf, summary.status)
-                elif classification is False:
+                elif is_classified_as_cause is False:
                     passing_runnables.add(name)
                     continue
 

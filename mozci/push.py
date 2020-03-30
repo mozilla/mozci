@@ -470,7 +470,7 @@ class Push:
 
             # Otherwise, if the backout push also contains the backout commit of this push,
             # we can consider it as a regression of this push.
-            for backout in fix_hgmo.backouts.keys():
+            for backout in fix_hgmo.backouts:
                 if backout[:12] == self.backedoutby[:12]:
                     return True
 
@@ -554,7 +554,7 @@ class Push:
             if len(self.bugs & other.bugs) > 0 and any(
                 name in other.label_summaries
                 and other.label_summaries[name].status == Status.PASS
-                for name in self.get_candidate_regressions("label").keys()
+                for name in self.get_candidate_regressions("label")
             ):
                 return other.rev
 

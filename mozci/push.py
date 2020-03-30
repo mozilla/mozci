@@ -87,14 +87,9 @@ class Push:
             set: A set of bug IDs.
         """
         return set(
-            sum(
-                (
-                    bug["no"]
-                    for changeset in self._hgmo.changesets
-                    for bug in changeset["bugs"]
-                ),
-                [],
-            )
+            bug["no"]
+            for changeset in self._hgmo.changesets
+            for bug in changeset["bugs"]
         )
 
     @property

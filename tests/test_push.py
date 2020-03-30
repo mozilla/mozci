@@ -591,7 +591,7 @@ def test_fixed_by_commit_another_push_wrong_classification(monkeypatch, create_p
     p[i + 2]._revs = ["rev4.1", "rev4.2"]
 
     assert p[i].get_regressions("label") == {"test-failure": 0}
-    assert p[i + 1].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {"test-failure": 0}
 
 
 def test_fixed_by_commit_multiple_backout(monkeypatch, create_pushes):

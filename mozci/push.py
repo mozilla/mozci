@@ -84,7 +84,7 @@ class Push:
         """The bugs associated with the commits of this push.
 
         Returns:
-            list: A list of bug IDs.
+            set: A set of bug IDs.
         """
         return set(
             sum(

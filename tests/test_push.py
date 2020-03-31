@@ -1065,3 +1065,65 @@ def test_push_does_not_exist(responses):
     p = Push(rev)
     with pytest.raises(PushNotFound):
         p.id
+
+
+def test_push_bugs(responses):
+    rev = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+    responses.add(
+        responses.GET,
+        f"https://hg.mozilla.org/integration/autoland/json-automationrelevance/{rev}",
+        json={
+            "changesets": [
+                {"bugs": [{"no": "1624503"}]},
+                {"bugs": [{"no": "1624503"}]},
+            ]
+        },
+        status=200,
+    )
+
+    p = Push(rev)
+    assert p.bugs == {"1624503"}
+
+
+def test_push_bugs_different(responses):
+    rev = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+    responses.add(
+        responses.GET,
+        f"https://hg.mozilla.org/integration/autoland/json-automationrelevance/{rev}",
+        json={
+            "changesets": [
+                {"bugs": [{"no": "1617050"}]},
+                {"bugs": [{"no": "1625220"}]},
+                {"bugs": [{"no": "1625220"}]},
+                {"bugs": [{"no": "1625220"}]},
+                {"bugs": [{"no": "1595768"}]},
+                {"bugs": [{"no": "1595768"}]},
+            ]
+        },
+        status=200,
+    )
+
+    p = Push(rev)
+    assert p.bugs == {"1617050", "1625220", "1595768"}
+
+
+def test_push_bugs_multiple(responses):
+    rev = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+    responses.add(
+        responses.GET,
+        f"https://hg.mozilla.org/integration/autoland/json-automationrelevance/{rev}",
+        json={
+            "changesets": [
+                {"bugs": [{"no": "1617050"}, {"no": "123"}]},
+                {"bugs": [{"no": "1617050"}]},
+                {"bugs": [{"no": "456"}]},
+            ]
+        },
+        status=200,
+    )
+
+    p = Push(rev)
+    assert p.bugs == {"123", "456", "1617050"}

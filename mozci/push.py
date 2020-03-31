@@ -428,13 +428,13 @@ class Push:
         for classification_note in fixed_by_commit_classification_notes:
             try:
                 fix_hgmo = HGMO.create(classification_note, branch=self.branch)
+                if len(fix_hgmo.backouts) == 0:
+                    continue
             except PushNotFound:
                 logger.warning(
                     "Classification note ({classification_note}) references a revision which does not exist on push {other.rev}"
                 )
                 return None
-            if len(fix_hgmo.backouts) == 0:
-                continue
 
             # If the backout commit also backs out one of the commits of this push, then
             # we can consider it as a regression of this push.

@@ -211,6 +211,42 @@ def test_failure_on_backout(create_pushes):
     assert p[i + 2].get_regressions("label") == {}
 
 
+def test_failure_on_bustage_fix(create_pushes):
+    """
+    Tests the scenario where a task succeeded in a parent push, didn't run in the
+    push of interest and failed in the push containing the bustage fix of the push of interest.
+    """
+    p = create_pushes(5)
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [
+        Task.create(id="1", label="test", result="success"),
+        Task.create(id="1", label="test_for_detecting_bustage_fix", result="success"),
+    ]
+    p[i].tasks = [
+        Task.create(
+            id="1",
+            label="test_for_detecting_bustage_fix",
+            result="testfailed",
+            classification="not classified",
+        ),
+    ]
+    p[i].bugs = {123}
+    p[i + 1].tasks = []
+    p[i + 1].backedoutby = p[i + 3].rev
+    p[i + 2].tasks = [
+        Task.create(
+            id="1", label="test", result="testfailed", classification="not classified",
+        ),
+        Task.create(id="1", label="test_for_detecting_bustage_fix", result="success",),
+    ]
+    p[i + 2].bugs = {123}
+
+    assert p[i].get_regressions("label") == {"test_for_detecting_bustage_fix": 0}
+    assert p[i + 1].get_regressions("label") == {"test": 2}
+    assert p[i + 2].get_regressions("label") == {}
+
+
 def test_failure_on_multiple_backouts(create_pushes):
     """
     Tests the scenario where a task succeeded in a parent push, didn't run in the

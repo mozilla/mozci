@@ -432,7 +432,7 @@ class Push:
                     continue
             except PushNotFound:
                 logger.warning(
-                    "Classification note ({classification_note}) references a revision which does not exist on push {other.rev}"
+                    f"Classification note ({classification_note}) references a revision which does not exist on push {other.rev}"
                 )
                 return None
 

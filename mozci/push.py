@@ -10,7 +10,7 @@ from adr.query import run_query
 from adr.util.memoize import memoized_property
 from loguru import logger
 
-from mozci.errors import PushNotFound
+from mozci.errors import ParentPushNotFound, PushNotFound
 from mozci.task import GroupResult, GroupSummary, LabelSummary, Status, Task, TestTask
 from mozci.util.hgmo import HGMO
 from mozci.util.taskcluster import find_task_id
@@ -136,8 +136,60 @@ class Push:
 
         Returns:
             Push: A `Push` instance representing the parent push.
+
+        Raises:
+            ParentPushNotFound: when no suitable parent push can be detected.
         """
-        return self.create_push(self.id - 1)
+        # Mozilla-unified and try allow multiple heads, so we can't rely on
+        # `self.id - 1` to be the parent.
+        if self.branch not in ("mozilla-unified", "try"):
+            return self.create_push(self.id - 1)
+
+        changesets = [c for c in self._hgmo.changesets if c.get("phase") == "draft"]
+        if not changesets:
+            # Supports mozilla-unified as well as older automationrelevance
+            # files that don't contain the phase.
+            changesets = self._hgmo.changesets
+
+        parents = changesets[0]["parents"]
+        if len(parents) > 1:
+            raise ParentPushNotFound(
+                "merge commits are unsupported", rev=self.rev, branch=self.branch
+            )
+
+        # Search for this revision in the following repositories. We search
+        # autoland last as it would run the fewest tasks, so a push from one of
+        # the other repositories would be preferable.
+        branches = ("mozilla-central", "mozilla-beta", "mozilla-release", "autoland")
+        found_on = []
+        parent_rev = parents[0]
+        for branch in branches:
+            try:
+                hgmo = HGMO.create(parent_rev, branch=branch)
+                head = hgmo.changesets[0]["pushhead"]
+            except PushNotFound:
+                continue
+
+            found_on.append(branch)
+
+            # Revision exists in repo but is not the 'pushhead', so keep searching.
+            if head != parent_rev:
+                continue
+
+            return Push(parent_rev, branch=branch)
+
+        if found_on:
+            branches = found_on
+            reason = "was not a push head"
+        else:
+            # This should be extremely rare (if not impossible).
+            reason = "was not found"
+
+        branches = [
+            b[len("mozilla-") :] if b.startswith("mozilla-") else b for b in branches
+        ]
+        msg = f"parent revision '{parent_rev[:12]}' {reason} on any of {', '.join(branches)}"
+        raise ParentPushNotFound(msg, rev=self.rev, branch=self.branch)
 
     @memoized_property
     def child(self):

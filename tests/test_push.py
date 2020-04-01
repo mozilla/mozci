@@ -2,15 +2,52 @@
 
 import pytest
 
-from mozci.errors import PushNotFound
+from mozci.errors import ParentPushNotFound, PushNotFound
 from mozci.push import Push
 from mozci.util.hgmo import HGMO
 
 
+@pytest.fixture
+def create_changesets():
+    """Return a set of changesets in automationrelevance format.
+
+    Ordered from base -> head.
+    """
+
+    def node(i):
+        i = str(i)
+        pad = "0" * (40 - len(i))
+        return pad + i
+
+    def inner(num, extra=None, head=1):
+        changesets = []
+        for i in reversed(range(head, num + head)):
+            c = {
+                "node": node(i),
+                "parents": [node(i + 1)],
+                "pushhead": node(head),
+            }
+            if isinstance(extra, list):
+                c.update(extra[num - i])
+            elif isinstance(extra, dict):
+                c.update(extra)
+
+            changesets.append(c)
+
+        return changesets
+
+    return inner
+
+
 def test_create_push(responses):
+    ctx = {
+        "branch": "integration/autoland",
+        "push_id_start": "122",
+        "push_id_end": "123",
+    }
     responses.add(
         responses.GET,
-        "https://hg.mozilla.org/integration/autoland/json-pushes?version=2&startID=122&endID=123",
+        HGMO.JSON_PUSHES_TEMPLATE.format(**ctx),
         json={
             "pushes": {
                 "123": {
@@ -128,3 +165,150 @@ def test_push_bugs_multiple(responses):
 
     p = Push(rev)
     assert p.bugs == {"123", "456", "1617050"}
+
+
+def test_push_parent_on_autoland(responses):
+    ctx = {
+        "branch": "integration/autoland",
+        "push_id_start": "121",
+        "push_id_end": "122",
+    }
+    responses.add(
+        responses.GET,
+        HGMO.JSON_PUSHES_TEMPLATE.format(**ctx),
+        json={
+            "pushes": {
+                "122": {
+                    "changesets": ["b" * 40],
+                    "date": 1213174092,
+                    "user": "user@example.org",
+                },
+            },
+        },
+        status=200,
+    )
+
+    p1 = Push("a" * 40)
+    p1._id = 123
+    parent = p1.parent
+
+    assert parent.id == 122
+
+
+def test_push_parent_on_try(responses, create_changesets):
+    changesets = create_changesets(
+        4,
+        [
+            {"phase": "public"},
+            {"phase": "public"},
+            {"phase": "draft"},
+            {"phase": "draft"},
+        ],
+    )
+
+    from pprint import pprint
+
+    pprint(changesets, indent=2)
+    head = changesets[-1]["node"]
+    ctx = {"branch": "try", "rev": head}
+
+    # We'll query the initial pushes' changesets first.
+    responses.add(
+        responses.GET,
+        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
+        json={"changesets": changesets},
+        status=200,
+    )
+
+    # Should find changesets[1] as the parent and then start searching for it.
+    parent_rev = changesets[1]["node"]
+
+    # First we'll search mozilla-central, but won't find parent_rev.
+    ctx["rev"] = parent_rev
+    ctx["branch"] = "mozilla-central"
+    responses.add(
+        responses.GET,
+        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
+        json={f"error": "unknown revision '{parent_rev}'"},
+        status=404,
+    )
+
+    # Next we'll search mozilla-beta, we'll find parent_rev but it's not a push head.
+    ctx["branch"] = "mozilla-beta"
+    changesets = create_changesets(4, {"phase": "public"})
+    responses.add(
+        responses.GET,
+        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
+        json={"changesets": changesets},
+        status=200,
+    )
+
+    # Finally we'll search mozilla-release, we find it and it's the push head!
+    ctx["branch"] = "mozilla-release"
+    changesets = create_changesets(2, {"phase": "public"}, head=3)
+    responses.add(
+        responses.GET,
+        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
+        json={"changesets": changesets},
+        status=200,
+    )
+
+    # Now run it and assert.
+    push = Push(head, branch="try")
+    parent = push.parent
+    assert parent.rev == parent_rev
+    assert parent.branch == "mozilla-release"
+
+
+def test_push_parent_on_try_fails_with_merge_commit(responses, create_changesets):
+    ctx = {
+        "branch": "try",
+        "rev": "a" * 40,
+    }
+
+    # Finding parent fails on merge commits.
+    responses.add(
+        responses.GET,
+        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
+        json={"changesets": create_changesets(1, {"parents": ["b" * 40, "c" * 40]})},
+        status=200,
+    )
+
+    push = Push(ctx["rev"], ctx["branch"])
+    with pytest.raises(ParentPushNotFound):
+        push.parent
+
+
+def test_push_parent_on_try_fails_when_not_a_push_head(responses, create_changesets):
+    changesets = create_changesets(3)
+    head = changesets[-1]["node"]
+    ctx = {
+        "branch": "try",
+        "rev": head,
+    }
+    responses.add(
+        responses.GET,
+        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
+        json={"changesets": changesets},
+        status=200,
+    )
+
+    # We raise if rev is not found or a push head anywhere.
+    ctx["rev"] = changesets[0]["parents"][0]
+    for branch in (
+        "mozilla-central",
+        "mozilla-beta",
+        "mozilla-release",
+        "integration/autoland",
+    ):
+        ctx["branch"] = branch
+        responses.add(
+            responses.GET,
+            HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
+            json={"changesets": changesets},
+            status=200,
+        )
+
+    push = Push(head, branch="try")
+    with pytest.raises(ParentPushNotFound):
+        push.parent

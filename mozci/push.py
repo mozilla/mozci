@@ -471,6 +471,12 @@ class Push:
 
         return None
 
+    def _iterate_children(self):
+        other = self
+        for _ in range(MAX_DEPTH + 1):
+            yield other
+            other = other.child
+
     def _iterate_failures(self, runnable_type):
         failclass = ("not classified", "fixed by commit")
 
@@ -478,8 +484,7 @@ class Push:
         candidate_regressions = {}
 
         count = 0
-        other = self
-        while count < MAX_DEPTH + 1:
+        for other in self._iterate_children():
             for name, summary in getattr(other, f"{runnable_type}_summaries").items():
                 if name in passing_runnables:
                     # It passed in one of the pushes between the current and its
@@ -554,11 +559,21 @@ class Push:
         if self.backedout:
             return None
 
+        def fix_same_bugs(push1, push2):
+            return len(push1.bugs & push2.bugs) > 0
+
+        # Skip checking regressions if we can't find any possible candidate.
+        possibly_bustage_fixed = any(
+            fix_same_bugs(self, other) for other in self._iterate_children()
+        )
+        if not possibly_bustage_fixed:
+            return None
+
         for other, candidate_regressions in self._iterate_failures("label"):
-            if other == self:
+            if other == self or not fix_same_bugs(self, other):
                 continue
 
-            if len(self.bugs & other.bugs) > 0 and any(
+            if any(
                 name in other.label_summaries
                 and other.label_summaries[name].status == Status.PASS
                 for name in candidate_regressions

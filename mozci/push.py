@@ -471,20 +471,7 @@ class Push:
 
         return None
 
-    @lru_cache(maxsize=None)
-    def get_candidate_regressions(self, runnable_type):
-        """Retrieve the set of "runnables" that are regression candidates for this push.
-
-        A "runnable" can be any group of tests, e.g. a label, a manifest across platforms,
-        a manifest on a given platform.
-
-        A candidate regression is any runnable for which at least one
-        associated task failed (therefore including intermittents), and which
-        is either not classified or fixed by commit.
-
-        Returns:
-            set: Set of runnable names (str).
-        """
+    def _iterate_failures(self, runnable_type):
         failclass = ("not classified", "fixed by commit")
 
         passing_runnables = set()
@@ -523,8 +510,32 @@ class Push:
 
                 candidate_regressions[name] = (count, summary.status)
 
+            yield other, candidate_regressions
+
             other = other.child
             count += 1
+
+    def get_candidate_regressions(self, runnable_type):
+        """Retrieve the set of "runnables" that are regression candidates for this push.
+
+        A "runnable" can be any group of tests, e.g. a label, a manifest across platforms,
+        a manifest on a given platform.
+
+        A candidate regression is any runnable for which at least one
+        associated task failed (therefore including intermittents), and which
+        is either not classified or fixed by commit.
+
+        Returns:
+            set: Set of runnable names (str).
+        """
+        for other, candidate_regressions in self._iterate_failures(runnable_type):
+            # Break early if we reached the backout of this push, since any failure
+            # after that won't be blamed on this push.
+            if (
+                self.backedoutby in other.child.revs
+                or self.bustage_fixed_by in other.child.revs
+            ):
+                break
 
         return candidate_regressions
 
@@ -541,20 +552,18 @@ class Push:
             str or None: The commit revision which 'bustage fixes' this push (or None).
         """
         if self.backedout:
-            return False
+            return None
 
-        count = 0
-        other = self.child
-        while count < MAX_DEPTH:
+        for other, candidate_regressions in self._iterate_failures("label"):
+            if other == self:
+                continue
+
             if len(self.bugs & other.bugs) > 0 and any(
                 name in other.label_summaries
                 and other.label_summaries[name].status == Status.PASS
-                for name in self.get_candidate_regressions("label")
+                for name in candidate_regressions
             ):
                 return other.rev
-
-            other = other.child
-            count += 1
 
         return None
 
@@ -580,20 +589,9 @@ class Push:
         if not self.backedout and not self.bustage_fixed_by:
             return regressions
 
-        # Any failure that comes after this push has been backed-out or bustage fixed,
-        # can't be blamed on this push.
-        other = self.child
-        for child_count_cutoff in range(MAX_DEPTH + 1):
-            if self.backedoutby in other.revs or self.bustage_fixed_by in other.revs:
-                break
-            other = other.child
-
         for name, (count, status) in self.get_candidate_regressions(
             runnable_type
         ).items():
-            if count > child_count_cutoff:
-                continue
-
             other = self.parent
             prior_regression = False
 

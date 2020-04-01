@@ -19,9 +19,9 @@ def test_missing_manifests():
     BLACKLIST = (
         "web-platform-tests",
         "talos",
-        "web-platform-tests-reftests",
+        "web-platform-tests-reftest",
         "web-platform-tests-wdspec",
-        "web-platform-tests-crashtests",
+        "web-platform-tests-crashtest",
         "jittest",
         "geckoview-junit",
         "cppunittest",

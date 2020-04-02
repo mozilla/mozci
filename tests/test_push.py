@@ -8,12 +8,6 @@ from mozci.task import Task
 from mozci.util.hgmo import HGMO
 
 
-@pytest.fixture(autouse=True)
-def reset_hgmo_cache():
-    yield
-    HGMO.CACHE = {}
-
-
 def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_failed_in_grandchild(
     create_pushes,
 ):

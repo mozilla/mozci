@@ -6,6 +6,12 @@ from mozci.push import MAX_DEPTH, Push
 from mozci.util.hgmo import HGMO
 
 
+@pytest.fixture(autouse=True)
+def reset_hgmo_cache():
+    yield
+    HGMO.CACHE = {}
+
+
 @pytest.fixture
 def responses():
     with RequestsMock() as rsps:

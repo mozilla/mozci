@@ -81,8 +81,7 @@ def create_push(monkeypatch, responses):
 @pytest.fixture
 def create_pushes(create_push):
     """Returns a factory method that creates a range of pushes.
-
-    The first push will set itself as it's own """
+    """
 
     def inner(num):
         pushes = []

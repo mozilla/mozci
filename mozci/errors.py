@@ -16,6 +16,14 @@ class PushNotFound(BasePushException):
         super(PushNotFound, self).__init__(*args, **kwargs)
 
 
+class ChildPushNotFound(BasePushException):
+    """Raised when a suitable child push could not be found."""
+
+    def __init__(self, reason, *args, **kwargs):
+        kwargs["msg"] = f"child push not found '{reason}'!"
+        super(ParentPushNotFound, self).__init__(*args, **kwargs)
+
+
 class ParentPushNotFound(BasePushException):
     """Raised when a suitable parent push could not be found."""
 

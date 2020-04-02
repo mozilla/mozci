@@ -10,7 +10,7 @@ from adr.query import run_query
 from adr.util.memoize import memoized_property
 from loguru import logger
 
-from mozci.errors import ParentPushNotFound, PushNotFound
+from mozci.errors import ChildPushNotFound, ParentPushNotFound, PushNotFound
 from mozci.task import GroupResult, GroupSummary, LabelSummary, Status, Task, TestTask
 from mozci.util.hgmo import HGMO
 from mozci.util.taskcluster import find_task_id
@@ -198,7 +198,9 @@ class Push:
         Returns:
             Push: A `Push` instance representing the child push.
         """
-        return self.create_push(self.id + 1)
+        if self.branch not in ("mozilla-unified", "try"):
+            return self.create_push(self.id + 1)
+        raise ChildPushNotFound(f"finding child pushes not supported on {self.branch}")
 
     @memoized_property
     def decision_task(self):

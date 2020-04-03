@@ -547,7 +547,11 @@ class Push:
         other = self
         for _ in range(MAX_DEPTH + 1):
             yield other
-            other = other.child
+
+            try:
+                other = other.child
+            except ChildPushNotFound:
+                break
 
     def _iterate_failures(self, runnable_type):
         failclass = ("not classified", "fixed by commit")

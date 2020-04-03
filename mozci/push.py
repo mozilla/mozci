@@ -565,14 +565,14 @@ class Push:
             return len(push1.bugs & push2.bugs) > 0
 
         # Skip checking regressions if we can't find any possible candidate.
-        possibly_bustage_fixed = any(
-            fix_same_bugs(self, other) for other in self._iterate_children()
+        possible_bustage_fixes = set(
+            other for other in self._iterate_children() if fix_same_bugs(self, other)
         )
-        if not possibly_bustage_fixed:
+        if len(possible_bustage_fixes) == 0:
             return None
 
         for other, candidate_regressions in self._iterate_failures("label"):
-            if other == self or not fix_same_bugs(self, other):
+            if other == self or other not in possible_bustage_fixes:
                 continue
 
             if any(
@@ -581,6 +581,10 @@ class Push:
                 for name in candidate_regressions
             ):
                 return other.rev
+
+            possible_bustage_fixes.remove(other)
+            if len(possible_bustage_fixes) == 0:
+                break
 
         return None
 

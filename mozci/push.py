@@ -465,9 +465,11 @@ class Push:
 
             # Otherwise, if the backout push also contains the backout commit of this push,
             # we can consider it as a regression of this push.
-            for backout in fix_hgmo.backouts:
-                if backout[:12] == self.backedoutby[:12]:
-                    return True
+            # if self.backedoutby:
+            if self.backedout:
+                for backout in fix_hgmo.backouts:
+                    if backout[:12] == self.backedoutby[:12]:
+                        return True
 
         return None
 

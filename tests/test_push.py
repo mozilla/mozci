@@ -775,6 +775,84 @@ def test_fixed_by_commit_another_push_wrong_classification(monkeypatch, create_p
     assert p[i + 1].get_regressions("label") == {"test-failure": 0}
 
 
+def test_fixed_by_commit_another_push_wrong_classification_bustage_fixed(
+    monkeypatch, create_pushes
+):
+    """
+    Tests the scenario where a task succeeded in a parent push, didn't run in the push
+    of interest (which had some possible candidates for bustage fixes) and failed in a following
+    push, with wrong 'fixed by commit' information pointing to a back-out of another push.
+    """
+    p = create_pushes(7)
+    i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == p[i + 4].rev:
+            return {p[i + 4].rev: [p[i + 3].rev]}
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].tasks = []
+    p[i].bugs = {123}
+    p[i + 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note=p[i + 4].rev,
+        )
+    ]
+    p[i + 1].backedoutby = p[i + 5].rev
+    p[i + 2].bugs = {123}
+
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {"test-failure": 1}
+
+
+def test_fixed_by_commit_another_push_wrong_classification_bustage_fixed2(
+    monkeypatch, create_pushes
+):
+    """
+    Tests the scenario where a task succeeded in a parent push, didn't run in the push
+    of interest (which had some possible candidates for bustage fixes) and failed in a following
+    push, with wrong 'fixed by commit' information pointing to a back-out of another push.
+    The only difference with the previous test is a different order of pushes.
+    """
+    p = create_pushes(7)
+    i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == p[i + 4].rev:
+            return {p[i + 4].rev: [p[i + 3].rev]}
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].tasks = []
+    p[i].bugs = {123}
+    p[i + 1].bugs = {123}
+    p[i + 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note=p[i + 4].rev,
+        )
+    ]
+    p[i + 2].backedoutby = p[i + 5].rev
+
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {}
+    assert p[i + 2].get_regressions("label") == {"test-failure": 2}
+
+
 def test_fixed_by_commit_multiple_backout(monkeypatch, create_pushes):
     """
     Tests the scenario where a task succeeded in a parent push, failed in the

@@ -11,8 +11,8 @@ class BasePushException(Exception):
 class PushNotFound(BasePushException):
     """Raised when the requested push does not exist."""
 
-    def __init__(self, *args, **kwargs):
-        kwargs["msg"] = "does not exist!"
+    def __init__(self, reason, *args, **kwargs):
+        kwargs["msg"] = "push not found {reason}!"
         super(PushNotFound, self).__init__(*args, **kwargs)
 
 
@@ -21,7 +21,7 @@ class ChildPushNotFound(BasePushException):
 
     def __init__(self, reason, *args, **kwargs):
         kwargs["msg"] = f"child push not found '{reason}'!"
-        super(ParentPushNotFound, self).__init__(*args, **kwargs)
+        super(ChildPushNotFound, self).__init__(*args, **kwargs)
 
 
 class ParentPushNotFound(BasePushException):

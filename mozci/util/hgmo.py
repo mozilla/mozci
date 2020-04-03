@@ -38,7 +38,7 @@ class HGMO:
         r = get_session("hgmo").get(url)
 
         if r.status_code == 404:
-            raise PushNotFound(**self.context)
+            raise PushNotFound(f"{r.status_code} response from {url}", **self.context)
 
         r.raise_for_status()
         return r.json()

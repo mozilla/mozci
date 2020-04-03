@@ -119,10 +119,13 @@ class Push:
         return self._id
 
     def create_push(self, push_id):
-        result = self._hgmo.json_pushes(push_id_start=push_id - 1, push_id_end=push_id)[
-            str(push_id)
-        ]
+        result = self._hgmo.json_pushes(push_id_start=push_id - 1, push_id_end=push_id)
+        if str(push_id) not in result:
+            raise PushNotFound(
+                f"push id {push_id} does not exist", rev=self.rev, branch=self.branch
+            )
 
+        result = result[str(push_id)]
         push = Push(result["changesets"][::-1])
         # avoids the need to query hgmo to find this info
         push._id = push_id
@@ -197,10 +200,23 @@ class Push:
 
         Returns:
             Push: A `Push` instance representing the child push.
+
+        Raises:
+            ChildPushNotFound: when no suitable child push can be detected.
         """
         if self.branch not in ("mozilla-unified", "try"):
-            return self.create_push(self.id + 1)
-        raise ChildPushNotFound(f"finding child pushes not supported on {self.branch}")
+            try:
+                return self.create_push(self.id + 1)
+            except PushNotFound as e:
+                raise ChildPushNotFound(
+                    f"child push does not exist", rev=self.rev, branch=self.branch
+                ) from e
+
+        raise ChildPushNotFound(
+            f"finding child pushes not supported on {self.branch}",
+            rev=self.rev,
+            branch=self.branch,
+        )
 
     @memoized_property
     def decision_task(self):

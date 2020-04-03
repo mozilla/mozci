@@ -2,7 +2,7 @@
 
 import pytest
 
-from mozci.errors import ParentPushNotFound, PushNotFound
+from mozci.errors import ChildPushNotFound, ParentPushNotFound, PushNotFound
 from mozci.push import Push
 from mozci.util.hgmo import HGMO
 
@@ -312,3 +312,26 @@ def test_push_parent_on_try_fails_when_not_a_push_head(responses, create_changes
     push = Push(head, branch="try")
     with pytest.raises(ParentPushNotFound):
         push.parent
+
+
+def test_push_child_raises(responses):
+    rev = "a" * 40
+
+    # Try and mozilla-unified are not supported.
+    for branch in ("try", "mozilla-unified"):
+        push = Push(rev, branch=branch)
+        with pytest.raises(ChildPushNotFound):
+            push.child
+
+    # A push with no children raises.
+    push = Push(rev, branch="integration/autoland")
+    push._id = 100
+    url = HGMO.JSON_PUSHES_TEMPLATE.format(
+        branch=push.branch, push_id_start=push.id, push_id_end=push.id + 1,
+    )
+    responses.add(
+        responses.GET, url, json={"lastpushid": push.id, "pushes": {}}, status=200,
+    )
+
+    with pytest.raises(ChildPushNotFound):
+        push.child

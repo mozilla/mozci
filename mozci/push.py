@@ -755,12 +755,28 @@ class Push:
             name (str): The name of the shadow scheduler to query.
 
         Returns:
-            list: All task labels that would have been scheduled.
+            set: All task labels that would have been scheduled.
         """
         index = self.index + ".source.shadow-scheduler-{}".format(name)
         task = Task.create(index=index)
         labels = task.get_artifact("public/shadow-scheduler/optimized_tasks.list")
         return set(labels.splitlines())
+
+    def generate_all_shadow_scheduler_tasks(self):
+        """Generates all tasks from all of the shadow schedulers that ran on the push.
+
+        Yields:
+            tuple: Of the form (<name>, [<label>]) where the first value is the
+            name of the shadow scheduler and the second is the set of tasks it
+            would have scheduled.
+        """
+        names = [
+            label.split("shadow-scheduler-")[1]
+            for label in self.scheduled_task_labels
+            if "shadow-scheduler" in label
+        ]
+        for name in sorted(names):
+            yield name, self.get_shadow_scheduler_tasks(name)
 
     def __repr__(self):
         return f"{super(Push, self).__repr__()} rev='{self.rev}'"

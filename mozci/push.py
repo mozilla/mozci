@@ -22,6 +22,122 @@ when the task did not run on the currently considered push.
 """
 
 
+@lru_cache(maxsize=None)
+def tasks(rev, branch):
+    args = Namespace(rev=rev, branch=branch)
+    tasks = defaultdict(dict)
+    retries = defaultdict(int)
+
+    list_keys = (
+        "_result_ok",
+        "_result_group",
+    )
+
+    def add(result):
+        if "header" in result:
+            result["data"] = [
+                {
+                    field: value
+                    for field, value in zip(result["header"], entry)
+                    if value is not None
+                }
+                for entry in result["data"]
+            ]
+
+        for task in result["data"]:
+            if "id" not in task:
+                logger.trace(f"Skipping {task} because of missing id.")
+                continue
+
+            task_id = task["id"]
+
+            # If a task is re-run, use the data from the last run.
+            if "retry_id" in task:
+                if task["retry_id"] < retries[task_id]:
+                    logger.trace(f"Skipping {task} because there is a newer run of it.")
+                    continue
+
+                retries[task_id] = task["retry_id"]
+
+                # We don't need to store the retry ID.
+                del task["retry_id"]
+
+            cur_task = tasks[task_id]
+
+            for key, val in task.items():
+                if key in list_keys:
+                    if key not in cur_task:
+                        cur_task[key] = []
+
+                    cur_task[key].append(val)
+                else:
+                    cur_task[key] = val
+
+    # Gather information from the treeherder table.
+    try:
+        add(run_query("push_tasks_from_treeherder", args))
+    except MissingDataError:
+        pass
+
+    # Gather information from the unittest table. We allow missing data for this table because
+    # ActiveData only holds very recent data in it, but we have fallbacks on Taskcluster
+    # artifacts.
+    # TODO: We have fallbacks for groups and results, but not for kind.
+    try:
+        add(run_query("push_tasks_results_from_unittest", args))
+    except MissingDataError:
+        pass
+
+    try:
+        add(run_query("push_tasks_groups_from_unittest", args))
+    except MissingDataError:
+        pass
+
+    # If we are missing one of these keys, discard the task.
+    required_keys = (
+        "id",
+        "label",
+    )
+
+    # Normalize and validate.
+    normalized_tasks = []
+    for task in tasks.values():
+        missing = [k for k in required_keys if k not in task]
+        taskstr = task.get("label", task["id"])
+
+        if missing:
+            logger.trace(
+                f"Skipping task '{taskstr}' because it is missing "
+                f"the following attributes: {', '.join(missing)}"
+            )
+            continue
+
+        if task.get("tags"):
+            task["tags"] = {t["name"]: t["value"] for t in task["tags"]}
+
+        if task.get("classification_note"):
+            if isinstance(task["classification_note"], list):
+                task["classification_note"] = task["classification_note"][-1]
+
+        if task.get("_groups"):
+            if isinstance(task["_groups"], str):
+                task["_groups"] = [task["_groups"]]
+
+        if task.get("_result_ok"):
+            oks = task.pop("_result_ok")
+
+            if task.get("_result_group"):
+                groups = task.pop("_result_group")
+
+                task["_results"] = [
+                    GroupResult(group=group, ok=ok) for group, ok in zip(groups, oks)
+                ]
+
+        normalized_tasks.append(task)
+
+    return [Task.create(**task) for task in normalized_tasks]
+
+
 class Push:
     """A representation of a single push.
 
@@ -229,130 +345,13 @@ class Push:
         index = self.index + ".taskgraph.decision"
         return Task.create(index=index)
 
-    # TODO: I removed memoized_property because the tests were failing with:
-    # TypeError: 'list' object is not callable
     def tasks(self):
         """All tasks that ran on the push, including retriggers and backfills.
 
         Returns:
             list: A list of `Task` objects.
         """
-
-        args = Namespace(rev=self.rev, branch=self.branch)
-        tasks = defaultdict(dict)
-        retries = defaultdict(int)
-
-        list_keys = (
-            "_result_ok",
-            "_result_group",
-        )
-
-        def add(result):
-            if "header" in result:
-                result["data"] = [
-                    {
-                        field: value
-                        for field, value in zip(result["header"], entry)
-                        if value is not None
-                    }
-                    for entry in result["data"]
-                ]
-
-            for task in result["data"]:
-                if "id" not in task:
-                    logger.trace(f"Skipping {task} because of missing id.")
-                    continue
-
-                task_id = task["id"]
-
-                # If a task is re-run, use the data from the last run.
-                if "retry_id" in task:
-                    if task["retry_id"] < retries[task_id]:
-                        logger.trace(
-                            f"Skipping {task} because there is a newer run of it."
-                        )
-                        continue
-
-                    retries[task_id] = task["retry_id"]
-
-                    # We don't need to store the retry ID.
-                    del task["retry_id"]
-
-                cur_task = tasks[task_id]
-
-                for key, val in task.items():
-                    if key in list_keys:
-                        if key not in cur_task:
-                            cur_task[key] = []
-
-                        cur_task[key].append(val)
-                    else:
-                        cur_task[key] = val
-
-        # Gather information from the treeherder table.
-        try:
-            add(run_query("push_tasks_from_treeherder", args))
-        except MissingDataError:
-            pass
-
-        # Gather information from the unittest table. We allow missing data for this table because
-        # ActiveData only holds very recent data in it, but we have fallbacks on Taskcluster
-        # artifacts.
-        # TODO: We have fallbacks for groups and results, but not for kind.
-        try:
-            add(run_query("push_tasks_results_from_unittest", args))
-        except MissingDataError:
-            pass
-
-        try:
-            add(run_query("push_tasks_groups_from_unittest", args))
-        except MissingDataError:
-            pass
-
-        # If we are missing one of these keys, discard the task.
-        required_keys = (
-            "id",
-            "label",
-        )
-
-        # Normalize and validate.
-        normalized_tasks = []
-        for task in tasks.values():
-            missing = [k for k in required_keys if k not in task]
-            taskstr = task.get("label", task["id"])
-
-            if missing:
-                logger.trace(
-                    f"Skipping task '{taskstr}' because it is missing "
-                    f"the following attributes: {', '.join(missing)}"
-                )
-                continue
-
-            if task.get("tags"):
-                task["tags"] = {t["name"]: t["value"] for t in task["tags"]}
-
-            if task.get("classification_note"):
-                if isinstance(task["classification_note"], list):
-                    task["classification_note"] = task["classification_note"][-1]
-
-            if task.get("_groups"):
-                if isinstance(task["_groups"], str):
-                    task["_groups"] = [task["_groups"]]
-
-            if task.get("_result_ok"):
-                oks = task.pop("_result_ok")
-
-                if task.get("_result_group"):
-                    groups = task.pop("_result_group")
-
-                    task["_results"] = [
-                        GroupResult(group=group, ok=ok)
-                        for group, ok in zip(groups, oks)
-                    ]
-
-            normalized_tasks.append(task)
-
-        return [Task.create(**task) for task in normalized_tasks]
+        return tasks(self.rev, self.branch)
 
     @property
     def task_labels(self):

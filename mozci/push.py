@@ -13,7 +13,6 @@ from loguru import logger
 from mozci.errors import ChildPushNotFound, ParentPushNotFound, PushNotFound
 from mozci.task import GroupResult, GroupSummary, LabelSummary, Status, Task, TestTask
 from mozci.util.hgmo import HGMO
-from mozci.util.taskcluster import find_task_id
 
 BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
 
@@ -226,8 +225,7 @@ class Push:
             Task: A `Task` instance representing the decision task.
         """
         index = self.index + ".taskgraph.decision"
-        task_id = find_task_id(index)
-        return Task(id=task_id)
+        return Task.create(index=index)
 
     @memoized_property
     def tasks(self):
@@ -760,7 +758,7 @@ class Push:
             list: All task labels that would have been scheduled.
         """
         index = self.index + ".source.shadow-scheduler-{}".format(name)
-        task = Task(id=find_task_id(index))
+        task = Task.create(index=index)
         labels = task.get_artifact("public/shadow-scheduler/optimized_tasks.list")
         return set(labels.splitlines())
 

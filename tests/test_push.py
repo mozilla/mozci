@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 
+from itertools import count
+
 import pytest
 
 from mozci.errors import ChildPushNotFound, ParentPushNotFound, PushNotFound
 from mozci.push import Push
 from mozci.util.hgmo import HGMO
+from mozci.util.taskcluster import get_artifact_url, get_index_url
 
 
 @pytest.fixture
@@ -335,3 +338,57 @@ def test_push_child_raises(responses):
 
     with pytest.raises(ChildPushNotFound):
         push.child
+
+
+def test_generate_all_shadow_scheduler_tasks(responses):
+    rev = "a" * 40
+    shadow_schedulers = (
+        (
+            "bar",
+            ["task-1", "task-3", "task-4"],
+        ),  # names will be generated alphabetically
+        ("foo", ["task-2", "task-4"]),
+    )
+
+    push = Push(rev)
+    responses.add(
+        responses.GET,
+        get_index_url(push.index + ".taskgraph.decision"),
+        json={"taskId": 1},
+        status=200,
+    )
+
+    id = count(2)
+    responses.add(
+        responses.GET,
+        get_artifact_url(1, "public/task-graph.json"),
+        json={
+            next(id): {"label": f"source-test-shadow-scheduler-{s[0]}"}
+            for s in shadow_schedulers
+        },
+        status=200,
+    )
+
+    id = count(2)
+    for s in shadow_schedulers:
+        s_id = next(id)
+        responses.add(
+            responses.GET,
+            get_index_url(push.index + f".source.shadow-scheduler-{s[0]}"),
+            json={"taskId": s_id},
+            status=200,
+        )
+
+        responses.add(
+            responses.GET,
+            get_artifact_url(s_id, "public/shadow-scheduler/optimized_tasks.list"),
+            stream=True,
+            body="\n".join(s[1]),
+            status=200,
+        )
+
+    # retrieve the data
+    for i, (name, tasks) in enumerate(push.generate_all_shadow_scheduler_tasks()):
+        print(i, name, tasks)
+        assert name == shadow_schedulers[i][0]
+        assert tasks == set(shadow_schedulers[i][1])

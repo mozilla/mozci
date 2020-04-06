@@ -12,7 +12,7 @@ class PushNotFound(BasePushException):
     """Raised when the requested push does not exist."""
 
     def __init__(self, reason, *args, **kwargs):
-        kwargs["msg"] = "push not found {reason}!"
+        kwargs["msg"] = "push not found '{reason}'!"
         super(PushNotFound, self).__init__(*args, **kwargs)
 
 

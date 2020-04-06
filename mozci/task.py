@@ -11,8 +11,8 @@ from adr.util import memoized_property
 from loguru import logger
 from urllib3.response import HTTPResponse
 
-from mozci.errors import ArtifactNotFound
-from mozci.util.taskcluster import get_artifact, list_artifacts
+from mozci.errors import ArtifactNotFound, TaskNotFound
+from mozci.util.taskcluster import find_task_id, get_artifact, list_artifacts
 
 
 class Status(Enum):
@@ -70,8 +70,27 @@ class Task:
     tags: Dict = field(default_factory=dict)
 
     @staticmethod
-    def create(**kwargs):
-        if kwargs["label"].startswith("test-"):
+    def create(index=None, **kwargs):
+        """Factory method to create a new Task instance.
+
+        One of ``index`` or ``id`` must be specified.
+
+        Args:
+            index (str): Taskcluster index path used to find the task id (optional).
+            kwargs (dict): Arguments to forward to the :class:`~mozci.task.Task` constructor.
+
+        Raises:
+            :class:`~mozci.errors.TaskNotFound`: when the task identified by
+            specified index or task id could not be found.
+        """
+        if index and "id" not in kwargs:
+            try:
+                kwargs["id"] = find_task_id(index)
+            except requests.exceptions.HTTPError as e:
+                label = kwargs.get("label", "unknown label")
+                raise TaskNotFound(id=index, label=label) from e
+
+        if kwargs.get("label", "").startswith("test-"):
             return TestTask(**kwargs)
         return Task(**kwargs)
 

@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
 
+# push exceptions
+
+
 class BasePushException(Exception):
     def __init__(self, rev, branch, msg):
         self.rev = rev
@@ -32,6 +35,9 @@ class ParentPushNotFound(BasePushException):
         super(ParentPushNotFound, self).__init__(*args, **kwargs)
 
 
+# task exceptions
+
+
 class BaseTaskException(Exception):
     def __init__(self, id, label, msg):
         self.id = id
@@ -46,3 +52,11 @@ class ArtifactNotFound(BaseTaskException):
         kwargs["msg"] = f"artifact '{artifact}' does not exist!"
         self.artifact = artifact
         super(ArtifactNotFound, self).__init__(*args, **kwargs)
+
+
+class TaskNotFound(BaseTaskException):
+    """Raised when a Task id or index could not be found."""
+
+    def __init__(self, *args, **kwargs):
+        kwargs["msg"] = "task not found!"
+        super(TaskNotFound, self).__init__(*args, **kwargs)

@@ -2,9 +2,9 @@
 
 import pytest
 
-from mozci.errors import ArtifactNotFound
+from mozci.errors import ArtifactNotFound, TaskNotFound
 from mozci.task import Task
-from mozci.util.taskcluster import get_artifact_url
+from mozci.util.taskcluster import get_artifact_url, get_index_url
 
 
 @pytest.fixture
@@ -38,3 +38,26 @@ def test_missing_artifacts(responses, create_task):
 
     with pytest.raises(ArtifactNotFound):
         task.get_artifact(artifact)
+
+
+def test_create(responses):
+    # Creating a task with just a label doesn't work.
+    with pytest.raises(TypeError):
+        Task.create(label="foobar")
+
+    # Specifying an id works with or without label.
+    assert Task.create(id=1, label="foobar").label == "foobar"
+    assert Task.create(id=1).label is None
+
+    # Can also specify an index.
+    index = "index.path"
+    responses.add(
+        responses.GET, get_index_url(index), json={"taskId": 1}, status=200,
+    )
+    assert Task.create(index=index, label="foobar").label == "foobar"
+    assert Task.create(index=index).label is None
+
+    # Specifying non-existent task index raises.
+    responses.replace(responses.GET, get_index_url(index), status=404)
+    with pytest.raises(TaskNotFound):
+        Task.create(index=index)

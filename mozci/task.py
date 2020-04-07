@@ -81,7 +81,7 @@ class Task:
 
         Raises:
             :class:`~mozci.errors.TaskNotFound`: when the task identified by
-            specified index or task id could not be found.
+                specified index or task id could not be found.
         """
         if index and "id" not in kwargs:
             try:
@@ -116,8 +116,8 @@ class Task:
             Contents of the artifact.
 
         Raises:
-            mozci.errors.ArtifactNotFound: When the requested artifact does not
-                                           exist.
+            :class:`~mozci.errors.ArtifactNotFound`: When the requested
+                artifact does not exist.
         """
         try:
             data = get_artifact(self.id, path)

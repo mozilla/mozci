@@ -140,7 +140,8 @@ class Push:
             Push: A `Push` instance representing the parent push.
 
         Raises:
-            ParentPushNotFound: when no suitable parent push can be detected.
+            :class:`~mozci.errors.ParentPushNotFound`: When no suitable parent
+                push can be detected.
         """
         # Mozilla-unified and try allow multiple heads, so we can't rely on
         # `self.id - 1` to be the parent.
@@ -201,7 +202,8 @@ class Push:
             Push: A `Push` instance representing the child push.
 
         Raises:
-            ChildPushNotFound: when no suitable child push can be detected.
+            :class:`~mozci.errors.ChildPushNotFound`: When no suitable child
+                push can be detected.
         """
         if self.branch not in ("mozilla-unified", "try"):
             try:
@@ -623,9 +625,10 @@ class Push:
         """The revision of the commit which 'bustage fixes' this one or None.
 
         We detect if a push was 'bustage fixed' with a simple heuristic:
-        - there is a close enough child push where the task/group passes;
-        - the child push where the task/group passes is associated to the same bug
-          as the push of interest.
+
+            - there is a close enough child push where the task/group passes;
+            - the child push where the task/group passes is associated to the same bug
+              as the push of interest.
 
         Returns:
             str or None: The commit revision which 'bustage fixes' this push (or None).

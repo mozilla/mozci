@@ -6,3 +6,4 @@ API
 
     push
     task
+    errors

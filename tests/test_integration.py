@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 import os
 from argparse import Namespace
 
@@ -12,6 +13,25 @@ from mozci.push import Push
 pytestmark = pytest.mark.skipif(
     os.environ.get("TRAVIS_EVENT_TYPE") != "cron", reason="Not run by a cron task"
 )
+
+
+@pytest.fixture
+def adr_config(tmp_path):
+    config_file = tmp_path / "config.toml"
+    text = (
+        """
+[adr]
+verbose = true
+[adr.cache]
+default = "file"
+retention = 1000
+[adr.cache.stores]
+file = { driver = "file", path = "%s" }
+"""
+        % tmp_path
+    )
+    config_file.write_text(text)
+    return Configuration(path=config_file)
 
 
 def test_missing_manifests():
@@ -100,39 +120,27 @@ def test_good_result_manifests():
         ), f"{group} group is bad!"
 
 
-def test_caching_of_tasks(tmp_path):
-    config_file = tmp_path / "config.toml"
-    text = (
-        """
-[adr]
-verbose = true
-[adr.cache]
-default = "file"
-retention = 1000
-[adr.cache.stores]
-file = { driver = "file", path = "%s" }
-"""
-        % tmp_path
-    )
-    config_file.write_text(text)
-    config = Configuration(path=config_file)
-
-    # Once we reach Nov. 23rd, 2020 the test should
+def test_caching_of_tasks(adr_config):
+    # Once we reach Nov. 23rd, 2020 the test should be updtated with a more recent push and task ID
     TASK_ID = "WGNh9Xd8RmSG_170-0-mkQ"
     # Making sure there's nothing left in the cache
-    assert config.cache.get(TASK_ID) is None
+    assert adr_config.cache.get(TASK_ID) is None
     # Push from Nov. 22nd, 2019
     push = Push("6e87f52e6eebdf777f975baa407d5c22e9756e80", branch="mozilla-beta")
     tasks = push.tasks()
+    found_task = False
     for t in tasks:
         if t.id == TASK_ID:
-            task = config.cache.get(TASK_ID)
+            task = adr_config.cache.get(TASK_ID)
             assert task is None
             # Calling one of the three properties will call _load_error_summary
             # and cache the data
             t.results
-            task = config.cache.get(TASK_ID)
+            task = adr_config.cache.get(TASK_ID)
             assert task["groups"]
             assert not task["errors"]
             assert not task["results"]
+            found_task = True
             break
+
+    assert found_task

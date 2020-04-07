@@ -184,26 +184,8 @@ class TestTask(Task):
                 if not is_bad_group(self.id, result.group)
             ]
 
-        # I'm storing in the cache in here rather than at the end of _load_errorsummary()
-        # because there's various modifications of various self properties.
-        # cachy's put() overwrites the value in the cache; add() would only add if its empty
-        # Only store data if there's something to store
-        if self._errors or self._groups or self._results:
-            logger.debug("Storing {} in the cache".format(self.id))
-            adr.config.cache.put(
-                self.id,
-                {
-                    "errors": self._errors,
-                    "groups": self._groups,
-                    "results": self._results,
-                },
-                1,  # XXX: What should the value in minutes be?
-            )
-
     def _load_errorsummary(self):
-        # I don't believe we need to invalidate the data since once we parse
-        # the error summary artifact we should not expect a different result in
-        # the future since the artifact doesn't change
+        # XXX: How or where should we invalidate the data?
         data = adr.config.cache.get(self.id)
         if data:
             self._errors = data["errors"]
@@ -240,6 +222,19 @@ class TestTask(Task):
                 self._errors.append(line["message"])
 
         self.__post_init__()
+        # Only store data if there's something to store
+        if self._errors or self._groups or self._results:
+            logger.debug("Storing {} in the cache".format(self.id))
+            # cachy's put() overwrites the value in the cache; add() would only add if its empty
+            adr.config.cache.put(
+                self.id,
+                {
+                    "errors": self._errors,
+                    "groups": self._groups,
+                    "results": self._results,
+                },
+                adr.config._config["cache"]["retention"],
+            )
 
     @property
     def groups(self):

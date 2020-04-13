@@ -229,8 +229,7 @@ class Push:
         index = self.index + ".taskgraph.decision"
         return Task.create(index=index)
 
-    # TODO: I removed memoized_property because the tests were failing with:
-    # TypeError: 'list' object is not callable
+    @memoized_property
     def tasks(self):
         """All tasks that ran on the push, including retriggers and backfills.
 

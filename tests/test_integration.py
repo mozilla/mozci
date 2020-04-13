@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import logging
 import os
 from argparse import Namespace
 
@@ -127,7 +126,7 @@ def test_caching_of_tasks(adr_config):
     assert adr_config.cache.get(TASK_ID) is None
     # Push from Nov. 22nd, 2019
     push = Push("6e87f52e6eebdf777f975baa407d5c22e9756e80", branch="mozilla-beta")
-    tasks = push.tasks()
+    tasks = push.tasks
     found_task = False
     for t in tasks:
         if t.id == TASK_ID:

@@ -11,6 +11,9 @@ pytestmark = pytest.mark.skipif(
     os.environ.get("TRAVIS_EVENT_TYPE") != "cron", reason="Not run by a cron task"
 )
 
+if not os.environ.get("ADR_CONFIG_PATH"):
+    raise Exception("Set ADR_CONFIG_PATH to tests/config.toml")
+
 
 def test_missing_manifests():
     """

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import json
+
 import pytest
 
 from mozci.errors import ArtifactNotFound, TaskNotFound
@@ -61,3 +63,20 @@ def test_create(responses):
     responses.replace(responses.GET, get_index_url(index), status=404)
     with pytest.raises(TaskNotFound):
         Task.create(index=index)
+
+
+def test_to_json():
+    kwargs = {
+        "id": 1,
+        "label": "foobar",
+        "kind": "test",
+        "result": "pass",
+        "duration": 100,
+    }
+    task = Task.create(**kwargs)
+    result = task.to_json()
+    json.dumps(result)  # assert doesn't raise
+
+    for k, v in kwargs.items():
+        assert k in result
+        assert result[k] == v

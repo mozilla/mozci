@@ -4,6 +4,7 @@ import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
+from inspect import signature
 from typing import Dict, List
 
 import adr
@@ -134,6 +135,17 @@ class Task:
         if isinstance(output, bytes):
             output = output.decode("utf-8")
         return output
+
+    def to_json(self):
+        """A JSON compatible representation of this Task in dictionary form.
+
+        Only values passed in to the constructor will be included.
+
+        Returns:
+            dict: A JSON-compatible representation of the task.
+        """
+        sig = signature(self.__init__)
+        return {k: v for k, v in self.__dict__.items() if k in sig.parameters}
 
 
 @dataclass

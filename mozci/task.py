@@ -233,7 +233,7 @@ class TestTask(Task):
                     "groups": self._groups,
                     "results": self._results,
                 },
-                adr.config._config["cache"]["retention"],
+                adr.config["cache"]["retention"],
             )
 
     @property

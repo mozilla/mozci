@@ -4,7 +4,7 @@ description = "Utility for running ActiveData recipes"
 name = "adr"
 optional = false
 python-versions = ">=3.6,<4.0"
-version = "0.17.8"
+version = "0.17.9"
 
 [package.dependencies]
 appdirs = ">=1.4,<2.0"
@@ -686,13 +686,13 @@ python-versions = "*"
 version = "0.13.0"
 
 [metadata]
-content-hash = "47f2f46f698185f1f19a234b802f636dcd94c6e039ee606231810905b332be63"
+content-hash = "ead512008e506299c1add7c0a515375b76482c0c124ce17baa4d76deb31d6683"
 python-versions = "^3.7"
 
 [metadata.files]
 adr = [
-    {file = "adr-0.17.8-py3-none-any.whl", hash = "sha256:c10c8a09589d108d7fcce8e768c06aa660519477b97760a3fa3c05cf22d07d2d"},
-    {file = "adr-0.17.8.tar.gz", hash = "sha256:618b16d477c24e74f9ee9d514740daa8b35cff97b77007e2642839ceab7a64e5"},
+    {file = "adr-0.17.9-py3-none-any.whl", hash = "sha256:9d2f7ac168e4cd3126753550f0ad2ea3977110bf1006f96fd53202e6cee7b8d1"},
+    {file = "adr-0.17.9.tar.gz", hash = "sha256:4ba370dec74a0e63930f88df3b2a9976b91cf38db918db24d5d3994a1cf9e7b4"},
 ]
 alabaster = [
     {file = "alabaster-0.7.12-py2.py3-none-any.whl", hash = "sha256:446438bdcca0e05bd45ea2de1668c1d9b032e1a9154c2c259092d77031ddd359"},

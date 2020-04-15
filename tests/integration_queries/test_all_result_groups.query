@@ -1,6 +1,7 @@
 from: unittest
 groupby:
     - result.group
+    - task.label
 where:
     and:
         - eq: {repo.branch.name: autoland}

@@ -44,12 +44,17 @@ def is_no_groups_suite(label):
 bad_group_warned = False
 
 
-def is_bad_group(task_id, group):
+def is_bad_group(task_id, task_label, group):
     global bad_group_warned
 
-    bad_group = (
-        os.path.isabs(group) or group.startswith("file://") or group.startswith("Z:")
-    )
+    bad_group = group.startswith("file://") or group.startswith("Z:")
+
+    # web-platform-tests manifests are currently absolute.
+    if not any(
+        sublabel not in task_label
+        for sublabel in {"web-platform-tests", "test-verify-wpt"}
+    ):
+        bad_group |= os.path.isabs(group)
 
     if not bad_group_warned and (bad_group or "\\" in group):
         bad_group_warned = True
@@ -182,7 +187,7 @@ class TestTask(Task):
             self._groups = [
                 group.replace("\\", "/")
                 for group in self._groups
-                if not is_bad_group(self.id, group)
+                if not is_bad_group(self.id, self.label, group)
             ]
 
         def update_group(result):
@@ -193,7 +198,7 @@ class TestTask(Task):
             self._results = [
                 update_group(result)
                 for result in self._results
-                if not is_bad_group(self.id, result.group)
+                if not is_bad_group(self.id, self.label, result.group)
             ]
 
     def _load_errorsummary(self):

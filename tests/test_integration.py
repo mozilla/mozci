@@ -68,7 +68,12 @@ def test_missing_result_manifests():
     Ensure unittest results from all manifest-based suites (except a blacklist)
     have information on what manifest the result corresponds to.
     """
-    BLACKLIST = {"marionette"}
+    BLACKLIST = {
+        "marionette",
+        "web-platform-tests",
+        "web-platform-tests-reftest",
+        "web-platform-tests-wdspec",
+    }
     ALLOWED_MISSING = 70
 
     result = run_query("test_missing_result_manifests", Namespace())
@@ -91,7 +96,7 @@ def test_good_manifests():
     """
     result = run_query("test_all_groups", Namespace())
 
-    for (groups,) in result["data"]:
+    for (groups, label) in result["data"]:
         if groups is None:
             continue
 
@@ -100,8 +105,8 @@ def test_good_manifests():
 
         for group in groups:
             assert (
-                not task.is_bad_group("x", group) and "\\" not in group
-            ), f"{group} group is bad!"
+                not task.is_bad_group("x", label, group) and "\\" not in group
+            ), f"{group} group for task {label} is bad!"
 
 
 def test_good_result_manifests():
@@ -110,13 +115,13 @@ def test_good_result_manifests():
     """
     result = run_query("test_all_result_groups", Namespace())
 
-    for group, _ in result["data"]:
+    for group, label, _ in result["data"]:
         if group is None:
             continue
 
         assert (
-            not task.is_bad_group("x", group) and "\\" not in group
-        ), f"{group} group is bad!"
+            not task.is_bad_group("x", label, group) and "\\" not in group
+        ), f"{group} group for task {label} is bad!"
 
 
 def test_caching_of_tasks(adr_config):

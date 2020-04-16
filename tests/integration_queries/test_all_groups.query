@@ -1,6 +1,7 @@
 from: unittest
 select:
     - run.suite.groups
+    - task.label
 where:
     and:
         - eq: {etl.id: 0}

@@ -53,14 +53,23 @@ def test_missing_manifests():
 
     result = run_query("test_missing_manifests", Namespace())
 
+    missing = []
+
     for suite, count in result["data"]:
         if suite not in BLACKLIST:
-            assert count < ALLOWED_MISSING, f"{suite} is missing manifest information"
+            if count > ALLOWED_MISSING:
+                missing.append((suite, count))
+
+    assert missing == []
 
     # Ensure the blacklist doesn't contain more than necessary.
-    found_suites = {suite for suite, count in result["data"]}
+    unblacklistable = []
+    found_suites = {suite: count for suite, count in result["data"]}
     for suite in BLACKLIST:
-        assert suite in found_suites, f"{suite} might be removed from the blacklist"
+        if suite not in found_suites or found_suites[suite] < ALLOWED_MISSING:
+            unblacklistable.append(suite)
+
+    assert unblacklistable == []
 
 
 def test_missing_result_manifests():
@@ -78,16 +87,23 @@ def test_missing_result_manifests():
 
     result = run_query("test_missing_result_manifests", Namespace())
 
+    missing = []
+
     for suite, count in result["data"]:
         if suite not in BLACKLIST:
-            assert (
-                count < ALLOWED_MISSING
-            ), f"{suite} is missing result manifest information"
+            if count > ALLOWED_MISSING:
+                missing.append((suite, count))
+
+    assert missing == []
 
     # Ensure the blacklist doesn't contain more than necessary.
+    unblacklistable = []
     found_suites = {suite for suite, count in result["data"]}
     for suite in BLACKLIST:
-        assert suite in found_suites, f"{suite} might be removed from the blacklist"
+        if suite not in found_suites or found_suites[suite] < ALLOWED_MISSING:
+            unblacklistable.append(suite)
+
+    assert unblacklistable == []
 
 
 def test_good_manifests():

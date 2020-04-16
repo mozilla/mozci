@@ -27,7 +27,6 @@ NO_GROUPS_SUITES = (
     "raptor",
     "talos",
     "awsy",
-    "web-platform-tests",
     "gtest",
     "cppunit",
     "telemetry-tests",

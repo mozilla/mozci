@@ -38,15 +38,10 @@ def test_missing_manifests():
     Ensure all suites (except a blacklist) are generating manifest information.
     """
     BLACKLIST = (
-        "web-platform-tests",
         "talos",
-        "web-platform-tests-reftest",
-        "web-platform-tests-wdspec",
-        "web-platform-tests-crashtest",
         "jittest",
         "geckoview-junit",
         "cppunittest",
-        "test-verify-wpt",
         None,
     )
     ALLOWED_MISSING = 5
@@ -79,9 +74,6 @@ def test_missing_result_manifests():
     """
     BLACKLIST = {
         "marionette",
-        "web-platform-tests",
-        "web-platform-tests-reftest",
-        "web-platform-tests-wdspec",
     }
     ALLOWED_MISSING = 70
 
@@ -98,7 +90,7 @@ def test_missing_result_manifests():
 
     # Ensure the blacklist doesn't contain more than necessary.
     unblacklistable = []
-    found_suites = {suite for suite, count in result["data"]}
+    found_suites = {suite: count for suite, count in result["data"]}
     for suite in BLACKLIST:
         if suite not in found_suites or found_suites[suite] < ALLOWED_MISSING:
             unblacklistable.append(suite)

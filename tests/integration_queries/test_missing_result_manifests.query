@@ -5,6 +5,7 @@ where:
     and:
         - exists: run.suite.groups
         - missing: result.group
+        - ne: {result.expected: "SKIP"}
         - eq: {repo.branch.name: autoland}
         - ne: {treeherder.tier: 3}
         - ne: {task.kind: "decision-task"}

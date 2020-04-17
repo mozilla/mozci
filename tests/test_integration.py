@@ -127,28 +127,30 @@ def test_good_result_manifests():
         ), f"{group} group for task {label} is bad!"
 
 
-def test_caching_of_tasks(adr_config):
-    return
-    # Once we reach Nov. 23rd, 2020 the test should be updtated with a more recent push and task ID
+def test_caching_of_push(adr_config):
+    # Once we reach Nov. 23rd, 2020 the test should be updated with a more recent push and task ID
     TASK_ID = "WGNh9Xd8RmSG_170-0-mkQ"
+    REV = "6e87f52e6eebdf777f975baa407d5c22e9756e80"
     # Making sure there's nothing left in the cache
-    assert adr_config.cache.get(TASK_ID) is None
+    assert adr_config.cache.get(REV) is None
     # Push from Nov. 22nd, 2019
-    push = Push("6e87f52e6eebdf777f975baa407d5c22e9756e80", branch="mozilla-beta")
+    push = Push(REV, branch="mozilla-beta")
     tasks = push.tasks
+
     found_task = False
     for t in tasks:
+        # We are just testing that the task was retrieved
         if t.id == TASK_ID:
-            task = adr_config.cache.get(TASK_ID)
-            assert task is None
-            # Calling one of the three properties will call _load_error_summary
-            # and cache the data
-            t.results
-            task = adr_config.cache.get(TASK_ID)
-            assert task["groups"]
-            assert not task["errors"]
-            assert not task["results"]
             found_task = True
             break
-
     assert found_task
+
+    # Testing that the tasks associated to a push have been cached
+    assert len(adr_config.cache.get(REV)) == 2166
+
+    # XXX: We could test here that a 2nd call hits the cache
+    push.tasks
+
+    # Q: Is it good practice to clean the test here?
+    adr_config.cache.forget(REV)
+    assert adr_config.cache.get(REV) is None

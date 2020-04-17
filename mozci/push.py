@@ -5,6 +5,7 @@ from argparse import Namespace
 from collections import defaultdict
 from functools import lru_cache
 
+import adr
 from adr.errors import MissingDataError
 from adr.query import run_query
 from adr.util.memoize import memoized_property
@@ -236,6 +237,13 @@ class Push:
         Returns:
             list: A list of `Task` objects.
         """
+        # XXX: When should we invalidate the data?
+        data = adr.config.cache.get(self.rev)
+        if data is not None:
+            logger.debug(
+                "Tasks for push {} were loaded from the cache.".format(self.rev)
+            )
+            return data
 
         args = Namespace(rev=self.rev, branch=self.branch)
         tasks = defaultdict(dict)
@@ -341,6 +349,13 @@ class Push:
 
             normalized_tasks.append(task)
 
+        # Only cache data if there's something to store
+        if normalized_tasks:
+            logger.debug("Storing push {} in the cache".format(self.rev))
+            # cachy's put() overwrites the value in the cache; add() would only add if its empty
+            adr.config.cache.put(
+                self.rev, normalized_tasks, adr.config["cache"]["retention"],
+            )
         return [Task.create(**task) for task in normalized_tasks]
 
     @property

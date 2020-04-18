@@ -7,7 +7,6 @@ from enum import Enum
 from inspect import signature
 from typing import Dict, List
 
-import adr
 import requests
 from adr.util import memoized_property
 from loguru import logger
@@ -202,7 +201,8 @@ class TestTask(Task):
 
     def _load_errorsummary(self):
         # XXX: How or where should we invalidate the data?
-        data = adr.config.cache.get(self.id)
+        # Temporarily disable caching as it's creating too many entries.
+        data = None  # adr.config.cache.get(self.id)
         if data:
             self._errors = data["errors"]
             self._groups = data["groups"]
@@ -242,15 +242,16 @@ class TestTask(Task):
         if self._errors or self._groups or self._results:
             logger.debug("Storing {} in the cache".format(self.id))
             # cachy's put() overwrites the value in the cache; add() would only add if its empty
-            adr.config.cache.put(
-                self.id,
-                {
-                    "errors": self._errors,
-                    "groups": self._groups,
-                    "results": self._results,
-                },
-                adr.config["cache"]["retention"],
-            )
+            # Temporarily disable caching as it's creating too many entries.
+            # adr.config.cache.put(
+            #     self.id,
+            #     {
+            #         "errors": self._errors,
+            #         "groups": self._groups,
+            #         "results": self._results,
+            #     },
+            #     adr.config["cache"]["retention"],
+            # )
 
     @property
     def groups(self):

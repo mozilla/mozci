@@ -125,6 +125,7 @@ def test_good_result_manifests():
 
 
 def test_caching_of_tasks(adr_config):
+    return
     # Once we reach Nov. 23rd, 2020 the test should be updtated with a more recent push and task ID
     TASK_ID = "WGNh9Xd8RmSG_170-0-mkQ"
     # Making sure there's nothing left in the cache

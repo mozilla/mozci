@@ -164,29 +164,50 @@ def test_good_result_manifests():
         ), f"{group} group for task {label} is bad!"
 
 
-def test_caching_of_push(adr_config):
+def test_caching_of_tasks(adr_config):
     # Once we reach Nov. 23rd, 2020 the test should be updated with a more recent push and task ID
-    TASK_ID = "WGNh9Xd8RmSG_170-0-mkQ"
     REV = "6e87f52e6eebdf777f975baa407d5c22e9756e80"
+    TASK_1 = "Z-mKvs0jSaSkKLPFZeO3Qw"
+    TASK_2 = "WGNh9Xd8RmSG_170-0-mkQ"
+
     # Making sure there's nothing left in the cache
     assert adr_config.cache.get(REV) is None
-    # Push from Nov. 22nd, 2019
-    push = Push(REV, branch="mozilla-beta")
+    push = Push(REV, branch="mozilla-beta")  # Push from Nov. 22nd, 2019
     tasks = push.tasks
+    assert len(tasks) == 2166
 
-    found_task = False
+    cached_tasks = 0
+
+    def validate_cache():
+        push_data = adr_config.cache.get(REV, {})
+        assert len(push_data.keys()) == cached_tasks
+
     for t in tasks:
-        # We are just testing that the task was retrieved
-        if t.id == TASK_ID:
-            found_task = True
+        if t.id == TASK_1:
+            # This will call _load_error_summary and cache the data
+            t.groups
+            cached_tasks += 1
+            validate_cache()
+
+        if t.id == TASK_2:
+            # This will call _load_error_summary and cache the data
+            t.results
+            push_task_map = adr_config.cache.get(REV)
+            # Let's validate some data about the task
+            task = push_task_map[t.id]
+            # We cache three properties (errors, groups, results) per task
+            assert len(task.keys()) == 3
+            assert not task["errors"]
+            assert task["groups"].index("docshell/test/browser/browser.ini") > -1
+            assert not task["results"]
+            cached_tasks += 1
+            validate_cache()
+
+        if cached_tasks == 2:
             break
-    assert found_task
 
     # Testing that the tasks associated to a push have been cached
-    assert len(adr_config.cache.get(REV)) == 2166
-
-    # XXX: We could test here that a 2nd call hits the cache
-    push.tasks
+    assert len(adr_config.cache.get(REV)) == 2
 
     # Q: Is it good practice to clean the test here?
     adr_config.cache.forget(REV)

@@ -264,6 +264,51 @@ class TestTask(Task):
             self._load_errorsummary()
         return self._errors
 
+    @property
+    def configuration(self):
+        SUITES = (
+            "mochitest-plain-gpu",
+            "mochitest-plain",
+            "mochitest-chrome-gpu",
+            "mochitest-chrome",
+            "mochitest-devtools-chrome",
+            "mochitest-browser-chrome",
+            "web-platform-tests-wdspec",
+            "web-platform-tests",
+            "mochitest-media",
+            "mochitest-webgpu",
+            "mochitest-webgl1-ext",
+            "mochitest-webgl2-ext",
+            "mochitest-webgl1-core",
+            "mochitest-webgl2-core",
+            "mochitest-remote",
+            "mochitest-a11y",
+            "xpcshell",
+            "crashtest",
+            "reftest-no-accel",
+            "gtest",
+            "telemetry-tests-client",
+            "browser-screenshots",
+            "marionette-gpu",
+            "marionette",
+            "cppunit",
+            "firefox-ui-functional-remote",
+            "firefox-ui-functional-local",
+            "reftest",
+            "junit",
+        )
+
+        config = self.label
+        for s in SUITES:
+            if f"-{s}-" in config:
+                config = config.replace(s, "*")
+
+        parts = config.split("/")
+
+        return "{}/{}".format(
+            parts[0], "-".join(p for p in parts[1].split("-") if not p.isdigit())
+        )
+
 
 @dataclass
 class RunnableSummary(ABC):

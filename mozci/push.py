@@ -383,15 +383,7 @@ class Push:
         """
         return self.task_labels - self.scheduled_task_labels
 
-    @memoized_property
-    def group_summaries(self):
-        """All group summaries combining retriggers.
-
-        Returns:
-            dict: A dictionary of the form {<group>: [<GroupSummary>]}.
-        """
-        groups = defaultdict(list)
-
+    def get_groups_for_tasks(self):
         future_to_task = {
             Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task): task
             for task in self.tasks
@@ -401,10 +393,38 @@ class Push:
         for future in concurrent.futures.as_completed(future_to_task):
             task = future_to_task[future]
             for group in future.result():
-                groups[group].append(task)
+                yield task, group
 
-        groups = {group: GroupSummary(group, tasks) for group, tasks in groups.items()}
-        return groups
+    @memoized_property
+    def group_config_summaries(self):
+        """All group summaries, on given configurations, combining retriggers.
+
+        Returns:
+            dict: A dictionary of the form {(<configuration>, <group>): [<GroupSummary>]}.
+        """
+        config_groups = defaultdict(list)
+
+        for task, group in self.get_groups_for_tasks():
+            config_groups[(task.configuration, group)].append(task)
+
+        return {
+            config_group: GroupSummary(config_group[1], tasks)
+            for config_group, tasks in config_groups.items()
+        }
+
+    @memoized_property
+    def group_summaries(self):
+        """All group summaries combining retriggers.
+
+        Returns:
+            dict: A dictionary of the form {<group>: [<GroupSummary>]}.
+        """
+        groups = defaultdict(list)
+
+        for task, group in self.get_groups_for_tasks():
+            groups[group].append(task)
+
+        return {group: GroupSummary(group, tasks) for group, tasks in groups.items()}
 
     @memoized_property
     def label_summaries(self):

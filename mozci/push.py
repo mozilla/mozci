@@ -317,8 +317,8 @@ class Push:
         # Normalize and validate.
         normalized_tasks = []
         for task in tasks.values():
-            # We pass the rev as part of the task to grouping them when caching them
-            task["rev"] = self.rev
+            # We pass the branch/rev as part of the task to grouping them when caching them
+            task["push_uuid"] = "{}-{}".format(self.branch, self.rev)
             missing = [k for k in required_keys if k not in task]
             taskstr = task.get("label", task["id"])
 

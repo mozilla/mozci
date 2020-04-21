@@ -74,7 +74,7 @@ class Task:
     classification: str = field(default=None)
     classification_note: str = field(default=None)
     tags: Dict = field(default_factory=dict)
-    rev: str = field(default=None)
+    push_uuid: str = field(default=None)
 
     @staticmethod
     def create(index=None, **kwargs):
@@ -203,12 +203,12 @@ class TestTask(Task):
 
     def _load_errorsummary(self):
         # XXX: When should we invalidate the data?
-        push_data = adr.config.cache.get(self.rev)
         # If there's data for the push and if it contains this task
-        if push_data and push_data.get(self.id):
-            self._errors = push_data[self.id]["errors"]
-            self._groups = push_data[self.id]["groups"]
-            self._results = push_data[self.id]["results"]
+        task_data = adr.config.cache.get(self.push_uuid, {}).get(self.id)
+        if task_data:
+            self._errors = task_data["errors"]
+            self._groups = task_data["groups"]
+            self._results = task_data["results"]
             return None
         # This may clobber the values that were populated by ActiveData, but
         # since the artifact is already downloaded, parsed and we need to
@@ -241,10 +241,10 @@ class TestTask(Task):
 
         self.__post_init__()
         # Cache data
-        logger.debug("Storing {}/{} in the cache".format(self.rev, self.id))
+        logger.debug("Storing {}/{} in the cache".format(self.push_uuid, self.id))
         # XXX: I have a slight concern of having a race condition if there are two different
         # tasks calling _load_error_summary()
-        push_data = adr.config.cache.get(self.rev, {})
+        push_data = adr.config.cache.get(self.push_uuid, {})
         push_data[self.id] = {
             "errors": self._errors,
             "groups": self._groups,
@@ -252,7 +252,7 @@ class TestTask(Task):
         }
         # cachy's put() overwrites the value in the cache; add() would only add if its empty
         adr.config.cache.put(
-            self.rev, push_data, adr.config["cache"]["retention"],
+            self.push_uuid, push_data, adr.config["cache"]["retention"],
         )
 
     @property

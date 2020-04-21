@@ -168,8 +168,8 @@ def test_caching_of_tasks(adr_config):
     # Once we reach Nov. 23rd, 2020 the test should be updated with a more recent push and task ID
     REV = "6e87f52e6eebdf777f975baa407d5c22e9756e80"
     PUSH_UUID = "mozilla-beta/{}".format(REV)
-    # TASK_1 = "Z-mKvs0jSaSkKLPFZeO3Qw"
-    # TASK_2 = "WGNh9Xd8RmSG_170-0-mkQ"
+    TASK_1 = "Z-mKvs0jSaSkKLPFZeO3Qw"
+    TASK_2 = "WGNh9Xd8RmSG_170-0-mkQ"
 
     # Making sure there's nothing left in the cache
     assert adr_config.cache.get(PUSH_UUID) is None
@@ -178,36 +178,27 @@ def test_caching_of_tasks(adr_config):
     # Testing that the tasks associated to a push have been cached
     assert len(adr_config.cache.get(PUSH_UUID).keys()) == len(tasks)
 
-    # XXX: We no cache all tasks; think this through
-    # cached_tasks = 0
+    validated_tasks = 0
+    for t in tasks:
+        if t.id == TASK_1:
+            # This will call _load_error_summary and cache the data
+            t.groups
+            validated_tasks += 1
 
-    # def validate_cache():
-    #     push_data = adr_config.cache.get(REV, {})
-    #     assert len(push_data.keys()) == cached_tasks
+        if t.id == TASK_2:
+            # This will call _load_errorsummary and cache the data
+            t.results
+            push_task_map = adr_config.cache.get(PUSH_UUID)
+            # Let's validate some data about the task
+            task = push_task_map[t.id]
+            assert not task.errors
+            assert task.groups.index("docshell/test/browser/browser.ini") > -1
+            assert not task.results
+            validated_tasks += 1
 
-    # for t in tasks:
-    #     if t.id == TASK_1:
-    #         # This will call _load_error_summary and cache the data
-    #         t.groups
-    #         cached_tasks += 1
-    #         validate_cache()
-
-    #     if t.id == TASK_2:
-    #         # This will call _load_error_summary and cache the data
-    #         t.results
-    #         push_task_map = adr_config.cache.get(REV)
-    #         # Let's validate some data about the task
-    #         task = push_task_map[t.id]
-    #         # We cache three properties (errors, groups, results) per task
-    #         assert len(task.keys()) == 3
-    #         assert not task["errors"]
-    #         assert task["groups"].index("docshell/test/browser/browser.ini") > -1
-    #         assert not task["results"]
-    #         cached_tasks += 1
-    #         validate_cache()
-
-    #     if cached_tasks == 2:
-    #         break
+        # So we don't iterate for ever
+        if validated_tasks == 2:
+            break
 
     # Q: Is it good practice to clean the test here?
     adr_config.cache.forget(REV)

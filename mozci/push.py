@@ -318,6 +318,7 @@ class Push:
         # Normalize and validate.
         normalized_tasks = []
         for task in tasks.values():
+            task["push_uuid"] = self.push_uuid
             missing = [k for k in required_keys if k not in task]
             taskstr = task.get("label", task["id"])
 

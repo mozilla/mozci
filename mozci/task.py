@@ -7,6 +7,7 @@ from enum import Enum
 from inspect import signature
 from typing import Dict, List, Optional
 
+import adr
 import requests
 from adr.util import memoized_property
 from loguru import logger
@@ -111,6 +112,7 @@ class Task:
     classification: Optional[str] = field(default=None)
     classification_note: Optional[str] = field(default=None)
     tags: Dict = field(default_factory=dict)
+    push_uuid: str = field(default=None)
 
     @staticmethod
     def create(index=None, **kwargs):
@@ -239,6 +241,11 @@ class TestTask(Task):
             result.group = result.group.replace("\\", "/")
 
     def _load_errorsummary(self):
+        push_data = adr.config.cache.get(self.push_uuid, {})
+        if push_data.get(self.id):
+            self._errors = push_data[self.id]._errors
+            self._groups = push_data[self.id]._groups
+            self._results = push_data[self.id]._results
         # This may clobber the values that were populated by ActiveData, but
         # since the artifact is already downloaded, parsed and we need to
         # iterate over it anyway. It doesn't really hurt and simplifies some
@@ -276,6 +283,18 @@ class TestTask(Task):
         ]
 
         self.__post_init__()
+        # Cache data
+        logger.debug("Storing {}-{} in the cache".format(self.push_uuid, self.id))
+        # XXX: I have a slight concern of having a race condition trying to write push data for the same uuid
+        push_data = adr.config.cache.get(self.push_uuid, {})
+        push_data[self.id]._errors = self._errors
+        push_data[self.id]._groups = self._groups
+        push_data[self.id]._results = self._results
+
+        # cachy's put() overwrites the value in the cache; add() would only add if its empty
+        adr.config.cache.put(
+            self.push_uuid, push_data, adr.config["cache"]["retention"],
+        )
 
     @property
     def groups(self):

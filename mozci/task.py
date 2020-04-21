@@ -7,7 +7,6 @@ from enum import Enum
 from inspect import signature
 from typing import Dict, List
 
-import adr
 import requests
 from adr.util import memoized_property
 from loguru import logger
@@ -74,7 +73,6 @@ class Task:
     classification: str = field(default=None)
     classification_note: str = field(default=None)
     tags: Dict = field(default_factory=dict)
-    push_uuid: str = field(default=None)
 
     @staticmethod
     def create(index=None, **kwargs):
@@ -171,6 +169,10 @@ class TestTask(Task):
 
     def __post_init__(self):
         if is_no_groups_suite(self.label):
+            if self._groups is not None:
+                print(self.id)
+                print(self.label)
+                print(self._groups)
             assert self._groups is None, f"{self.label} should have no groups"
             self._groups = []
 
@@ -202,14 +204,6 @@ class TestTask(Task):
             ]
 
     def _load_errorsummary(self):
-        # XXX: When should we invalidate the data?
-        # If there's data for the push and if it contains this task
-        task_data = adr.config.cache.get(self.push_uuid, {}).get(self.id)
-        if task_data:
-            self._errors = task_data["errors"]
-            self._groups = task_data["groups"]
-            self._results = task_data["results"]
-            return None
         # This may clobber the values that were populated by ActiveData, but
         # since the artifact is already downloaded, parsed and we need to
         # iterate over it anyway. It doesn't really hurt and simplifies some
@@ -240,20 +234,6 @@ class TestTask(Task):
                 self._errors.append(line["message"])
 
         self.__post_init__()
-        # Cache data
-        logger.debug("Storing {}/{} in the cache".format(self.push_uuid, self.id))
-        # XXX: I have a slight concern of having a race condition if there are two different
-        # tasks calling _load_error_summary()
-        push_data = adr.config.cache.get(self.push_uuid, {})
-        push_data[self.id] = {
-            "errors": self._errors,
-            "groups": self._groups,
-            "results": self._results,
-        }
-        # cachy's put() overwrites the value in the cache; add() would only add if its empty
-        adr.config.cache.put(
-            self.push_uuid, push_data, adr.config["cache"]["retention"],
-        )
 
     @property
     def groups(self):

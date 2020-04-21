@@ -5,7 +5,7 @@ from argparse import Namespace
 from collections import defaultdict
 from functools import lru_cache
 
-import adr
+# import adr
 from adr.errors import MissingDataError
 from adr.query import run_query
 from adr.util.memoize import memoized_property
@@ -239,10 +239,11 @@ class Push:
         Returns:
             list: A list of `Task` objects.
         """
-        push_tasks = adr.config.cache.get(self.push_uuid, {})
-        if push_tasks:
-            logger.debug("Fetched tasks for {} from the cache".format(self.push_uuid))
-            return push_tasks
+        # XXX: Temp do not cache
+        # push_tasks = adr.config.cache.get(self.push_uuid, {})
+        # if push_tasks:
+        #     logger.debug("Fetched tasks for {} from the cache".format(self.push_uuid))
+        #     return push_tasks
 
         args = Namespace(rev=self.rev, branch=self.branch)
         tasks = defaultdict(dict)
@@ -368,12 +369,13 @@ class Push:
             if isinstance(task, TestTask):
                 task._load_errorsummary()
 
-        # Cache data
-        logger.debug("Storing {} in the cache".format(self.push_uuid))
-        # cachy's put() overwrites the value in the cache; add() would only add if its empty
-        adr.config.cache.put(
-            self.push_uuid, tasks, adr.config["cache"]["retention"],
-        )
+        # XXX: Temp do not cache
+        # # Cache data
+        # logger.debug("Storing {} in the cache".format(self.push_uuid))
+        # # cachy's put() overwrites the value in the cache; add() would only add if its empty
+        # adr.config.cache.put(
+        #     self.push_uuid, tasks, adr.config["cache"]["retention"],
+        # )
 
     @property
     def task_labels(self):

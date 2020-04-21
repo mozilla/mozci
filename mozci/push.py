@@ -5,6 +5,7 @@ from argparse import Namespace
 from collections import defaultdict
 from functools import lru_cache
 
+import adr
 from adr.errors import MissingDataError
 from adr.query import run_query
 from adr.util.memoize import memoized_property
@@ -53,6 +54,8 @@ class Push:
             self.rev = self._hgmo["node"]
 
         self.index = BASE_INDEX.format(branch=self.branch, rev=self.rev)
+        # Unique identifier for a Push across branches
+        self.push_uuid = "{}/{}".format(self.branch, self.rev)
 
     @property
     def revs(self):
@@ -236,6 +239,10 @@ class Push:
         Returns:
             list: A list of `Task` objects.
         """
+        push_tasks = adr.config.cache.get(self.push_uuid)
+        if push_tasks:
+            logger.info("Fetched tasks for {} from the cache".format(self.push_uuid))
+            return push_tasks
 
         args = Namespace(rev=self.rev, branch=self.branch)
         tasks = defaultdict(dict)
@@ -311,8 +318,6 @@ class Push:
         # Normalize and validate.
         normalized_tasks = []
         for task in tasks.values():
-            # We pass the branch/rev as part of the task to grouping them when caching them
-            task["push_uuid"] = "{}-{}".format(self.branch, self.rev)
             missing = [k for k in required_keys if k not in task]
             taskstr = task.get("label", task["id"])
 
@@ -343,7 +348,21 @@ class Push:
 
             normalized_tasks.append(task)
 
-        return [Task.create(**task) for task in normalized_tasks]
+        tasks = [Task.create(**task) for task in normalized_tasks]
+        self.cache_data(tasks)
+        return tasks
+
+    def cache_data(self, tasks):
+        push_tasks = {}
+        for task in tasks:
+            push_tasks[task.id] = task
+
+        # Cache data
+        logger.debug("Storing {} in the cache".format(self.push_uuid))
+        # cachy's put() overwrites the value in the cache; add() would only add if its empty
+        adr.config.cache.put(
+            self.push_uuid, push_tasks, adr.config["cache"]["retention"],
+        )
 
     @property
     def task_labels(self):

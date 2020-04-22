@@ -8,6 +8,7 @@ where:
     and:
         - prefix: {repo.changeset.id: {$eval: rev}}
         - eq: {repo.branch.name: {$eval: branch}}
+        - ne: {result.status: "SKIP"}
         - ne: {treeherder.tier: 3}
         - ne: {task.kind: "decision-task"}
 limit: 10000

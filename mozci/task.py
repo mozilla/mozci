@@ -67,7 +67,6 @@ class Task:
 
     id: str
     label: str = field(default=None)
-    kind: str = field(default=None)
     duration: int = field(default=None)
     result: str = field(default=None)
     classification: str = field(default=None)

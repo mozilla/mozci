@@ -7,7 +7,7 @@ from adr.configuration import Configuration
 from adr.query import run_query
 
 from mozci import task
-from mozci.push import Push
+from mozci.push import Push, make_push_objects
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("TRAVIS_EVENT_TYPE") != "cron", reason="Not run by a cron task"
@@ -34,6 +34,28 @@ file = { driver = "file", path = "%s" }
     )
     config_file.write_text(text)
     return Configuration(path=config_file)
+
+
+def test_create_pushes_and_get_regressions():
+    """
+    An integration test mimicking the mozci usage done by bugbug.
+    """
+    pushes = make_push_objects(
+        from_date="today-7day", to_date="today-6day", branch="autoland",
+    )
+
+    assert len(pushes) > 0
+
+    push = pushes[round(len(pushes) / 2)]
+
+    assert len(push.task_labels) > 0
+    assert len(push.group_summaries) > 0
+
+    push.get_possible_regressions("label")
+    push.get_possible_regressions("group")
+
+    push.get_likely_regressions("label")
+    push.get_likely_regressions("group")
 
 
 def test_missing_manifests():

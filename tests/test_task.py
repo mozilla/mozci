@@ -69,7 +69,6 @@ def test_to_json():
     kwargs = {
         "id": 1,
         "label": "foobar",
-        "kind": "test",
         "result": "pass",
         "duration": 100,
     }

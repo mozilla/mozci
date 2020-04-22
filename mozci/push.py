@@ -334,8 +334,6 @@ class Push:
                 if task.get("_result_group"):
                     groups = task.pop("_result_group")
 
-                    task["_groups"] = groups
-
                     task["_results"] = [
                         GroupResult(group=group, ok=ok)
                         for group, ok in zip(groups, oks)

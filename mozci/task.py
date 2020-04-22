@@ -164,13 +164,9 @@ class TestTask(Task):
 
     _results: List[GroupResult] = field(default=None)
     _errors: List = field(default=None)
-    _groups: List = field(default=None)
 
     def __post_init__(self):
         if is_no_groups_suite(self.label):
-            assert self._groups is None, f"{self.label} should have no groups"
-            self._groups = []
-
             assert self._errors is None, f"{self.label} should have no errors"
             self._errors = []
 
@@ -179,13 +175,6 @@ class TestTask(Task):
 
         # XXX: A while after bug 1613937 and bug 1613939 have been fixed, we can
         # remove the filtering and slash replacing.
-
-        if self._groups is not None:
-            self._groups = [
-                group.replace("\\", "/")
-                for group in self._groups
-                if not is_bad_group(self.id, self.label, group)
-            ]
 
         def update_group(result):
             result.group = result.group.replace("\\", "/")
@@ -204,7 +193,6 @@ class TestTask(Task):
         data = None  # adr.config.cache.get(self.id)
         if data:
             self._errors = data["errors"]
-            self._groups = data["groups"]
             self._results = data["results"]
             return None
         # This may clobber the values that were populated by ActiveData, but
@@ -212,7 +200,6 @@ class TestTask(Task):
         # iterate over it anyway. It doesn't really hurt and simplifies some
         # logic. It also ensures we don't attempt to load the errorsummary more
         # than once.
-        self._groups = []
         self._results = []
         self._errors = []
 
@@ -224,7 +211,7 @@ class TestTask(Task):
         lines = [json.loads(l) for l in self.get_artifact(path).splitlines()]
         for line in lines:
             if line["action"] == "test_groups":
-                self._groups = list(set(line["groups"]) - {"default"})
+                groups = list(set(line["groups"]) - {"default"})
 
             elif line["action"] == "test_result":
                 self._results.append(
@@ -236,9 +223,17 @@ class TestTask(Task):
             elif line["action"] == "log":
                 self._errors.append(line["message"])
 
+        # Assume all groups for which we have no results passed.
+        # In practice, they could also have been skipped (we should ignore them when
+        # it will be feasible, https://github.com/mozilla/mozci/issues/166).
+        known_results = {result.group for result in self._results}
+        self._results += [
+            GroupResult(group, True) for group in groups if group not in known_results
+        ]
+
         self.__post_init__()
         # Only store data if there's something to store
-        if self._errors or self._groups or self._results:
+        if self._errors or self._results:
             logger.debug("Storing {} in the cache".format(self.id))
             # cachy's put() overwrites the value in the cache; add() would only add if its empty
             # Temporarily disable caching as it's creating too many entries.
@@ -246,7 +241,6 @@ class TestTask(Task):
             #     self.id,
             #     {
             #         "errors": self._errors,
-            #         "groups": self._groups,
             #         "results": self._results,
             #     },
             #     adr.config["cache"]["retention"],
@@ -254,9 +248,9 @@ class TestTask(Task):
 
     @property
     def groups(self):
-        if self._groups is None:
+        if self._results is None:
             self._load_errorsummary()
-        return self._groups
+        return [result.group for result in self.results]
 
     @property
     def results(self):

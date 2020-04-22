@@ -59,9 +59,32 @@ and are excluded from the default test run. But if needed, you can run them loca
 $ tox -e integration
 ```
 
-### Windows installation
+Since `tox` installs packages on every invocation, it's much faster to run tests directly with `pytest`:
 
-The `poetry install` command may lock up on Windows10 (Python3.7.6) you can get around this with:
+```bash
+$ poetry run pytest tests
+```
+
+or
+
+```bash
+$ poetry shell
+$ pytest tests
+```
+
+Additionally, you can install the `pre-commit` hooks by running:
+
+```bash
+$ pre-commit install
+```
+
+Linters and formatters will now run every time you commit.
+
+### Troubleshooting
+
+#### `poetry install` locks up on Windows ([upstream issue](https://github.com/python-poetry/poetry/issues/2244))
+
+This can potentially be worked around like this:
 
     python -m pip install virtualenv
     python -m virtualenv .venv                   # IMPORTANT: Notice the dot in the name
@@ -70,14 +93,3 @@ The `poetry install` command may lock up on Windows10 (Python3.7.6) you can get 
     poetry export --dev --without-hashes -f requirements.txt > requirements.in
     pip-compile --upgrade --generate-hashes --output-file requirements.txt requirements.in
     pip install -r requirements.txt
-
-### Running tests
-
-Tests are run from the main `mozci` project directory. Be sure you have activated the virtual environment before running tests (`.venv\Scripts\activate`)
-
-    set PYTHONPATH=.
-    pytest tests
-
-Once you have confirmed the virtual environment can pass tests
-
-    tox -e pre-commit

@@ -362,30 +362,30 @@ class Push:
                     t._results = error_summary["results"]
             logger.info("Fetched tasks for {} from the cache".format(self.push_uuid))
             return tasks
+        else:
+            # Let's first add non TestTasks
+            for task in tasks:
+                if not isinstance(task, TestTask):
+                    push_tasks[task.id] = task
 
-        # Let's first add non TestTasks
-        for task in tasks:
-            if not isinstance(task, TestTask):
+            future_to_task = {
+                Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task): task
+                for task in tasks
+                if isinstance(task, TestTask)
+            }
+
+            for future in concurrent.futures.as_completed(future_to_task):
+                task = future_to_task[future]
+                # This test task now has the values for errors, groups & results
                 push_tasks[task.id] = task
 
-        future_to_task = {
-            Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task): task
-            for task in tasks
-            if isinstance(task, TestTask)
-        }
-
-        for future in concurrent.futures.as_completed(future_to_task):
-            task = future_to_task[future]
-            # This test task now has the values for errors, groups & results
-            push_tasks[task.id] = task
-
-        # Cache data
-        logger.debug("Storing {} in the cache".format(self.push_uuid))
-        # cachy's put() overwrites the value in the cache; add() would only add if its empty
-        adr.config.cache.put(
-            self.push_uuid, push_tasks, adr.config["cache"]["retention"],
-        )
-        return push_tasks.values()
+            # Cache data
+            logger.debug("Storing {} in the cache".format(self.push_uuid))
+            # cachy's put() overwrites the value in the cache; add() would only add if its empty
+            adr.config.cache.put(
+                self.push_uuid, push_tasks, adr.config["cache"]["retention"],
+            )
+            return push_tasks.values()
 
     @property
     def task_labels(self):

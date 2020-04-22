@@ -173,7 +173,8 @@ def test_caching_of_tasks(adr_config):
 
     # Making sure there's nothing left in the cache
     assert adr_config.cache.get(PUSH_UUID) is None
-    push = Push(REV, branch="mozilla-beta")  # Push from Nov. 22nd, 2019
+    # Push from Nov. 22nd, 2019. Only use pushes older than 6 weeks (AD's unittest retention data)
+    push = Push(REV, branch="mozilla-beta")
     # Q: Calling push.tasks a second time would hit the cache; Should we test that scenario?
     tasks = push.tasks
     # Testing that the tasks associated to a push have been cached

@@ -349,10 +349,10 @@ class Push:
         return tasks
 
     def fetch_groups_errors_results(self, tasks: list) -> list:
-        """ This adds errors, groups and results to TestTasks"""
+        """ This adds & caches errors, groups and results to TestTasks"""
         push_tasks = adr.config.cache.get(self.push_uuid, defaultdict())
         if len(push_tasks.keys()) > 0:
-            # Let's add error summaries to TestTasks
+            # Let's add cached error summaries to TestTasks
             for t in tasks:
                 error_summary = push_tasks.get(t.id)
                 # Only Test tasks have stored error summary information in the cache
@@ -368,6 +368,7 @@ class Push:
                 if not isinstance(task, TestTask):
                     push_tasks[task.id] = task
 
+            # Let's fetch TestTasks error summaries in parallel
             future_to_task = {
                 Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task): task
                 for task in tasks
@@ -380,7 +381,11 @@ class Push:
                 push_tasks[task.id] = task
 
             # Cache data
-            logger.debug("Storing {} in the cache".format(self.push_uuid))
+            logger.debug(
+                "Storing test task error summaries for {} in the cache".format(
+                    self.push_uuid
+                )
+            )
             # cachy's put() overwrites the value in the cache; add() would only add if its empty
             adr.config.cache.put(
                 self.push_uuid, push_tasks, adr.config["cache"]["retention"],

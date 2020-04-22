@@ -8,18 +8,16 @@ few guarantees and so has to rely on probabilistic guesses.
 
 This page will help explain how regressions are calculated by introducing concepts one at a time.
 
+Definitions
+-----------
 
-Runnable
---------
-
-There are currently two different vectors of regression that ``mozci`` can check for, *label* and
+There are currently two different vectors of regression that ``mozci`` can check for: *label* and
 *group*.
 
-A label is a task label (e.g ``test-linux1804-64/debug-mochitest-e10s-1``). Whereas a "group" is a
-grouping of tests, typically a manifest (e.g ``dom/indexedDB/test/mochitest.ini``).
-
-A *runnable* is the unique label identifying a set of tasks, or the unique group identifying a
-set of tests.
+* **label** - is a task label (e.g ``test-linux1804-64/debug-mochitest-e10s-1``)
+* **group** - is a grouping of tests, typically a manifest (e.g ``dom/indexedDB/test/mochitest.ini``).
+* **runnable** is the unique label identifying a set of tasks, or the unique group identifying a set of tests.
+* **classification** - an annotation that Sheriffs apply to tasks manually. It is also known as "starring" because it puts a little asterisk next to the task in Treeherder.
 
 
 Runnable Summary
@@ -36,11 +34,6 @@ The :class:`~mozci.task.GroupSummary` class implements this logic for groups and
 :class:`~mozci.task.RunnableSummary` abstract base class.
 
 All instances of :class:`~mozci.task.RunnableSummary` have an overall status and an overall classification.
-
-.. note::
-
-    Classifications are annotations that sherrifs apply to tasks manually. It is also known as
-    starring because it puts a little asterisk next to the task in Treeherder.
 
 
 Candidate Regression

@@ -8,6 +8,7 @@ from adr.query import run_query
 
 from mozci import task
 from mozci.push import Push, make_push_objects
+from mozci.task import TestTask
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("TRAVIS_EVENT_TYPE") != "cron", reason="Not run by a cron task"
@@ -168,8 +169,8 @@ def test_caching_of_tasks(adr_config):
     # Once we reach Nov. 23rd, 2020 the test should be updated with a more recent push and task ID
     REV = "6e87f52e6eebdf777f975baa407d5c22e9756e80"
     PUSH_UUID = "mozilla-beta/{}".format(REV)
-    TASK_1 = "Z-mKvs0jSaSkKLPFZeO3Qw"
-    TASK_2 = "WGNh9Xd8RmSG_170-0-mkQ"
+    NON_TEST_TASK = "VQC3OOXFQeK8S0EaIU4ivQ"
+    TEST_TASK = "WGNh9Xd8RmSG_170-0-mkQ"
 
     # Making sure there's nothing left in the cache
     assert adr_config.cache.get(PUSH_UUID) is None
@@ -177,31 +178,31 @@ def test_caching_of_tasks(adr_config):
     push = Push(REV, branch="mozilla-beta")
     # Q: Calling push.tasks a second time would hit the cache; Should we test that scenario?
     tasks = push.tasks
+    push_task_map = adr_config.cache.get(PUSH_UUID)
+    TOTAL_TEST_TASKS = 1842
     # Testing that the tasks associated to a push have been cached
-    assert len(adr_config.cache.get(PUSH_UUID).keys()) == len(tasks)
+    assert len(push_task_map.keys()) == TOTAL_TEST_TASKS
 
-    validated_tasks = 0
+    test_tasks = 0
     for t in tasks:
-        if t.id == TASK_1:
-            # This will call _load_error_summary and cache the data
-            t.groups
-            validated_tasks += 1
+        # Only test tasks
+        if t.id == NON_TEST_TASK:
+            assert push_task_map.get(NON_TEST_TASK) is None
 
-        if t.id == TASK_2:
-            # This will call _load_errorsummary and cache the data
-            t.results
-            push_task_map = adr_config.cache.get(PUSH_UUID)
+        if t.id == TEST_TASK:
             # Let's validate some data about the task
             task = push_task_map[t.id]
-            assert not task.errors
-            assert task.groups.index("docshell/test/browser/browser.ini") > -1
-            assert not task.results
-            validated_tasks += 1
+            assert not task["errors"]
+            assert task["groups"].index("docshell/test/browser/browser.ini") > -1
+            assert not task["results"]
 
-        # So we don't iterate for ever
-        if validated_tasks == 2:
-            break
+        # Assert all test tasks have written to the cache
+        if isinstance(t, TestTask):
+            assert push_task_map[t.id]
+            test_tasks += 1
+
+    assert test_tasks == TOTAL_TEST_TASKS
 
     # Q: Is it good practice to clean the test here?
-    adr_config.cache.forget(REV)
-    assert adr_config.cache.get(REV) is None
+    adr_config.cache.forget(PUSH_UUID)
+    assert adr_config.cache.get(PUSH_UUID) is None

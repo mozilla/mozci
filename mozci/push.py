@@ -3,7 +3,6 @@ import concurrent.futures
 import math
 from argparse import Namespace
 from collections import defaultdict
-from dataclasses import field
 from functools import lru_cache
 
 import adr
@@ -31,9 +30,6 @@ class Push:
         revs (list): List of revisions of commits in the push (top-most is the first element).
         branch (str): Branch to look on (default: autoland).
     """
-
-    task: list = field(default=None)
-    push_uuid: str = field(default=None)
 
     # static thread pool, to avoid spawning threads too often.
     THREAD_POOL_EXECUTOR = concurrent.futures.ThreadPoolExecutor()
@@ -237,17 +233,12 @@ class Push:
         return Task.create(index=index)
 
     @memoized_property
-    def tasks(self) -> list:
+    def tasks(self):
         """All tasks that ran on the push, including retriggers and backfills.
 
         Returns:
             list: A list of `Task` objects.
         """
-        push_tasks = adr.config.cache.get(self.push_uuid)
-        if push_tasks:
-            logger.info("Fetched tasks for {} from the cache".format(self.push_uuid))
-            return push_tasks
-
         args = Namespace(rev=self.rev, branch=self.branch)
         tasks = defaultdict(dict)
         retries = defaultdict(int)
@@ -354,12 +345,24 @@ class Push:
 
         tasks = [Task.create(**task) for task in normalized_tasks]
         # Pass tasks instead of trying to access self.tasks which would make this recursive
-        self.cache_tasks(tasks)
+        tasks = self.fetch_groups_errors_results(tasks)
         return tasks
 
-    def cache_tasks(self, tasks):
-        """ This function caches all tasks rather than only error summaries"""
-        push_tasks = defaultdict()
+    def fetch_groups_errors_results(self, tasks: list) -> list:
+        """ This adds errors, groups and results to TestTasks"""
+        push_tasks = adr.config.cache.get(self.push_uuid, defaultdict())
+        if len(push_tasks.keys()) > 0:
+            # Let's add error summaries to TestTasks
+            for t in tasks:
+                error_summary = push_tasks.get(t.id)
+                # Only Test tasks have stored error summary information in the cache
+                if error_summary:
+                    t._errors = error_summary["errors"]
+                    t._groups = error_summary["groups"]
+                    t._results = error_summary["results"]
+            logger.info("Fetched tasks for {} from the cache".format(self.push_uuid))
+            return tasks
+
         # Let's first add non TestTasks
         for task in tasks:
             if not isinstance(task, TestTask):
@@ -382,6 +385,7 @@ class Push:
         adr.config.cache.put(
             self.push_uuid, push_tasks, adr.config["cache"]["retention"],
         )
+        return push_tasks.values()
 
     @property
     def task_labels(self):

@@ -366,7 +366,8 @@ class Push:
             future_to_task = {
                 Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task): task
                 for task in tasks
-                if isinstance(task, TestTask)
+                # If AD already initialized the _groups field we don't need to cache that data
+                if isinstance(task, TestTask) and task._groups is None
             }
 
             for future in concurrent.futures.as_completed(future_to_task):

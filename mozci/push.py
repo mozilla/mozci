@@ -3,6 +3,7 @@ import concurrent.futures
 import math
 from argparse import Namespace
 from collections import defaultdict
+from dataclasses import field
 from functools import lru_cache
 
 import adr
@@ -30,6 +31,9 @@ class Push:
         revs (list): List of revisions of commits in the push (top-most is the first element).
         branch (str): Branch to look on (default: autoland).
     """
+
+    task: list = field(default=None)
+    push_uuid: str = field(default=None)
 
     # static thread pool, to avoid spawning threads too often.
     THREAD_POOL_EXECUTOR = concurrent.futures.ThreadPoolExecutor()
@@ -233,7 +237,7 @@ class Push:
         return Task.create(index=index)
 
     @memoized_property
-    def tasks(self):
+    def tasks(self) -> list:
         """All tasks that ran on the push, including retriggers and backfills.
 
         Returns:
@@ -349,12 +353,27 @@ class Push:
             normalized_tasks.append(task)
 
         tasks = [Task.create(**task) for task in normalized_tasks]
-        self.cache_data(tasks)
+        # Pass tasks instead of trying to access self.tasks which would make this recursive
+        self.cache_tasks(tasks)
         return tasks
 
-    def cache_data(self, tasks):
-        push_tasks = {}
+    def cache_tasks(self, tasks):
+        """ This function caches all tasks rather than only error summaries"""
+        push_tasks = defaultdict()
+        # Let's first add non TestTasks
         for task in tasks:
+            if not isinstance(task, TestTask):
+                push_tasks[task.id] = task
+
+        future_to_task = {
+            Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task): task
+            for task in tasks
+            if isinstance(task, TestTask)
+        }
+
+        for future in concurrent.futures.as_completed(future_to_task):
+            task = future_to_task[future]
+            # This test task now has the values for errors, groups & results
             push_tasks[task.id] = task
 
         # Cache data

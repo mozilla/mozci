@@ -297,14 +297,8 @@ class Push:
         # Gather information from the unittest table. We allow missing data for this table because
         # ActiveData only holds very recent data in it, but we have fallbacks on Taskcluster
         # artifacts.
-        # TODO: We have fallbacks for groups and results, but not for kind.
         try:
             add(run_query("push_tasks_results_from_unittest", args))
-        except MissingDataError:
-            pass
-
-        try:
-            add(run_query("push_tasks_groups_from_unittest", args))
         except MissingDataError:
             pass
 
@@ -334,15 +328,13 @@ class Push:
                 if isinstance(task["classification_note"], list):
                     task["classification_note"] = task["classification_note"][-1]
 
-            if task.get("_groups"):
-                if isinstance(task["_groups"], str):
-                    task["_groups"] = [task["_groups"]]
-
             if task.get("_result_ok"):
                 oks = task.pop("_result_ok")
 
                 if task.get("_result_group"):
                     groups = task.pop("_result_group")
+
+                    task["_groups"] = groups
 
                     task["_results"] = [
                         GroupResult(group=group, ok=ok)

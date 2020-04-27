@@ -22,6 +22,39 @@ class Status(Enum):
     INTERMITTENT = 2
 
 
+SUITES = (
+    "mochitest-plain-gpu",
+    "mochitest-plain",
+    "mochitest-chrome-gpu",
+    "mochitest-chrome",
+    "mochitest-devtools-chrome",
+    "mochitest-browser-chrome",
+    "web-platform-tests-wdspec",
+    "web-platform-tests",
+    "mochitest-media",
+    "mochitest-webgpu",
+    "mochitest-webgl1-ext",
+    "mochitest-webgl2-ext",
+    "mochitest-webgl1-core",
+    "mochitest-webgl2-core",
+    "mochitest-remote",
+    "mochitest-a11y",
+    "xpcshell",
+    "crashtest",
+    "reftest-no-accel",
+    "gtest",
+    "telemetry-tests-client",
+    "browser-screenshots",
+    "marionette-gpu",
+    "marionette",
+    "cppunit",
+    "firefox-ui-functional-remote",
+    "firefox-ui-functional-local",
+    "reftest",
+    "junit",
+)
+
+
 NO_GROUPS_SUITES = (
     "raptor",
     "talos",
@@ -263,6 +296,18 @@ class TestTask(Task):
         if self._errors is None:
             self._load_errorsummary()
         return self._errors
+
+    @property
+    def configuration(self):
+        # Remove the suite name.
+        config = self.label
+        for s in SUITES:
+            if f"-{s}-" in config:
+                config = config.replace(s, "*")
+
+        # Remove the chunk number.
+        parts = config.split("-")
+        return "-".join(parts[:-1] if parts[-1].isdigit() else parts)
 
 
 @dataclass

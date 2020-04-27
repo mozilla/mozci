@@ -79,3 +79,45 @@ def test_to_json():
     for k, v in kwargs.items():
         assert k in result
         assert result[k] == v
+
+
+def test_configuration():
+    assert (
+        Task.create(
+            id=1, label="test-windows7-32/debug-reftest-gpu-e10s-1"
+        ).configuration
+        == "test-windows7-32/debug-*-gpu-e10s"
+    )
+    assert (
+        Task.create(
+            id=1, label="test-linux1804-64/debug-mochitest-plain-gpu-e10s"
+        ).configuration
+        == "test-linux1804-64/debug-*-e10s"
+    )
+    assert (
+        Task.create(
+            id=1,
+            label="test-macosx1014-64-shippable/opt-web-platform-tests-wdspec-headless-e10s-1",
+        ).configuration
+        == "test-macosx1014-64-shippable/opt-*-headless-e10s"
+    )
+    assert (
+        Task.create(
+            id=1, label="test-linux1804-64-asan/opt-web-platform-tests-e10s-3"
+        ).configuration
+        == "test-linux1804-64-asan/opt-*-e10s"
+    )
+    assert (
+        Task.create(
+            id=1,
+            label="test-linux1804-64-qr/debug-web-platform-tests-wdspec-fis-e10s-1",
+        ).configuration
+        == "test-linux1804-64-qr/debug-*-fis-e10s"
+    )
+    assert (
+        Task.create(
+            id=1,
+            label="test-windows7-32-shippable/opt-firefox-ui-functional-remote-e10s",
+        ).configuration
+        == "test-windows7-32-shippable/opt-*-e10s"
+    )

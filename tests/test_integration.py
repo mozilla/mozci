@@ -173,12 +173,14 @@ def test_good_result_manifests():
 
 def test_caching_of_push(adr_config):
     # A push if it's very recent, it will have almost no tasks in AD
-    # few days later all data will come from AD
-    # and after 6 weeks it will have no data
-    # Data about the groups for a task will come via AD or through the errorsummary artifact
-    # Regardless of which source was used we store in the same cache
+    # few days later all data will come from AD and after 6 weeks it will have no data there.
+    # Data about the results for a task will come via AD or through the errorsummary artifact
+    # via Taskcluster. Regardless of which source was used we store in the same data
+    # in the cache
 
     # Once this push is older than a year update the revision
+    # Once this push is older than 6 weeks the test will run slower because
+    # all test tasks results will come from Taskcluster
     REV = "2fd61eb5c69ce9ac806048a35c7a7a88bf4b9652"  # Push from Apr. 21, 2020.
     BRANCH = "mozilla-central"
     PUSH_UUID = "{}/{}".format(BRANCH, REV)
@@ -210,7 +212,6 @@ def test_caching_of_push(adr_config):
                 assert push_task_map[t.id]
                 cached_test_tasks += 1
 
-        # This is only true if AD has non of the tasks
         assert cached_test_tasks == TOTAL_TEST_TASKS
     finally:
         # Make sure we forget the cached data

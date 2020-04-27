@@ -372,18 +372,19 @@ class Push:
                         "results": t._results,
                     }
 
-            # Cache data
-            logger.debug(
-                "Storing test task error summaries for {} in the cache".format(
-                    self.push_uuid
-                )
-            )
             if push_tasks:
+                # Cache data
+                logger.debug(
+                    "Storing test task error summaries for {} in the cache".format(
+                        self.push_uuid
+                    )
+                )
                 # We *only* cache errors and results
                 # cachy's put() overwrites the value in the cache; add() would only add if its empty
                 adr.config.cache.put(
                     self.push_uuid, push_tasks, adr.config["cache"]["retention"],
                 )
+
             if adr.config.cache.get(self.push_uuid) is None:
                 logger.warning("The cache has failed to store.")
 

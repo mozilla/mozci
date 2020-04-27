@@ -171,6 +171,18 @@ def test_good_result_manifests():
         ), f"{group} group for task {label} is bad!"
 
 
+def test_caching_issue(adr_config):
+    from mozci.task import GroupResult
+
+    a = GroupResult(
+        group="testing/marionette/harness/marionette_harness/tests/unit-tests.ini",
+        ok=True,
+    )
+    adr_config.cache.put("foo", a, 5)
+    print(adr_config.get("foo"))
+    assert adr_config.get("foo")
+
+
 def test_caching_of_push(adr_config):
     # A push if it's very recent, it will have almost no tasks in AD
     # few days later all data will come from AD and after 6 weeks it will have no data there.

@@ -20,7 +20,11 @@ if not os.environ.get("ADR_CONFIG_PATH"):
 
 @pytest.fixture
 def adr_config(tmp_path):
-    config_file = tmp_path / "config.toml"
+    from pathlib import Path
+
+    config_file = Path.cwd() / "config.toml"
+    # config_file = tmp_path / "config.toml"
+    # If you need to iterate
     text = (
         """
 [adr]
@@ -29,12 +33,14 @@ verbose = true
 default = "file"
 retention = 1000
 [adr.cache.stores]
-file = { driver = "file", path = "%s" }
+file = { driver = "file", path = "%s/adr_cache" }
 """
-        % tmp_path
+        % Path.cwd()
     )
+    print(config_file)
     config_file.write_text(text)
-    return Configuration(path=config_file)
+    # adr_config = Configuration(path=config_file)
+    return Configuration()
 
 
 def test_create_pushes_and_get_regressions():
@@ -177,29 +183,35 @@ def test_caching_of_push(adr_config):
     BRANCH = "mozilla-central"
     PUSH_UUID = "{}/{}".format(BRANCH, REV)
 
-    # Making sure there's nothing left in the cache
-    assert adr_config.cache.get(PUSH_UUID) is None
-    # Only use pushes older than 6 weeks (AD's unittest retention data)
-    push = Push(REV, branch=BRANCH)
-    # Q: Calling push.tasks a second time would hit the cache; Should we test that scenario?
-    tasks = push.tasks
-    assert len(tasks) > 0
-    push_task_map = adr_config.cache.get(PUSH_UUID, {})
-    TOTAL_TEST_TASKS = 1841
-    # Testing that the tasks associated to a push have been cached
-    assert len(push_task_map.keys()) == TOTAL_TEST_TASKS
+    try:
+        # Making sure there's nothing left in the cache
+        if adr_config.cache.get(PUSH_UUID):
+            adr_config.cache.forget(PUSH_UUID)
+        assert adr_config.cache.get(PUSH_UUID) is None
+        # Only use pushes older than 6 weeks (AD's unittest retention data)
+        push = Push(REV, branch=BRANCH)
+        # Q: Calling push.tasks a second time would hit the cache; Should we test that scenario?
+        tasks = push.tasks
+        assert len(tasks) > 0
+        push_task_map = adr_config.cache.get(PUSH_UUID, {})
+        TOTAL_TEST_TASKS = 3126
+        # Testing that the tasks associated to a push have been cached
+        assert len(push_task_map.keys()) == TOTAL_TEST_TASKS
 
-    cached_test_tasks = 0
-    for t in tasks:
-        if not isinstance(t, TestTask):
-            assert push_task_map.get(t.id) is None
+        cached_test_tasks = 0
+        for t in tasks:
+            if not isinstance(t, TestTask):
+                assert push_task_map.get(t.id) is None
 
-        # Assert all test tasks have written to the cache
-        if isinstance(t, TestTask):
-            assert push_task_map[t.id]
-            cached_test_tasks += 1
+            # Assert all test tasks have written to the cache
+            if isinstance(t, TestTask):
+                # if t.id == "LXHGVzvqR8KfMCfJW4ZiEQ":
+                #     import pdb; pdb.set_trace()
+                assert push_task_map[t.id]
+                cached_test_tasks += 1
 
-    # This is only true if AD has non of the tasks
-    assert cached_test_tasks == TOTAL_TEST_TASKS
-
-    return PUSH_UUID
+        # This is only true if AD has non of the tasks
+        assert cached_test_tasks == TOTAL_TEST_TASKS
+    finally:
+        # Make sure we forget the cached data
+        adr_config.cache.forget(PUSH_UUID)

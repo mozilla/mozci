@@ -298,16 +298,15 @@ class TestTask(Task):
             "junit",
         )
 
+        # Remove the suite name.
         config = self.label
         for s in SUITES:
             if f"-{s}-" in config:
                 config = config.replace(s, "*")
 
-        parts = config.split("/")
-
-        return "{}/{}".format(
-            parts[0], "-".join(p for p in parts[1].split("-") if not p.isdigit())
-        )
+        # Remove the chunk number.
+        parts = config.split("-")
+        return "-".join(parts[:-1] if parts[-1].isdigit() else parts)
 
 
 @dataclass

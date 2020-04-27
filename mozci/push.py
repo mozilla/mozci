@@ -345,12 +345,12 @@ class Push:
 
         tasks = [Task.create(**task) for task in normalized_tasks]
         # Pass tasks instead of trying to access self.tasks which would make this recursive
-        tasks = self.fetch_groups_errors_results(tasks)
+        tasks = self.fetch_errors_results(tasks)
         return tasks
 
-    def fetch_groups_errors_results(self, tasks: list) -> list:
-        """ This adds & caches errors, groups and results to TestTasks"""
-        push_tasks = adr.config.cache.get(self.push_uuid, defaultdict())
+    def fetch_errors_results(self, tasks: list) -> list:
+        """ If missing this function adds & caches errors and results to TestTasks"""
+        push_tasks = adr.config.cache.get(self.push_uuid, {})
         if len(push_tasks.keys()) > 0:
             # Let's add cached error summaries to TestTasks
             for t in tasks:
@@ -358,25 +358,35 @@ class Push:
                 # Only Test tasks have stored error summary information in the cache
                 if error_summary:
                     t._errors = error_summary["errors"]
-                    t._groups = error_summary["groups"]
                     t._results = error_summary["results"]
             logger.info("Fetched tasks for {} from the cache".format(self.push_uuid))
         else:
-            # Let's fetch TestTasks error summaries in parallel
+            # Let's gather the collected data via AD so we can cache it
+            for t in tasks:
+                if isinstance(t, TestTask) and t._results:
+                    push_tasks[t.id] = {
+                        "errors": t._errors,
+                        "results": t._results,
+                    }
+
+            # If there are any test tasks that do not have results from AD let's fetch them
+            # If task.results is not initialized it will be fetched via Taskcluster
+            # Calling task.results modifies the properties of the task, thus, the returning list
+            # of this function comes back modified
             future_to_task = {
-                Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task): task
+                Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.results, task): task
                 for task in tasks
-                # If AD already initialized the _groups field we don't need to cache that data
-                if isinstance(task, TestTask) and task._groups is None
+                if isinstance(task, TestTask) and task._results is None
             }
 
             for future in concurrent.futures.as_completed(future_to_task):
                 task = future_to_task[future]
+                # We assert that the information was not gathered via AD already
+                assert push_tasks.get(task.id) is None
                 # This test task now has the values for errors, groups & results
                 push_tasks[task.id] = {
-                    "errors": task._errors,
-                    "groups": task._groups,
-                    "results": task._results,
+                    "errors": task._errors or [],
+                    "results": task._results or [],
                 }
 
             # Cache data
@@ -385,11 +395,14 @@ class Push:
                     self.push_uuid
                 )
             )
-            # We *only* cache error summaries
+            # We *only* cache errors and results
             # cachy's put() overwrites the value in the cache; add() would only add if its empty
             adr.config.cache.put(
                 self.push_uuid, push_tasks, adr.config["cache"]["retention"],
             )
+            if adr.config.cache.get(self.push_uuid) is None:
+                logger.warning("The cache has failed to store.")
+
         return tasks
 
     @property

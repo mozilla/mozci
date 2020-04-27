@@ -1,8 +1,2 @@
 [adr]
 sources = ["tests"]
-verbose = true
-[adr.cache]
-default = "file"
-retention = 1000
-[adr.cache.stores]
-file = { driver = "file", path = "/Users/armenzg/repos/mozci/adr_cache" }

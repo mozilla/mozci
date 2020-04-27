@@ -396,7 +396,7 @@ class Push:
                 yield task, group
 
     @memoized_property
-    def group_config_summaries(self):
+    def config_group_summaries(self):
         """All group summaries, on given configurations, combining retriggers.
 
         Returns:

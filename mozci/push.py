@@ -357,20 +357,52 @@ class Push:
                 error_summary = push_tasks.get(t.id)
                 # Only Test tasks have stored error summary information in the cache
                 if error_summary:
-                    t._errors = error_summary["errors"]
+                    # t._errors = error_summary["errors"]
                     t._results = error_summary["results"]
             logger.info("Fetched tasks for {} from the cache".format(self.push_uuid))
         else:
-            # Let's gather all collected data
+            # Let's gather all collected data from AD
             for t in tasks:
-                if isinstance(t, TestTask):
-                    if not t._results:
-                        # This will gather the data from Taskcluster
-                        t.results
+                # XXX: On a following pass we will determine how bad processing errors can be
+                if isinstance(t, TestTask) and t._results:  # and t._errors:
                     push_tasks[t.id] = {
-                        "errors": t._errors,
+                        # "errors": t._errors,
                         "results": t._results,
                     }
+            fromAD = len(push_tasks.keys())
+            logger.info("Stored {} errors/results from AD".format(fromAD))
+
+            # If there are any test tasks that do not have errors/results from AD let's fetch them
+            # If task.results is not initialized it will be fetched via Taskcluster
+            # Calling task.results modifies the properties of the task, thus, the returning list
+            # of this function comes back modified
+            future_to_task = {
+                Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.results, task): task
+                for task in tasks
+                # The 2nd condition in here is the opposite of the for/loop above to collect
+                # data from tasks queried via AD
+                # XXX: On a following pass we will determine how bad processing errors can be
+                if isinstance(task, TestTask)
+                and (task._results is None)  # or task._errors is None)
+            }
+
+            for future in concurrent.futures.as_completed(future_to_task):
+                task = future_to_task[future]
+                # XXX: It would be ideal that loguru's debug would work
+                # XXX: Remove this? It's useful to let the user know that something is happening
+                logger.info("Processing {} {}".format(task.id, task._results))
+                # We assert that the information was not gathered via AD already
+                assert push_tasks.get(task.id) is None
+                # This test task now has the values for errors, groups & results
+                push_tasks[task.id] = {
+                    # "errors": task.errors,
+                    "results": task.results,
+                }
+            logger.info(
+                "Stored {} errors/results from Taskcluster".format(
+                    len(push_tasks.keys()) - fromAD
+                )
+            )
 
             if push_tasks:
                 # Cache data

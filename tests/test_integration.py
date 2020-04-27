@@ -165,77 +165,41 @@ def test_good_result_manifests():
         ), f"{group} group for task {label} is bad!"
 
 
-def test_caching_of_old_push(adr_config):
-    # Once we reach Nov. 23rd, 2020 the test should be updated with a more recent push and task ID
-    REV = "6e87f52e6eebdf777f975baa407d5c22e9756e80"
-    PUSH_UUID = "mozilla-beta/{}".format(REV)
-    NON_TEST_TASK = "VQC3OOXFQeK8S0EaIU4ivQ"
-    TEST_TASK = "WGNh9Xd8RmSG_170-0-mkQ"
+def test_caching_of_push(adr_config):
+    # A push if it's very recent, it will have almost no tasks in AD
+    # few days later all data will come from AD
+    # and after 6 weeks it will have no data
+    # Data about the groups for a task will come via AD or through the errorsummary artifact
+    # Regardless of which source was used we store in the same cache
+
+    # Once this push is older than a year update the revision
+    REV = "2fd61eb5c69ce9ac806048a35c7a7a88bf4b9652"  # Push from Apr. 21, 2020.
+    BRANCH = "mozilla-central"
+    PUSH_UUID = "{}/{}".format(BRANCH, REV)
 
     # Making sure there's nothing left in the cache
     assert adr_config.cache.get(PUSH_UUID) is None
-    # Push from Nov. 22nd, 2019. Only use pushes older than 6 weeks (AD's unittest retention data)
-    push = Push(REV, branch="mozilla-beta")
+    # Only use pushes older than 6 weeks (AD's unittest retention data)
+    push = Push(REV, branch=BRANCH)
     # Q: Calling push.tasks a second time would hit the cache; Should we test that scenario?
     tasks = push.tasks
-    push_task_map = adr_config.cache.get(PUSH_UUID)
-    TOTAL_TEST_TASKS = 1842
+    assert len(tasks) > 0
+    push_task_map = adr_config.cache.get(PUSH_UUID, {})
+    TOTAL_TEST_TASKS = 1841
     # Testing that the tasks associated to a push have been cached
     assert len(push_task_map.keys()) == TOTAL_TEST_TASKS
 
-    test_tasks = 0
+    cached_test_tasks = 0
     for t in tasks:
-        # Only test tasks
-        if t.id == NON_TEST_TASK:
-            assert push_task_map.get(NON_TEST_TASK) is None
-
-        if t.id == TEST_TASK:
-            # Let's validate some data about the task
-            task = push_task_map[t.id]
-            assert not task["errors"]
-            assert task["groups"].index("docshell/test/browser/browser.ini") > -1
-            assert not task["results"]
+        if not isinstance(t, TestTask):
+            assert push_task_map.get(t.id) is None
 
         # Assert all test tasks have written to the cache
         if isinstance(t, TestTask):
             assert push_task_map[t.id]
-            test_tasks += 1
+            cached_test_tasks += 1
 
-    assert test_tasks == TOTAL_TEST_TASKS
+    # This is only true if AD has non of the tasks
+    assert cached_test_tasks == TOTAL_TEST_TASKS
 
-    # Q: Is it good practice to clean the test here?
-    adr_config.cache.forget(PUSH_UUID)
-    assert adr_config.cache.get(PUSH_UUID) is None
-
-
-def test_caching_of_recent_push(adr_config):
-    # Only use pushes less than 6 weeks (AD's unittest retention data)
-    REV = "2fd61eb5c69ce9ac806048a35c7a7a88bf4b9652"
-    PUSH_UUID = "mozilla-central/{}".format(REV)
-    # Making sure there's nothing left in the cache
-    assert adr_config.cache.get(PUSH_UUID) is None
-    # Push from Apr. 21st
-    push = Push(REV, branch="mozilla-central")
-    # Q: Calling push.tasks a second time would hit the cache; Should we test that scenario?
-    tasks = push.tasks
-    push_task_map = adr_config.cache.get(PUSH_UUID)
-
-    test_tasks = 0
-    tasks_without_summary = 0
-    # No task should have been cached since all data should have been cached without hiting Taskcluster
-    for t in tasks:
-        if isinstance(t, TestTask):
-            test_tasks += 1
-
-        error_summary = push_task_map.get(t.id)
-        if error_summary:
-            print("{} {}".format(t.id, t.label))
-            tasks_without_summary += 1
-
-    print("Test tasks: {}".format(test_tasks))
-    print(
-        "Test tasks that we fetched its error summary: {}".format(tasks_without_summary)
-    )
-    # Q: Is it good practice to clean the test here?
-    adr_config.cache.forget(PUSH_UUID)
-    assert adr_config.cache.get(PUSH_UUID) is None
+    return PUSH_UUID

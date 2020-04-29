@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
+import shutil
 from argparse import Namespace
 
+import adr
 import pytest
-from adr.configuration import Configuration
 from adr.query import run_query
 
 from mozci import task
@@ -19,28 +20,10 @@ if not os.environ.get("ADR_CONFIG_PATH"):
 
 
 @pytest.fixture
-def adr_config(tmp_path):
-    from pathlib import Path
-
-    config_file = Path.cwd() / "config.toml"
-    # config_file = tmp_path / "config.toml"
-    # If you need to iterate
-    text = (
-        """
-[adr]
-verbose = true
-[adr.cache]
-default = "file"
-retention = 1000
-[adr.cache.stores]
-file = { driver = "file", path = "%s/adr_cache" }
-"""
-        % Path.cwd()
-    )
-    print(config_file)
-    config_file.write_text(text)
-    # adr_config = Configuration(path=config_file)
-    return Configuration()
+def cache():
+    yield adr.config.cache
+    # If you want to iterate on one of these tests you can temporarily comment this line
+    shutil.rmtree("adr_tests_cache")  # The directory is defined in tests/config.toml
 
 
 def test_create_pushes_and_get_regressions():
@@ -171,24 +154,12 @@ def test_good_result_manifests():
         ), f"{group} group for task {label} is bad!"
 
 
-def test_caching_issue(adr_config):
-    from mozci.task import GroupResult
-
-    a = GroupResult(
-        group="testing/marionette/harness/marionette_harness/tests/unit-tests.ini",
-        ok=True,
-    )
-    adr_config.cache.put("foo", a, 5)
-    print(adr_config.get("foo"))
-    assert adr_config.get("foo")
-
-
-def test_caching_of_push(adr_config):
-    # A push if it's very recent, it will have almost no tasks in AD
-    # few days later all data will come from AD and after 6 weeks it will have no data there.
-    # Data about the results for a task will come via AD or through the errorsummary artifact
+def test_caching_of_push(cache):
+    # A recent push will have almost no tasks in AD, few days later it will have
+    # all data come from AD and after 6 weeks it will have no data there.
+    # Results data for a task will either come via AD or through the errorsummary artifact
     # via Taskcluster. Regardless of which source was used we store in the same data
-    # in the cache
+    # in the cache.
 
     # Once this push is older than a year update the revision
     # Once this push is older than 6 weeks the test will run slower because
@@ -197,34 +168,28 @@ def test_caching_of_push(adr_config):
     BRANCH = "mozilla-central"
     PUSH_UUID = "{}/{}".format(BRANCH, REV)
 
-    try:
-        # Making sure there's nothing left in the cache
-        if adr_config.cache.get(PUSH_UUID):
-            adr_config.cache.forget(PUSH_UUID)
-        assert adr_config.cache.get(PUSH_UUID) is None
-        # Only use pushes older than 6 weeks (AD's unittest retention data)
-        push = Push(REV, branch=BRANCH)
-        # Q: Calling push.tasks a second time would hit the cache; Should we test that scenario?
-        tasks = push.tasks
-        assert len(tasks) > 0
-        push_task_map = adr_config.cache.get(PUSH_UUID, {})
-        TOTAL_TEST_TASKS = 3126
-        # Testing that the tasks associated to a push have been cached
-        assert len(push_task_map.keys()) == TOTAL_TEST_TASKS
+    # Making sure there's nothing left in the cache
+    if cache.get(PUSH_UUID):
+        cache.forget(PUSH_UUID)
+    assert cache.get(PUSH_UUID) is None
+    # Only use pushes older than 6 weeks (AD's unittest retention data)
+    push = Push(REV, branch=BRANCH)
+    # Q: Calling push.tasks a second time would hit the cache; Should we test that scenario?
+    tasks = push.tasks
+    assert len(tasks) > 0
+    push_task_map = cache.get(PUSH_UUID, {})
+    TOTAL_TEST_TASKS = 3126
+    # Testing that the tasks associated to a push have been cached
+    assert len(push_task_map.keys()) == TOTAL_TEST_TASKS
 
-        cached_test_tasks = 0
-        for t in tasks:
-            if not isinstance(t, TestTask):
-                assert push_task_map.get(t.id) is None
+    cached_test_tasks = 0
+    for t in tasks:
+        if not isinstance(t, TestTask):
+            assert push_task_map.get(t.id) is None
 
-            # Assert all test tasks have written to the cache
-            if isinstance(t, TestTask):
-                # if t.id == "LXHGVzvqR8KfMCfJW4ZiEQ":
-                #     import pdb; pdb.set_trace()
-                assert push_task_map[t.id]
-                cached_test_tasks += 1
+        # Assert all test tasks have written to the cache
+        if isinstance(t, TestTask):
+            assert push_task_map[t.id]
+            cached_test_tasks += 1
 
-        assert cached_test_tasks == TOTAL_TEST_TASKS
-    finally:
-        # Make sure we forget the cached data
-        adr_config.cache.forget(PUSH_UUID)
+    assert cached_test_tasks == TOTAL_TEST_TASKS

@@ -1,2 +1,8 @@
 [adr]
 sources = ["tests"]
+verbose = 1
+[adr.cache]
+default = "file"
+retention = 1000
+[adr.cache.stores]
+file = { driver = "file", path = "adr_tests_cache" }

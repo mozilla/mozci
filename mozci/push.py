@@ -364,7 +364,9 @@ class Push:
             # Let's gather all collected data from AD
             for t in tasks:
                 # XXX: On a following pass we will determine how bad processing errors can be
-                if isinstance(t, TestTask) and t._results:  # and t._errors:
+                if isinstance(t, TestTask) and not (
+                    t._results is None
+                ):  # and t._errors:
                     push_tasks[t.id] = {
                         # "errors": t._errors,
                         "results": t._results,

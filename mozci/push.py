@@ -382,15 +382,15 @@ class Push:
                 # The 2nd condition in here is the opposite of the for/loop above to collect
                 # data from tasks queried via AD
                 # XXX: On a following pass we will determine how bad processing errors can be
-                if isinstance(task, TestTask)
-                and (task._results is None)  # or task._errors is None)
+                # if isinstance(task, TestTask) and (task._results is None or task._errors is None)
+                if isinstance(task, TestTask) and (task._results is None)
             }
 
             for future in concurrent.futures.as_completed(future_to_task):
                 task = future_to_task[future]
                 # XXX: It would be ideal that loguru's debug would work
                 # XXX: Remove this? It's useful to let the user know that something is happening
-                logger.info("Processing {} {}".format(task.id, task._results))
+                logger.debug("Processing {} {}".format(task.id, task._results))
                 # We assert that the information was not gathered via AD already
                 assert push_tasks.get(task.id) is None
                 # This test task now has the values for errors, groups & results
@@ -418,7 +418,7 @@ class Push:
                 )
 
             if adr.config.cache.get(self.push_uuid) is None:
-                logger.warning("The cache has failed to store.")
+                logger.warning("The cache has failed to store the data.")
 
         return tasks
 

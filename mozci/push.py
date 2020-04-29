@@ -349,7 +349,7 @@ class Push:
         return tasks
 
     def fetch_errors_results(self, tasks: list) -> list:
-        """ If missing this function adds & caches errors and results to TestTasks"""
+        """ Fetch errors and results for test tasks. Define ADR_CONFIG_PATH and adr.cache for the caching to work"""
         test_tasks = adr.config.cache.get(self.push_uuid, {})
         if len(test_tasks.keys()) > 0:
             # Let's add cached error summaries to TestTasks
@@ -407,7 +407,6 @@ class Push:
                     len(tasks_missing_results)
                 )
             )
-
             if test_tasks:
                 # Cache data
                 logger.debug(

@@ -172,7 +172,7 @@ def test_caching_of_push(cache):
     if cache.get(PUSH_UUID):
         cache.forget(PUSH_UUID)
     assert cache.get(PUSH_UUID) is None
-    # Only use pushes older than 6 weeks (AD's unittest retention data)
+
     push = Push(REV, branch=BRANCH)
     # Q: Calling push.tasks a second time would hit the cache; Should we test that scenario?
     tasks = push.tasks

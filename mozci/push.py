@@ -350,29 +350,34 @@ class Push:
 
     def fetch_errors_results(self, tasks: list) -> list:
         """ If missing this function adds & caches errors and results to TestTasks"""
-        push_tasks = adr.config.cache.get(self.push_uuid, {})
-        if len(push_tasks.keys()) > 0:
+        test_tasks = adr.config.cache.get(self.push_uuid, {})
+        if len(test_tasks.keys()) > 0:
             # Let's add cached error summaries to TestTasks
             for t in tasks:
-                error_summary = push_tasks.get(t.id)
+                error_summary = test_tasks.get(t.id)
                 # Only Test tasks have stored error summary information in the cache
                 if error_summary:
-                    # t._errors = error_summary["errors"]
+                    t._errors = error_summary["errors"]
                     t._results = error_summary["results"]
             logger.info("Fetched tasks for {} from the cache".format(self.push_uuid))
         else:
+            # This list will make reference to tasks that don't have the results or errors properties
+            tasks_missing_results = []
             # Let's gather all collected data from AD
             for t in tasks:
-                # XXX: On a following pass we will determine how bad processing errors can be
-                if isinstance(t, TestTask) and not (
-                    t._results is None
-                ):  # and t._errors:
-                    push_tasks[t.id] = {
-                        # "errors": t._errors,
-                        "results": t._results,
-                    }
-            fromAD = len(push_tasks.keys())
-            logger.info("Stored {} errors/results from AD".format(fromAD))
+                if isinstance(t, TestTask):
+                    if not (t._results is None):
+                        test_tasks[t.id] = {
+                            "errors": t._errors,
+                            "results": t._results,
+                        }
+                    else:
+                        tasks_missing_results.append(t)
+
+            # fromAD = len(test_tasks.keys())
+            logger.info(
+                "Stored {} errors/results from AD".format(len(test_tasks.keys()))
+            )
 
             # If there are any test tasks that do not have errors/results from AD let's fetch them
             # If task.results is not initialized it will be fetched via Taskcluster
@@ -380,33 +385,30 @@ class Push:
             # of this function comes back modified
             future_to_task = {
                 Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.results, task): task
-                for task in tasks
+                for task in tasks_missing_results
                 # The 2nd condition in here is the opposite of the for/loop above to collect
                 # data from tasks queried via AD
-                # XXX: On a following pass we will determine how bad processing errors can be
-                # if isinstance(task, TestTask) and (task._results is None or task._errors is None)
-                if isinstance(task, TestTask) and (task._results is None)
+                # if isinstance(task, TestTask)
             }
 
             for future in concurrent.futures.as_completed(future_to_task):
                 task = future_to_task[future]
-                # XXX: It would be ideal that loguru's debug would work
-                # XXX: Remove this? It's useful to let the user know that something is happening
-                logger.debug("Processing {} {}".format(task.id, task._results))
+                logger.debug("Fetching errorsummary for {}".format(task.id))
                 # We assert that the information was not gathered via AD already
-                assert push_tasks.get(task.id) is None
+                assert test_tasks.get(task.id) is None
                 # This test task now has the values for errors, groups & results
-                push_tasks[task.id] = {
-                    # "errors": task.errors,
+                test_tasks[task.id] = {
+                    "errors": task.errors,
                     "results": task.results,
                 }
+
             logger.info(
                 "Stored {} errors/results from Taskcluster".format(
-                    len(push_tasks.keys()) - fromAD
+                    len(tasks_missing_results)
                 )
             )
 
-            if push_tasks:
+            if test_tasks:
                 # Cache data
                 logger.debug(
                     "Storing test task error summaries for {} in the cache".format(
@@ -416,7 +418,7 @@ class Push:
                 # We *only* cache errors and results
                 # cachy's put() overwrites the value in the cache; add() would only add if its empty
                 adr.config.cache.put(
-                    self.push_uuid, push_tasks, adr.config["cache"]["retention"],
+                    self.push_uuid, test_tasks, adr.config["cache"]["retention"],
                 )
 
             if adr.config.cache.get(self.push_uuid) is None:

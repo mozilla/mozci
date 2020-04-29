@@ -374,7 +374,6 @@ class Push:
                     else:
                         tasks_missing_results.append(t)
 
-            # fromAD = len(test_tasks.keys())
             logger.info(
                 "Stored {} errors/results from AD".format(len(test_tasks.keys()))
             )
@@ -386,9 +385,6 @@ class Push:
             future_to_task = {
                 Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.results, task): task
                 for task in tasks_missing_results
-                # The 2nd condition in here is the opposite of the for/loop above to collect
-                # data from tasks queried via AD
-                # if isinstance(task, TestTask)
             }
 
             for future in concurrent.futures.as_completed(future_to_task):

@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from functools import lru_cache
+from typing import Dict, Tuple
 
 from mozci.errors import PushNotFound
 from mozci.util.req import get_session
@@ -16,7 +19,7 @@ class HGMO:
     )
 
     # instance cache
-    CACHE = {}
+    CACHE: Dict[Tuple[str, str], HGMO] = {}
 
     def __init__(self, rev, branch="autoland"):
         self.context = {

@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import signature
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import requests
 from adr.util import memoized_property
@@ -99,11 +99,11 @@ class Task:
     """Contains information pertaining to a single task."""
 
     id: str
-    label: str = field(default=None)
-    duration: int = field(default=None)
-    result: str = field(default=None)
-    classification: str = field(default=None)
-    classification_note: str = field(default=None)
+    label: Optional[str] = field(default=None)
+    duration: Optional[int] = field(default=None)
+    result: Optional[str] = field(default=None)
+    classification: Optional[str] = field(default=None)
+    classification_note: Optional[str] = field(default=None)
     tags: Dict = field(default_factory=dict)
 
     @staticmethod
@@ -195,8 +195,8 @@ class GroupResult:
 class TestTask(Task):
     """Subclass containing additional information only relevant to 'test' tasks."""
 
-    _results: List[GroupResult] = field(default=None)
-    _errors: List = field(default=None)
+    _results: Optional[List[GroupResult]] = field(default=None)
+    _errors: Optional[List] = field(default=None)
 
     def __post_init__(self):
         if is_no_groups_suite(self.label):
@@ -310,7 +310,8 @@ class TestTask(Task):
         return "-".join(parts[:-1] if parts[-1].isdigit() else parts)
 
 
-@dataclass
+# Don't perform type checking because of https://github.com/python/mypy/issues/5374.
+@dataclass  # type: ignore
 class RunnableSummary(ABC):
     @property
     def classifications(self):

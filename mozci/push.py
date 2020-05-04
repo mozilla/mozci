@@ -296,14 +296,35 @@ class Push:
         except MissingDataError:
             pass
 
-        # Gather information from the unittest table. We allow missing data for this table because
-        # ActiveData only holds very recent data in it, but we have fallbacks on Taskcluster
-        # artifacts.
-        try:
-            add(run_query("push_tasks_results_from_unittest", args))
-        except MissingDataError:
-            pass
+        # Let's gather error/results from cache or AD/Taskcluster
+        test_tasks_results = adr.config.cache.get(self.push_uuid, {})
+        if len(test_tasks_results.keys()) > 0:
+            tasks = self._normalized_tasks(tasks)
+            # Let's add cached error summaries to TestTasks
+            for t in tasks:
+                if isinstance(t, TestTask):
+                    error_summary = test_tasks_results.get(t.id)
+                    # Only Test tasks have stored error summary information in the cache
+                    if error_summary:
+                        t._errors = error_summary["errors"]
+                        t._results = error_summary["results"]
+            logger.debug(
+                "Fetched tasks errors/results for {} from the cache".format(
+                    self.push_uuid
+                )
+            )
+            return tasks
+        else:
+            # Gather information from the unittest table. We allow missing data for this table because
+            # ActiveData only holds very recent data in it, but we have fallbacks on Taskcluster
+            # artifacts.
+            try:
+                add(run_query("push_tasks_results_from_unittest", args, cache=False))
+            except MissingDataError:
+                pass
+            return self.gather_missing_results(self._normalized_tasks(tasks))
 
+    def _normalized_tasks(self, tasks):
         # If we are missing one of these keys, discard the task.
         required_keys = (
             "id",
@@ -343,78 +364,66 @@ class Push:
 
             normalized_tasks.append(task)
 
-        tasks = [Task.create(**task) for task in normalized_tasks]
-        # Pass tasks instead of trying to access self.tasks which would make this recursive
-        tasks = self.fetch_errors_results(tasks)
-        return tasks
+        return [Task.create(**task) for task in normalized_tasks]
 
-    def fetch_errors_results(self, tasks: list) -> list:
-        """ Fetch errors and results for test tasks. Define ADR_CONFIG_PATH and adr.cache for the caching to work"""
-        test_tasks = adr.config.cache.get(self.push_uuid, {})
-        if len(test_tasks.keys()) > 0:
-            # Let's add cached error summaries to TestTasks
-            for t in tasks:
-                error_summary = test_tasks.get(t.id)
-                # Only Test tasks have stored error summary information in the cache
-                if error_summary:
-                    t._errors = error_summary["errors"]
-                    t._results = error_summary["results"]
-            logger.info("Fetched tasks for {} from the cache".format(self.push_uuid))
-        else:
-            # This list will make reference to tasks that don't have the results or errors properties
-            tasks_missing_results = []
-            # Let's gather all collected data from AD
-            for t in tasks:
-                if isinstance(t, TestTask):
-                    if not (t._results is None):
-                        test_tasks[t.id] = {
-                            "errors": t._errors,
-                            "results": t._results,
-                        }
-                    else:
-                        tasks_missing_results.append(t)
+    def gather_missing_results(self, tasks: list) -> list:
+        """ Fetch and cache errors and results from Taskcluster. Cache together AD and TC results."""
+        test_tasks = {}  # Structure to be cached
+        tasks_missing_results = []  # List of tasks without data from AD
 
-            logger.info(
-                "Stored {} errors/results from AD".format(len(test_tasks.keys()))
-            )
+        # Let's gather all collected data from AD
+        for t in tasks:
+            if isinstance(t, TestTask):
+                if not (t._results is None):
+                    # Data for this task has been gathered
+                    test_tasks[t.id] = {
+                        "errors": t._errors,
+                        "results": t._results,
+                    }
+                else:
+                    tasks_missing_results.append(t)
 
-            # If there are any test tasks that do not have errors/results from AD let's fetch them
-            # If task.results is not initialized it will be fetched via Taskcluster
-            # Calling task.results modifies the properties of the task, thus, the returning list
-            # of this function comes back modified
-            future_to_task = {
-                Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.results, task): task
-                for task in tasks_missing_results
+        logger.debug(
+            "Obtained {} errors/results from AD".format(len(test_tasks.keys()))
+        )
+
+        # If there are any test tasks that do not have errors/results from AD let's fetch them
+        # If task.results is not initialized it will be fetched via Taskcluster
+        # Calling task.results modifies the properties of the task, thus, the returning list
+        # of this function comes back modified
+        future_to_task = {
+            Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.results, task): task
+            for task in tasks_missing_results
+        }
+
+        for future in concurrent.futures.as_completed(future_to_task):
+            task = future_to_task[future]
+            logger.debug("Fetching errorsummary for {}".format(task.id))
+            # We assert that the information was not gathered via AD already
+            assert test_tasks.get(task.id) is None
+            # This test task now has the values for errors & results
+            test_tasks[task.id] = {
+                "errors": task.errors,
+                "results": task.results,
             }
 
-            for future in concurrent.futures.as_completed(future_to_task):
-                task = future_to_task[future]
-                logger.debug("Fetching errorsummary for {}".format(task.id))
-                # We assert that the information was not gathered via AD already
-                assert test_tasks.get(task.id) is None
-                # This test task now has the values for errors, groups & results
-                test_tasks[task.id] = {
-                    "errors": task.errors,
-                    "results": task.results,
-                }
-
-            logger.info(
-                "Stored {} errors/results from Taskcluster".format(
-                    len(tasks_missing_results)
+        logger.debug(
+            "Obtained {} errors/results from Taskcluster".format(
+                len(tasks_missing_results)
+            )
+        )
+        if test_tasks:
+            # Cache data
+            logger.debug(
+                "Storing test task error summaries for {} in the cache".format(
+                    self.push_uuid
                 )
             )
-            if test_tasks:
-                # Cache data
-                logger.debug(
-                    "Storing test task error summaries for {} in the cache".format(
-                        self.push_uuid
-                    )
-                )
-                # We *only* cache errors and results
-                # cachy's put() overwrites the value in the cache; add() would only add if its empty
-                adr.config.cache.put(
-                    self.push_uuid, test_tasks, adr.config["cache"]["retention"],
-                )
+            # We *only* cache errors and results
+            # cachy's put() overwrites the value in the cache; add() would only add if its empty
+            adr.config.cache.put(
+                self.push_uuid, test_tasks, adr.config["cache"]["retention"],
+            )
 
             if adr.config.cache.get(self.push_uuid) is None:
                 logger.warning("The cache has failed to store the data.")

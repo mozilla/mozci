@@ -327,7 +327,10 @@ class Push:
             )
 
         # Let's gather any new data missing
-        return self.gather_missing_results(tasks)
+        tasks = self.gather_missing_results(tasks)
+        # New data might have been gathered via gather_missing_results; cache it
+        self._cache_test_tasks(tasks)
+        return tasks
 
     @staticmethod
     def _normalized_tasks(tasks):
@@ -373,9 +376,7 @@ class Push:
         return [Task.create(**task) for task in normalized_tasks]
 
     def gather_missing_results(self, tasks: list) -> list:
-        """ It gathers errors/results from Taskcluster if missing. Cache together AD and TC results."""
-        test_tasks = {}  # Structure to be cached
-
+        """ It gathers errors/results from Taskcluster if missing."""
         # Calling task.results modifies the properties of the task, thus, the returning list
         # of this function comes back modified
         future_to_task = {
@@ -392,14 +393,18 @@ class Push:
         for future in concurrent.futures.as_completed(future_to_task):
             task = future_to_task[future]
             logger.debug("Fetching errorsummary for {}".format(task.id))
-            # This test task now has the values for errors & results
-            test_tasks[task.id] = {
-                "errors": task._errors,
-                "results": task._results,
-            }
 
-        # XXX: marco-c, I prefer caching within this method because we then don't have to return
-        # the dictionary OR have to tinker with the returning type of this function
+        return tasks
+
+    def _cache_test_tasks(self, tasks: list) -> None:
+        test_tasks = {}
+        for task in tasks:
+            if isinstance(task, TestTask):
+                test_tasks[task.id] = {
+                    "errors": task._errors,
+                    "results": task._results,
+                }
+
         logger.debug(
             "Storing error/results for test tasks for {} in the cache".format(
                 self.push_uuid
@@ -410,8 +415,6 @@ class Push:
         adr.config.cache.put(
             self.push_uuid, test_tasks, adr.config["cache"]["retention"],
         )
-
-        return tasks
 
     @property
     def task_labels(self):

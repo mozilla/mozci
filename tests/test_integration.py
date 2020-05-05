@@ -21,9 +21,12 @@ if not os.environ.get("ADR_CONFIG_PATH"):
 
 @pytest.fixture
 def cache():
-    yield adr.config.cache
-    # If you want to iterate on one of these tests you can temporarily comment this line
-    shutil.rmtree("adr_tests_cache")  # The directory is defined in tests/config.toml
+    try:
+        yield adr.config.cache
+    finally:
+        # The directory is defined in tests/config.toml
+        # If you want to iterate on one of these tests you can temporarily comment this line
+        shutil.rmtree("adr_tests_cache")
 
 
 def test_create_pushes_and_get_regressions():

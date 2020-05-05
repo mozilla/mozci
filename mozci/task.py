@@ -279,19 +279,19 @@ class TestTask(Task):
 
     @property
     def groups(self):
-        if self._results is None:
+        if not self._results:
             self._load_errorsummary()
         return [result.group for result in self.results]
 
     @property
     def results(self):
-        if self._results is None:
+        if not self._results:
             self._load_errorsummary()
         return self._results
 
     @property
     def errors(self):
-        if self._errors is None:
+        if not self._errors:
             self._load_errorsummary()
         return self._errors
 

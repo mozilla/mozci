@@ -137,8 +137,12 @@ def test_good_manifests():
             groups = [groups]
 
         for group in groups:
+
+            if any(s in label for s in {"web-platform-tests", "test-verify-wpt"}):
+                group = task.wpt_workaround(group)
+
             assert (
-                not task.is_bad_group("x", label, group) and "\\" not in group
+                not task.is_bad_group("x", group) and "\\" not in group
             ), f"{group} group for task {label} is bad!"
 
 
@@ -152,8 +156,11 @@ def test_good_result_manifests():
         if group is None:
             continue
 
+        if any(s in label for s in {"web-platform-tests", "test-verify-wpt"}):
+            group = task.wpt_workaround(group)
+
         assert (
-            not task.is_bad_group("x", label, group) and "\\" not in group
+            not task.is_bad_group("x", group) and "\\" not in group
         ), f"{group} group for task {label} is bad!"
 
 

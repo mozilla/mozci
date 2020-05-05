@@ -75,23 +75,29 @@ def is_no_groups_suite(label):
 bad_group_warned = False
 
 
-def is_bad_group(task_id, task_label, group):
+def is_bad_group(task_id: str, group: str) -> bool:
     global bad_group_warned
 
-    bad_group = group.startswith("file://") or group.startswith("Z:")
-
-    # web-platform-tests manifests are currently absolute.
-    if not any(
-        sublabel not in task_label
-        for sublabel in {"web-platform-tests", "test-verify-wpt"}
-    ):
-        bad_group |= os.path.isabs(group)
+    bad_group = (
+        group.startswith("file://") or group.startswith("Z:") or os.path.isabs(group)
+    )
 
     if not bad_group_warned and (bad_group or "\\" in group):
         bad_group_warned = True
         logger.warning(f"Bad group name in task {task_id}: {group}")
 
     return bad_group
+
+
+# Transform WPT group names to a full relative path in mozilla-central.
+def wpt_workaround(group: str) -> str:
+    assert group.startswith("/")
+    if group.startswith("/_mozilla/"):
+        return os.path.join(
+            "testing/web-platform/mozilla/tests", group[len("/_mozilla/") :]
+        )
+    else:
+        return os.path.join("testing/web-platform/tests", group[1:])
 
 
 @dataclass
@@ -198,6 +204,10 @@ class TestTask(Task):
     _results: Optional[List[GroupResult]] = field(default=None)
     _errors: Optional[List] = field(default=None)
 
+    @property
+    def is_wpt(self):
+        return any(s in self.label for s in {"web-platform-tests", "test-verify-wpt"})
+
     def __post_init__(self):
         if is_no_groups_suite(self.label):
             assert self._errors is None, f"{self.label} should have no errors"
@@ -206,19 +216,27 @@ class TestTask(Task):
             assert self._results is None, f"{self.label} should have no results"
             self._results = []
 
+        if self._results is None:
+            return
+
         # XXX: A while after bug 1613937 and bug 1613939 have been fixed, we can
         # remove the filtering and slash replacing.
 
-        def update_group(result):
-            result.group = result.group.replace("\\", "/")
-            return result
+        # Apply WPT workaround, needed at least until bug 1632546 is fixed.
+        if self.is_wpt:
+            for result in self._results:
+                result.group = wpt_workaround(result.group)
 
-        if self._results is not None:
-            self._results = [
-                update_group(result)
-                for result in self._results
-                if not is_bad_group(self.id, self.label, result.group)
-            ]
+        # Filter out groups with bad names.
+        self._results = [
+            result
+            for result in self._results
+            if not is_bad_group(self.id, result.group)
+        ]
+
+        # Replace backslashes with forward slashes.
+        for result in self._results:
+            result.group = result.group.replace("\\", "/")
 
     def _load_errorsummary(self):
         # XXX: How or where should we invalidate the data?

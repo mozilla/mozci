@@ -308,7 +308,7 @@ class Push:
             except MissingDataError:
                 pass
 
-        tasks = self._normalized_tasks(tasks)
+        tasks = Push._normalized_tasks(tasks)
 
         # Add any data available in the cache
         if was_cached:
@@ -329,7 +329,8 @@ class Push:
         # Let's gather any new data missing
         return self.gather_missing_results(tasks)
 
-    def _normalized_tasks(self, tasks):
+    @staticmethod
+    def _normalized_tasks(tasks):
         # If we are missing one of these keys, discard the task.
         required_keys = (
             "id",

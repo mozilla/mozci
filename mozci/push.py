@@ -298,8 +298,20 @@ class Push:
 
         # Let's gather error/results from cache or AD/Taskcluster
         test_tasks_results = adr.config.cache.get(self.push_uuid, {})
-        if len(test_tasks_results.keys()) > 0:
-            tasks = self._normalized_tasks(tasks)
+        was_cached = len(test_tasks_results.keys()) != 0
+        if not was_cached:
+            # Gather information from the unittest table. We allow missing data for this table because
+            # ActiveData only holds very recent data in it, but we have fallbacks on Taskcluster
+            # artifacts.
+            try:
+                add(run_query("push_tasks_results_from_unittest", args, cache=False))
+            except MissingDataError:
+                pass
+
+        tasks = self._normalized_tasks(tasks)
+
+        # Add any data available in the cache
+        if was_cached:
             # Let's add cached error summaries to TestTasks
             for t in tasks:
                 if isinstance(t, TestTask):
@@ -313,16 +325,9 @@ class Push:
                     self.push_uuid
                 )
             )
-            return tasks
-        else:
-            # Gather information from the unittest table. We allow missing data for this table because
-            # ActiveData only holds very recent data in it, but we have fallbacks on Taskcluster
-            # artifacts.
-            try:
-                add(run_query("push_tasks_results_from_unittest", args, cache=False))
-            except MissingDataError:
-                pass
-            return self.gather_missing_results(self._normalized_tasks(tasks))
+
+        # Let's gather any new data missing
+        return self.gather_missing_results(tasks)
 
     def _normalized_tasks(self, tasks):
         # If we are missing one of these keys, discard the task.
@@ -367,7 +372,7 @@ class Push:
         return [Task.create(**task) for task in normalized_tasks]
 
     def gather_missing_results(self, tasks: list) -> list:
-        """ Fetch and cache errors and results from Taskcluster. Cache together AD and TC results."""
+        """ It gathers errors/results from Taskcluster if missing. Cache together AD and TC results."""
         test_tasks = {}  # Structure to be cached
 
         # Calling task.results modifies the properties of the task, thus, the returning list
@@ -378,6 +383,11 @@ class Push:
             if isinstance(task, TestTask)
         }
 
+        # XXX: Using threading even for tasks that have data in AD can be slow. This push we're testing
+        # has more than 95% of all tasks in AD. If in test_integration you comment out lines 26 and
+        # lines 165-167 you will see that it takes 4 seconds with caching (it was almost instant in the previous iteration)
+        # and 6 seconds when there's no caching (This means fetching the TC data takes 2 seconds; about 70 tasks).
+        # I'm simply calling out FYI but I think it is fine
         for future in concurrent.futures.as_completed(future_to_task):
             task = future_to_task[future]
             logger.debug("Fetching errorsummary for {}".format(task.id))
@@ -387,6 +397,8 @@ class Push:
                 "results": task._results,
             }
 
+        # XXX: marco-c, I prefer caching within this method because we then don't have to return
+        # the dictionary OR have to tinker with the returning type of this function
         logger.debug(
             "Storing error/results for test tasks for {} in the cache".format(
                 self.push_uuid

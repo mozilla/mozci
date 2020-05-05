@@ -4,7 +4,7 @@ description = "Utility for running ActiveData recipes"
 name = "adr"
 optional = false
 python-versions = ">=3.6,<4.0"
-version = "0.18.3"
+version = "0.18.5"
 
 [package.dependencies]
 appdirs = ">=1.4,<2.0"
@@ -790,8 +790,8 @@ python-versions = "^3.7"
 
 [metadata.files]
 adr = [
-    {file = "adr-0.18.3-py3-none-any.whl", hash = "sha256:545300577c1965a6006d6fbe534703e1a4d005036e593f08dddb19aa9303e06f"},
-    {file = "adr-0.18.3.tar.gz", hash = "sha256:10398c386e9c07fccf79cc3b9177b178aef75ee3a8d6446e8fbb6bbc94b31e70"},
+    {file = "adr-0.18.5-py3-none-any.whl", hash = "sha256:7beaac19a0623e232e249df1b62c95376fd9f3b77bf3f620782425dd11eff424"},
+    {file = "adr-0.18.5.tar.gz", hash = "sha256:c67dc379009c5d5fe7c0a6a45349fa4746d45bb65caa9d7f7820b9cef6b8cdad"},
 ]
 alabaster = [
     {file = "alabaster-0.7.12-py2.py3-none-any.whl", hash = "sha256:446438bdcca0e05bd45ea2de1668c1d9b032e1a9154c2c259092d77031ddd359"},

@@ -385,14 +385,8 @@ class Push:
             if isinstance(task, TestTask)
         }
 
-        # XXX: Using threading even for tasks that have data in AD can be slow. This push we're testing
-        # has more than 95% of all tasks in AD. If in test_integration you comment out lines 26 and
-        # lines 165-167 you will see that it takes 4 seconds with caching (it was almost instant in the previous iteration)
-        # and 6 seconds when there's no caching (This means fetching the TC data takes 2 seconds; about 70 tasks).
-        # I'm simply calling out FYI but I think it is fine
         for future in concurrent.futures.as_completed(future_to_task):
-            task = future_to_task[future]
-            logger.debug("Fetching errorsummary for {}".format(task.id))
+            future_to_task[future]
 
         return tasks
 

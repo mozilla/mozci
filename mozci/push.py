@@ -5,6 +5,7 @@ from argparse import Namespace
 from collections import defaultdict
 from functools import lru_cache
 
+import adr
 from adr.errors import MissingDataError
 from adr.query import run_query
 from adr.util.memoize import memoized_property
@@ -53,6 +54,8 @@ class Push:
             self.rev = self._hgmo["node"]
 
         self.index = BASE_INDEX.format(branch=self.branch, rev=self.rev)
+        # Unique identifier for a Push across branches
+        self.push_uuid = "{}/{}".format(self.branch, self.rev)
 
     @property
     def revs(self):
@@ -236,7 +239,6 @@ class Push:
         Returns:
             list: A list of `Task` objects.
         """
-
         args = Namespace(rev=self.rev, branch=self.branch)
         tasks = defaultdict(dict)
         retries = defaultdict(int)
@@ -294,14 +296,46 @@ class Push:
         except MissingDataError:
             pass
 
-        # Gather information from the unittest table. We allow missing data for this table because
-        # ActiveData only holds very recent data in it, but we have fallbacks on Taskcluster
-        # artifacts.
-        try:
-            add(run_query("push_tasks_results_from_unittest", args))
-        except MissingDataError:
-            pass
+        # Let's gather error/results from cache or AD/Taskcluster
+        test_tasks_results = adr.config.cache.get(self.push_uuid, {})
+        was_cached = len(test_tasks_results.keys()) != 0
+        if not was_cached:
+            # Gather information from the unittest table. We allow missing data for this table because
+            # ActiveData only holds very recent data in it, but we have fallbacks on Taskcluster
+            # artifacts.
+            try:
+                add(run_query("push_tasks_results_from_unittest", args, cache=False))
+            except MissingDataError:
+                pass
 
+        tasks = Push._normalized_tasks(tasks)
+
+        # Add any data available in the cache
+        if was_cached:
+            # Let's add cached error summaries to TestTasks
+            for t in tasks:
+                if isinstance(t, TestTask):
+                    error_summary = test_tasks_results.get(t.id)
+                    # Only Test tasks have stored error summary information in the cache
+                    if error_summary:
+                        t._errors = error_summary["errors"]
+                        t._results = error_summary["results"]
+            logger.debug(
+                "Fetched tasks errors/results for {} from the cache".format(
+                    self.push_uuid
+                )
+            )
+
+        # Assign it so it can be used inside of get_groups_for_tasks()
+        self.tasks = tasks
+        # Let's gather any new data missing
+        self.get_groups_for_tasks()
+        # New data might have been gathered via get_groups_for_tasks; cache it
+        self._cache_test_tasks(tasks)
+        return tasks
+
+    @staticmethod
+    def _normalized_tasks(tasks):
         # If we are missing one of these keys, discard the task.
         required_keys = (
             "id",
@@ -342,6 +376,26 @@ class Push:
             normalized_tasks.append(task)
 
         return [Task.create(**task) for task in normalized_tasks]
+
+    def _cache_test_tasks(self, tasks: list) -> None:
+        test_tasks = {}
+        for task in tasks:
+            if isinstance(task, TestTask):
+                test_tasks[task.id] = {
+                    "errors": task._errors,
+                    "results": task._results,
+                }
+
+        logger.debug(
+            "Storing error/results for test tasks for {} in the cache".format(
+                self.push_uuid
+            )
+        )
+        # We *only* cache errors and results
+        # cachy's put() overwrites the value in the cache; add() would only add if its empty
+        adr.config.cache.put(
+            self.push_uuid, test_tasks, adr.config["cache"]["retention"],
+        )
 
     @property
     def task_labels(self):
@@ -384,6 +438,8 @@ class Push:
         return self.task_labels - self.scheduled_task_labels
 
     def get_groups_for_tasks(self):
+        # Calling task.groups modifies the properties of the task, thus,
+        # the returning list of this function comes back modified
         future_to_task = {
             Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task): task
             for task in self.tasks

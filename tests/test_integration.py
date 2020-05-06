@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 import os
+import shutil
 from argparse import Namespace
 
+import adr
 import pytest
-from adr.configuration import Configuration
 from adr.query import run_query
 
 from mozci import task
 from mozci.push import Push, make_push_objects
+from mozci.task import TestTask
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("TRAVIS_EVENT_TYPE") != "cron", reason="Not run by a cron task"
@@ -18,22 +20,18 @@ if not os.environ.get("ADR_CONFIG_PATH"):
 
 
 @pytest.fixture
-def adr_config(tmp_path):
-    config_file = tmp_path / "config.toml"
-    text = (
-        """
-[adr]
-verbose = true
-[adr.cache]
-default = "file"
-retention = 1000
-[adr.cache.stores]
-file = { driver = "file", path = "%s" }
-"""
-        % tmp_path
-    )
-    config_file.write_text(text)
-    return Configuration(path=config_file)
+def cache():
+    # The directory is defined in tests/config.toml
+    # If you want to iterate fast on tests that use the cache you can temporarily
+    # comment out the steps deleting the cache
+    cache_path = "adr_tests_cache"
+    try:
+        if os.path.isdir(cache_path):
+            # Make sure we start from a clean slate
+            shutil.rmtree(cache_path)
+        yield adr.config.cache
+    finally:
+        shutil.rmtree(cache_path)
 
 
 def test_create_pushes_and_get_regressions():
@@ -164,28 +162,42 @@ def test_good_result_manifests():
         ), f"{group} group for task {label} is bad!"
 
 
-def test_caching_of_tasks(adr_config):
-    return
-    # Once we reach Nov. 23rd, 2020 the test should be updtated with a more recent push and task ID
-    TASK_ID = "WGNh9Xd8RmSG_170-0-mkQ"
-    # Making sure there's nothing left in the cache
-    assert adr_config.cache.get(TASK_ID) is None
-    # Push from Nov. 22nd, 2019
-    push = Push("6e87f52e6eebdf777f975baa407d5c22e9756e80", branch="mozilla-beta")
-    tasks = push.tasks
-    found_task = False
-    for t in tasks:
-        if t.id == TASK_ID:
-            task = adr_config.cache.get(TASK_ID)
-            assert task is None
-            # Calling one of the three properties will call _load_error_summary
-            # and cache the data
-            t.results
-            task = adr_config.cache.get(TASK_ID)
-            assert task["groups"]
-            assert not task["errors"]
-            assert not task["results"]
-            found_task = True
-            break
+def test_caching_of_push(cache):
+    # A recent push will have almost no tasks in AD, few days later it will have
+    # all data come from AD and after 6 weeks it will have no data there.
+    # Results data for a task will either come via AD or through the errorsummary artifact
+    # via Taskcluster. Regardless of which source was used we store in the same data
+    # in the cache.
 
-    assert found_task
+    # Once this push is older than a year update the revision
+    # Once this push is older than 6 weeks the test will run slower because
+    # all test tasks results will come from Taskcluster
+    REV = "2fd61eb5c69ce9ac806048a35c7a7a88bf4b9652"  # Push from Apr. 21, 2020.
+    BRANCH = "mozilla-central"
+    PUSH_UUID = "{}/{}".format(BRANCH, REV)
+
+    # Making sure there's nothing left in the cache
+    if cache.get(PUSH_UUID):
+        cache.forget(PUSH_UUID)
+    assert cache.get(PUSH_UUID) is None
+
+    push = Push(REV, branch=BRANCH)
+    # Q: Calling push.tasks a second time would hit the cache; Should we test that scenario?
+    tasks = push.tasks
+    assert len(tasks) > 0
+    push_task_map = cache.get(PUSH_UUID, {})
+    TOTAL_TEST_TASKS = 3126
+    # Testing that the tasks associated to a push have been cached
+    assert len(push_task_map.keys()) == TOTAL_TEST_TASKS
+
+    cached_test_tasks = 0
+    for t in tasks:
+        if not isinstance(t, TestTask):
+            assert push_task_map.get(t.id) is None
+
+        # Assert all test tasks have written to the cache
+        if isinstance(t, TestTask):
+            assert push_task_map[t.id]
+            cached_test_tasks += 1
+
+    assert cached_test_tasks == TOTAL_TEST_TASKS

@@ -239,13 +239,6 @@ class TestTask(Task):
             result.group = result.group.replace("\\", "/")
 
     def _load_errorsummary(self):
-        # XXX: How or where should we invalidate the data?
-        # Temporarily disable caching as it's creating too many entries.
-        data = None  # adr.config.cache.get(self.id)
-        if data:
-            self._errors = data["errors"]
-            self._results = data["results"]
-            return None
         # This may clobber the values that were populated by ActiveData, but
         # since the artifact is already downloaded, parsed and we need to
         # iterate over it anyway. It doesn't really hurt and simplifies some
@@ -283,19 +276,6 @@ class TestTask(Task):
         ]
 
         self.__post_init__()
-        # Only store data if there's something to store
-        if self._errors or self._results:
-            logger.debug("Storing {} in the cache".format(self.id))
-            # cachy's put() overwrites the value in the cache; add() would only add if its empty
-            # Temporarily disable caching as it's creating too many entries.
-            # adr.config.cache.put(
-            #     self.id,
-            #     {
-            #         "errors": self._errors,
-            #         "results": self._results,
-            #     },
-            #     adr.config["cache"]["retention"],
-            # )
 
     @property
     def groups(self):

@@ -326,9 +326,11 @@ class Push:
                 )
             )
 
+        # Assign it so it can be used inside of get_groups_for_tasks()
+        self.tasks = tasks
         # Let's gather any new data missing
-        tasks = self.gather_missing_results(tasks)
-        # New data might have been gathered via gather_missing_results; cache it
+        self.get_groups_for_tasks()
+        # New data might have been gathered via get_groups_for_tasks; cache it
         self._cache_test_tasks(tasks)
         return tasks
 
@@ -374,21 +376,6 @@ class Push:
             normalized_tasks.append(task)
 
         return [Task.create(**task) for task in normalized_tasks]
-
-    def gather_missing_results(self, tasks: list) -> list:
-        """ It gathers errors/results from Taskcluster if missing."""
-        # Calling task.results modifies the properties of the task, thus, the returning list
-        # of this function comes back modified
-        future_to_task = {
-            Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.results, task): task
-            for task in tasks
-            if isinstance(task, TestTask)
-        }
-
-        for future in concurrent.futures.as_completed(future_to_task):
-            future_to_task[future]
-
-        return tasks
 
     def _cache_test_tasks(self, tasks: list) -> None:
         test_tasks = {}
@@ -451,6 +438,8 @@ class Push:
         return self.task_labels - self.scheduled_task_labels
 
     def get_groups_for_tasks(self):
+        # Calling task.groups modifies the properties of the task, thus,
+        # the returning list of this function comes back modified
         future_to_task = {
             Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task): task
             for task in self.tasks

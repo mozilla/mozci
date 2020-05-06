@@ -247,6 +247,10 @@ class TestTask(Task):
         self._results = []
         self._errors = []
 
+        # Make sure that we don't try to load errorssummary.log for suites which
+        # don't support groups.
+        assert not is_no_groups_suite(self.label)
+
         try:
             path = [a for a in self.artifacts if a.endswith("errorsummary.log")][0]
         except IndexError:

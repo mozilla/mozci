@@ -64,6 +64,7 @@ NO_GROUPS_SUITES = (
     "telemetry-tests",
     "firefox-ui-functional",
     "junit",  # https://bugzilla.mozilla.org/show_bug.cgi?id=1617632
+    "jittest",  # https://bugzilla.mozilla.org/show_bug.cgi?id=1617633
 )
 
 

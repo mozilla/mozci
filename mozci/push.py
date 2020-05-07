@@ -326,12 +326,19 @@ class Push:
                 )
             )
 
-        # Assign it so it can be used inside of get_groups_for_tasks()
-        self.tasks = tasks
-        # Let's gather any new data missing
-        self.get_groups_for_tasks()
-        # New data might have been gathered via get_groups_for_tasks; cache it
+        # Gather group data which could have been missing in ActiveData.
+        concurrent.futures.wait(
+            [
+                Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task)
+                for task in tasks
+                if isinstance(task, TestTask)
+            ],
+            return_when=concurrent.futures.FIRST_EXCEPTION,
+        )
+
+        # Now we can cache the results.
         self._cache_test_tasks(tasks)
+
         return tasks
 
     @staticmethod
@@ -437,20 +444,6 @@ class Push:
         """
         return self.task_labels - self.scheduled_task_labels
 
-    def get_groups_for_tasks(self):
-        # Calling task.groups modifies the properties of the task, thus,
-        # the returning list of this function comes back modified
-        future_to_task = {
-            Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task): task
-            for task in self.tasks
-            if isinstance(task, TestTask)
-        }
-
-        for future in concurrent.futures.as_completed(future_to_task):
-            task = future_to_task[future]
-            for group in future.result():
-                yield task, group
-
     @memoized_property
     def config_group_summaries(self):
         """All group summaries, on given configurations, combining retriggers.
@@ -460,8 +453,12 @@ class Push:
         """
         config_groups = defaultdict(list)
 
-        for task, group in self.get_groups_for_tasks():
-            config_groups[(task.configuration, group)].append(task)
+        for task in self.tasks:
+            if not isinstance(task, TestTask):
+                continue
+
+            for group in task.groups:
+                config_groups[(task.configuration, group)].append(task)
 
         return {
             config_group: GroupSummary(config_group[1], tasks)
@@ -477,8 +474,12 @@ class Push:
         """
         groups = defaultdict(list)
 
-        for task, group in self.get_groups_for_tasks():
-            groups[group].append(task)
+        for task in self.tasks:
+            if not isinstance(task, TestTask):
+                continue
+
+            for group in task.groups:
+                groups[group].append(task)
 
         return {group: GroupSummary(group, tasks) for group, tasks in groups.items()}
 

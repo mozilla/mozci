@@ -63,7 +63,7 @@ NO_GROUPS_SUITES = (
     "cppunit",
     "telemetry-tests",
     "firefox-ui-functional",
-    "junit",
+    "junit",  # https://bugzilla.mozilla.org/show_bug.cgi?id=1617632
 )
 
 

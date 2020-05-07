@@ -79,7 +79,10 @@ def is_bad_group(task_id: str, group: str) -> bool:
     global bad_group_warned
 
     bad_group = (
-        group.startswith("file://") or group.startswith("Z:") or os.path.isabs(group)
+        not group.strip()
+        or group.startswith("file://")
+        or group.startswith("Z:")
+        or os.path.isabs(group)
     )
 
     if not bad_group_warned and (bad_group or "\\" in group):

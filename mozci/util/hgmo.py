@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import Dict, Tuple
+
+from adr.util.memoize import memoize, memoized_property
 
 from mozci.errors import PushNotFound
 from mozci.util.req import get_session
@@ -36,7 +37,6 @@ class HGMO:
         HGMO.CACHE[key] = instance
         return instance
 
-    @lru_cache(maxsize=None)
     def _get_resource(self, url):
         r = get_session("hgmo").get(url)
 
@@ -46,12 +46,12 @@ class HGMO:
         r.raise_for_status()
         return r.json()
 
-    @property
+    @memoized_property
     def changesets(self):
         url = self.AUTOMATION_RELEVANCE_TEMPLATE.format(**self.context)
         return self._get_resource(url)["changesets"]
 
-    @property
+    @memoized_property
     def data(self):
         url = self.JSON_TEMPLATE.format(**self.context)
         return self._get_resource(url)
@@ -62,6 +62,7 @@ class HGMO:
     def get(self, k, default=None):
         return self.data.get(k, default)
 
+    @memoize
     def json_pushes(self, push_id_start, push_id_end):
         url = self.JSON_PUSHES_TEMPLATE.format(
             push_id_start=push_id_start, push_id_end=push_id_end, **self.context,

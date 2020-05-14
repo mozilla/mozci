@@ -96,7 +96,7 @@ def is_bad_group(task_id: str, group: str) -> bool:
 
 # Transform WPT group names to a full relative path in mozilla-central.
 def wpt_workaround(group: str) -> str:
-    assert group.startswith("/")
+    assert group.startswith("/"), f"Group {group} doesn't start with /"
     if group.startswith("/_mozilla/"):
         return os.path.join(
             "testing/web-platform/mozilla/tests", group[len("/_mozilla/") :]
@@ -267,10 +267,12 @@ class TestTask(Task):
                 groups = list(set(line["groups"]) - {"default"})
 
             elif line["action"] == "test_result":
+                group = line.get("group")
+                if group == "default":
+                    continue
+
                 self._results.append(
-                    GroupResult(
-                        group=line.get("group"), ok=line["status"] == line["expected"],
-                    )
+                    GroupResult(group=group, ok=line["status"] == line["expected"],)
                 )
 
             elif line["action"] == "log":

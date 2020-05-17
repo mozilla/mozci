@@ -4,7 +4,7 @@ description = "Utility for running ActiveData recipes"
 name = "adr"
 optional = false
 python-versions = ">=3.6,<4.0"
-version = "0.18.7"
+version = "0.18.8"
 
 [package.dependencies]
 appdirs = ">=1.4,<2.0"
@@ -792,8 +792,8 @@ python-versions = "^3.7"
 
 [metadata.files]
 adr = [
-    {file = "adr-0.18.7-py3-none-any.whl", hash = "sha256:93dd4f459ca440a20e6f4070aec37c175008c530769b65f581cd317a458e644c"},
-    {file = "adr-0.18.7.tar.gz", hash = "sha256:08eefcb5de1b988b46860233686f227d91f8acb3d2077353d1cd952ebb572b25"},
+    {file = "adr-0.18.8-py3-none-any.whl", hash = "sha256:45e5e1f9a51f5c9ed43c627b3a11657d01b1f1dcdcc6e6af0bc48d51beec39ad"},
+    {file = "adr-0.18.8.tar.gz", hash = "sha256:dfc5407ff21a24016e69ff01ded93b29e88eb52d061557e4624265236d40d32b"},
 ]
 alabaster = [
     {file = "alabaster-0.7.12-py2.py3-none-any.whl", hash = "sha256:446438bdcca0e05bd45ea2de1668c1d9b032e1a9154c2c259092d77031ddd359"},
@@ -816,6 +816,7 @@ babel = [
     {file = "Babel-2.8.0.tar.gz", hash = "sha256:1aac2ae2d0d8ea368fa90906567f5c08463d98ade155c0c4bfedd6a0f7160e38"},
 ]
 boto3 = [
+    {file = "boto3-1.13.9-py2.py3-none-any.whl", hash = "sha256:ab39015dd1a66fb9e549fd4a1a7903fad2cef83a1e7fe0711bbc7c93802bc1b3"},
     {file = "boto3-1.13.9.tar.gz", hash = "sha256:06dd5d0f2ed3570f60eab04b9f04d229ff980b55102447481992756efe268639"},
 ]
 botocore = [

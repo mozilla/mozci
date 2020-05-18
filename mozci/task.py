@@ -261,6 +261,8 @@ class TestTask(Task):
         except IndexError:
             return
 
+        groups = None
+
         lines = [json.loads(l) for l in self.get_artifact(path).splitlines()]
         for line in lines:
             if line["action"] == "test_groups":
@@ -278,13 +280,16 @@ class TestTask(Task):
             elif line["action"] == "log":
                 self._errors.append(line["message"])
 
-        # Assume all groups for which we have no results passed.
-        # In practice, they could also have been skipped (we should ignore them when
-        # it will be feasible, https://github.com/mozilla/mozci/issues/166).
-        known_results = {result.group for result in self._results}
-        self._results += [
-            GroupResult(group, True) for group in groups if group not in known_results
-        ]
+        if groups is not None:
+            # Assume all groups for which we have no results passed.
+            # In practice, they could also have been skipped (we should ignore them when
+            # it will be feasible, https://github.com/mozilla/mozci/issues/166).
+            known_results = {result.group for result in self._results}
+            self._results += [
+                GroupResult(group, True)
+                for group in groups
+                if group not in known_results
+            ]
 
         self.__post_init__()
 

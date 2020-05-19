@@ -243,7 +243,7 @@ class TestTask(Task):
         for result in self._results:
             result.group = result.group.replace("\\", "/")
 
-    def _load_errorsummary(self):
+    def _load_errorsummary(self) -> None:
         # This may clobber the values that were populated by ActiveData, but
         # since the artifact is already downloaded, parsed and we need to
         # iterate over it anyway. It doesn't really hurt and simplifies some
@@ -262,33 +262,57 @@ class TestTask(Task):
             return
 
         groups = None
+        group_results = {}
 
         lines = [json.loads(l) for l in self.get_artifact(path).splitlines()]
+
+        has_group_result = any(line["action"] == "group_result" for line in lines)
+
         for line in lines:
             if line["action"] == "test_groups":
                 groups = list(set(line["groups"]) - {"default"})
 
-            elif line["action"] == "test_result":
+            # After enough time has passed since https://bugzilla.mozilla.org/show_bug.cgi?id=1632242,
+            # we can switch to look for `group_result` lines exclusively.
+            elif not has_group_result and line["action"] == "test_result":
                 group = line.get("group")
                 if group == "default":
                     continue
 
-                self._results.append(
-                    GroupResult(group=group, ok=line["status"] == line["expected"],)
-                )
+                # The "OK" case should never happen given how errorsummary.log works, but
+                # better to be safe than sorry.
+                if line["expected"] == line["status"]:
+                    if group not in group_results:
+                        group_results[group] = "OK"
+                else:
+                    group_results[group] = "ERROR"
+
+            elif line["action"] == "group_result":
+                group_results[line["group"]] = line["status"]
 
             elif line["action"] == "log":
                 self._errors.append(line["message"])
 
+        self._results = [
+            GroupResult(group, result == "OK")
+            for group, result in group_results.items()
+            if result != "SKIP"
+        ]
+
         if groups is not None:
             # Assume all groups for which we have no results passed.
-            # In practice, they could also have been skipped (we should ignore them when
-            # it will be feasible, https://github.com/mozilla/mozci/issues/166).
-            known_results = {result.group for result in self._results}
+            # After enough time has passed since https://bugzilla.mozilla.org/show_bug.cgi?id=1632242
+            # and https://bugzilla.mozilla.org/show_bug.cgi?id=1631515, we
+            # can stop assuming since all groups will have an associated result.
+            if has_group_result:
+                assert set(groups) == set(
+                    group_results
+                ), f"There are some groups with no results in task {self.id}"
+
             self._results += [
                 GroupResult(group, True)
                 for group in groups
-                if group not in known_results
+                if group not in group_results
             ]
 
         self.__post_init__()

@@ -304,10 +304,7 @@ class TestTask(Task):
             # After enough time has passed since https://bugzilla.mozilla.org/show_bug.cgi?id=1632242
             # and https://bugzilla.mozilla.org/show_bug.cgi?id=1631515, we
             # can stop assuming since all groups will have an associated result.
-            if has_group_result:
-                assert set(groups) == set(
-                    group_results
-                ), f"There are some groups with no results in task {self.id}"
+            # assert set(groups) == set(group_results), f"There are some groups with no results in task {self.id}"
 
             self._results += [
                 GroupResult(group, True)

@@ -52,6 +52,7 @@ SUITES = (
     "firefox-ui-functional-local",
     "reftest",
     "junit",
+    "test-verify",
 )
 
 

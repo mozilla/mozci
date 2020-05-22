@@ -224,13 +224,13 @@ class TestTask(Task):
         if self._results is None:
             return
 
-        # XXX: A while after bug 1613937 and bug 1613939 have been fixed, we can
-        # remove the filtering and slash replacing.
-
         # Apply WPT workaround, needed at least until bug 1632546 is fixed.
         if self.is_wpt:
             for result in self._results:
                 result.group = wpt_workaround(result.group)
+
+        # TODO After January 1st 2021, we should be able to remove the filtering
+        # and slash replacing.
 
         # Filter out groups with bad names.
         self._results = [
@@ -272,8 +272,7 @@ class TestTask(Task):
             if line["action"] == "test_groups":
                 groups = list(set(line["groups"]) - {"default"})
 
-            # After enough time has passed since https://bugzilla.mozilla.org/show_bug.cgi?id=1632242,
-            # we can switch to look for `group_result` lines exclusively.
+            # TODO After April 1st 2021, switch to using group_result exclusively.
             elif not has_group_result and line["action"] == "test_result":
                 group = line.get("group")
                 if group == "default":
@@ -301,9 +300,8 @@ class TestTask(Task):
 
         if groups is not None:
             # Assume all groups for which we have no results passed.
-            # After enough time has passed since https://bugzilla.mozilla.org/show_bug.cgi?id=1632242
-            # and https://bugzilla.mozilla.org/show_bug.cgi?id=1631515, we
-            # can stop assuming since all groups will have an associated result.
+            # TODO After 10 months from the resolution of https://bugzilla.mozilla.org/show_bug.cgi?id=1631515,
+            # enable the following assertion and stop assuming all groups for which we have no results passed.
             # assert set(groups) == set(group_results), f"There are some groups with no results in task {self.id}"
 
             self._results += [

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import concurrent.futures
+import copy
 import math
 from argparse import Namespace
 from collections import defaultdict
@@ -601,7 +602,15 @@ class Push:
                 ):
                     return True
 
+            self_backout = False
             other_backout = False
+
+            # Otherwise, if the backout push also contains the backout commit of this push,
+            # we can consider it as a regression of this push.
+            if self.backedout:
+                for backout in fix_hgmo.backouts:
+                    if backout[:12] == self.backedoutby[:12]:
+                        self_backout = True
 
             # Otherwise, as long as the commit which was backed-out was landed **before**
             # the appearance of this failure, we can be sure it was its cause and so
@@ -612,18 +621,14 @@ class Push:
                     for backedout in backedouts
                 ):
                     if backout[:12] == classification_note[:12]:
-                        return False
+                        return False if not self_backout else None
                     else:
                         # The classification is pointing to a commit in the backout push, but not
                         # exactly the commit mentioned in the classification note.
                         other_backout = True
 
-            # Otherwise, if the backout push also contains the backout commit of this push,
-            # we can consider it as a regression of this push.
-            if self.backedout:
-                for backout in fix_hgmo.backouts:
-                    if backout[:12] == self.backedoutby[:12]:
-                        return True
+            if self_backout:
+                return True
 
             if other_backout:
                 return False
@@ -646,28 +651,30 @@ class Push:
         passing_runnables = set()
         candidate_regressions = {}
 
+        classified_as_cause = defaultdict(list)
+
         count = 0
         for other in self._iterate_children():
             for name, summary in getattr(other, f"{runnable_type}_summaries").items():
                 if name in passing_runnables:
-                    # It passed in one of the pushes between the current and its
+                    # It definitely passed in one of the pushes between the current and its
                     # children, so it is definitely not a regression in the current.
                     continue
 
                 if summary.status == Status.PASS:
-                    passing_runnables.add(name)
                     continue
 
                 if all(c not in failclass for c, n in summary.classifications):
-                    passing_runnables.add(name)
+                    classified_as_cause[name].append(None)
                     continue
 
                 is_classified_as_cause = self._is_classified_as_cause(
                     other, summary.classifications
                 )
                 if is_classified_as_cause is True:
-                    candidate_regressions[name] = (-math.inf, summary.status)
+                    classified_as_cause[name].append(True)
                 elif is_classified_as_cause is False:
+                    classified_as_cause[name].append(False)
                     passing_runnables.add(name)
                     continue
 
@@ -678,7 +685,27 @@ class Push:
 
                 candidate_regressions[name] = (count, summary.status)
 
-            yield other, candidate_regressions
+            adjusted_candidate_regressions = copy.deepcopy(candidate_regressions)
+
+            for name in candidate_regressions.keys():
+                # If the classifications are all either 'intermittent' or 'fixed by commit' pointing
+                # to this push, and the last classification is 'fixed by commit', then consider it a
+                # sure regression. We are assuming sheriff's information might be wrong at first and
+                # adjusted later.
+                if (
+                    len(classified_as_cause[name]) > 0
+                    and all(
+                        result is True or result is None
+                        for result in classified_as_cause[name]
+                    )
+                    and classified_as_cause[name][-1] is True
+                ):
+                    adjusted_candidate_regressions[name] = (
+                        -math.inf,
+                        candidate_regressions[name][1],
+                    )
+
+            yield other, adjusted_candidate_regressions
 
             other = other.child
             count += 1

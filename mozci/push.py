@@ -548,12 +548,12 @@ class Push:
                           False, if the classification references another push.
                           None, if it is not clear what the classification references.
         """
-        fixed_by_commit_classification_notes = [
+        fixed_by_commit_classification_notes = set(
             n[:12]
             for c, n in classifications
             if c == "fixed by commit"
             if n is not None
-        ]
+        )
 
         if len(fixed_by_commit_classification_notes) == 0:
             return None

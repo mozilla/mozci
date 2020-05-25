@@ -730,6 +730,21 @@ class Push:
                 self.backedoutby in other.child.revs
                 or self.bustage_fixed_by in other.child.revs
             ):
+                # Runnables that still fail after the backout, can't be considered
+                # regressions of the push.
+                # NOTE: There could be another push in between the push of interest and its
+                # backout that causes another failure in the same runnable, but it is very
+                # unlikely (especially for finer granularities, such as "group").
+                for name, summary in getattr(
+                    other.child, f"{runnable_type}_summaries"
+                ).items():
+                    if (
+                        name in candidate_regressions
+                        and summary.status != Status.PASS
+                        and all(c != "intermittent" for c, n in summary.classifications)
+                    ):
+                        del candidate_regressions[name]
+
                 break
 
         return candidate_regressions

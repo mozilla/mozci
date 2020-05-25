@@ -348,10 +348,9 @@ class TestTask(Task):
 @dataclass  # type: ignore
 class RunnableSummary(ABC):
     @property
+    @abstractmethod
     def classifications(self):
-        return [
-            (t.classification, t.classification_note) for t in self.tasks if t.failed
-        ]
+        ...
 
     @property
     @abstractmethod
@@ -368,6 +367,15 @@ class GroupSummary(RunnableSummary):
 
     def __post_init__(self):
         assert all(self.name in t.groups for t in self.tasks)
+
+    @property
+    def classifications(self):
+        return [
+            (t.classification, t.classification_note)
+            for t in self.tasks
+            if t.failed
+            and any(result.group == self.name and not result.ok for result in t.results)
+        ]
 
     @memoized_property
     def status(self):
@@ -412,6 +420,12 @@ class LabelSummary(RunnableSummary):
 
     def __post_init__(self):
         assert all(t.label == self.label for t in self.tasks)
+
+    @property
+    def classifications(self):
+        return [
+            (t.classification, t.classification_note) for t in self.tasks if t.failed
+        ]
 
     @memoized_property
     def status(self):

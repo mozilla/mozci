@@ -601,26 +601,32 @@ class Push:
                 ):
                     return True
 
+            other_backout = False
+
             # Otherwise, as long as the commit which was backed-out was landed **before**
             # the appearance of this failure, we can be sure it was its cause and so
             # the current push is not at fault.
             for backout, backedouts in fix_hgmo.backouts.items():
-                if backout[:12] != classification_note[:12]:
-                    continue
-
                 if any(
                     HGMO.create(backedout, branch=self.branch).pushid <= other.id
                     for backedout in backedouts
                 ):
-                    return False
+                    if backout[:12] == classification_note[:12]:
+                        return False
+                    else:
+                        # The classification is pointing to a commit in the backout push, but not
+                        # exactly the commit mentioned in the classification note.
+                        other_backout = True
 
             # Otherwise, if the backout push also contains the backout commit of this push,
             # we can consider it as a regression of this push.
-            # if self.backedoutby:
             if self.backedout:
                 for backout in fix_hgmo.backouts:
                     if backout[:12] == self.backedoutby[:12]:
                         return True
+
+            if other_backout:
+                return False
 
         return None
 

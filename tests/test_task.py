@@ -5,7 +5,7 @@ import json
 import pytest
 
 from mozci.errors import ArtifactNotFound, TaskNotFound
-from mozci.task import Task
+from mozci.task import GroupResult, GroupSummary, Task
 from mozci.util.taskcluster import get_artifact_url, get_index_url
 
 
@@ -121,3 +121,74 @@ def test_configuration():
         ).configuration
         == "test-windows7-32-shippable/opt-*-e10s"
     )
+
+
+def test_GroupSummary_classifications():
+    task1 = Task.create(
+        id=1,
+        label="test-task1",
+        result="testfailed",
+        classification="fixed by commit",
+        classification_note="xxx",
+    )
+    task1._results = [GroupResult("group1", False)]
+    assert GroupSummary("group1", [task1]).classifications == [
+        ("fixed by commit", "xxx")
+    ]
+    with pytest.raises(AssertionError):
+        GroupSummary("group2", [task1])
+
+    task1 = Task.create(
+        id=1,
+        label="test-task1",
+        result="testfailed",
+        classification="fixed by commit",
+        classification_note="xxx",
+    )
+    task1._results = [GroupResult("group1", False), GroupResult("group2", False)]
+    assert GroupSummary("group1", [task1]).classifications == [
+        ("fixed by commit", "xxx")
+    ]
+    assert GroupSummary("group2", [task1]).classifications == [
+        ("fixed by commit", "xxx")
+    ]
+
+    task1 = Task.create(
+        id=1, label="test-task1", result="testfailed", classification="intermittent"
+    )
+    task1._results = [GroupResult("group1", False), GroupResult("group2", False)]
+    assert GroupSummary("group1", [task1]).classifications == [("intermittent", None)]
+    assert GroupSummary("group2", [task1]).classifications == [("intermittent", None)]
+
+    task1 = Task.create(
+        id=1,
+        label="test-task1",
+        result="testfailed",
+        classification="fixed by commit",
+        classification_note="xxx",
+    )
+    task1._results = [GroupResult("group1", True), GroupResult("group2", False)]
+    assert GroupSummary("group1", [task1]).classifications == []
+    assert GroupSummary("group2", [task1]).classifications == [
+        ("fixed by commit", "xxx")
+    ]
+
+    task1 = Task.create(
+        id=1,
+        label="test-task1",
+        result="testfailed",
+        classification="fixed by commit",
+        classification_note="xxx",
+    )
+    task1._results = [GroupResult("group1", True), GroupResult("group2", False)]
+    task2 = Task.create(
+        id=1, label="test-task1", result="testfailed", classification="intermittent"
+    )
+    task2._results = [GroupResult("group1", False), GroupResult("group2", False)]
+    assert GroupSummary("group1", [task1, task2]).classifications == [
+        ("intermittent", None)
+    ]
+    assert GroupSummary("group2", [task1, task2]).classifications == [
+        ("fixed by commit", "xxx"),
+        ("intermittent", None),
+    ]

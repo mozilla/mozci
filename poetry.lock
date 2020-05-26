@@ -4,7 +4,7 @@ description = "Utility for running ActiveData recipes"
 name = "adr"
 optional = false
 python-versions = ">=3.6,<4.0"
-version = "0.18.8"
+version = "0.18.9"
 
 [package.dependencies]
 appdirs = ">=1.4,<2.0"
@@ -12,14 +12,14 @@ boto3 = ">=1.12.43,<2.0.0"
 cachy = ">=0.2,<0.4"
 docutils = ">=0.14,<0.17"
 json-e = ">=3.0.0,<4.0.0"
-loguru = ">=0.2.5,<0.5.0"
+loguru = ">=0.2.5,<0.6.0"
 markdown = ">=3.0.1,<4.0.0"
 pygments = ">=2.3.1,<3.0.0"
 python3-memcached = ">=1.51,<2.0"
 pyyaml = ">=5.1,<6.0"
 redis = ">=3.2,<4.0"
 requests = ">=2.21.0,<3.0.0"
-taskcluster = ">=29.0.1,<30.0.0"
+taskcluster = ">=29.0.1,<31.0.0"
 terminaltables = ">=3.1.0,<4.0.0"
 tomlkit = ">=0.5.3,<0.7.0"
 zstandard = ">=0.13.0,<0.14.0"
@@ -792,8 +792,8 @@ python-versions = "^3.7"
 
 [metadata.files]
 adr = [
-    {file = "adr-0.18.8-py3-none-any.whl", hash = "sha256:45e5e1f9a51f5c9ed43c627b3a11657d01b1f1dcdcc6e6af0bc48d51beec39ad"},
-    {file = "adr-0.18.8.tar.gz", hash = "sha256:dfc5407ff21a24016e69ff01ded93b29e88eb52d061557e4624265236d40d32b"},
+    {file = "adr-0.18.9-py3-none-any.whl", hash = "sha256:fea9b13b5645d28ba36b7bf4296f4d57eabb9fe47776b75b202bfbceb8b8adc3"},
+    {file = "adr-0.18.9.tar.gz", hash = "sha256:99153c10b4a0e9f52d613701af5eb4851b72c1d3ac69f2a5c038f6f7bf7c3e43"},
 ]
 alabaster = [
     {file = "alabaster-0.7.12-py2.py3-none-any.whl", hash = "sha256:446438bdcca0e05bd45ea2de1668c1d9b032e1a9154c2c259092d77031ddd359"},

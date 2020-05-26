@@ -459,10 +459,16 @@ class Push:
             for group in task.groups:
                 config_groups[(task.configuration, group)].append(task)
 
-        return {
-            config_group: GroupSummary(config_group[1], tasks)
-            for config_group, tasks in config_groups.items()
-        }
+        config_group_summaries = {}
+        for config_group, tasks in config_groups.items():
+            group_summary = GroupSummary(config_group[1], tasks)
+            # TODO: We need this check because GroupSummary might ignore some test-verify
+            # tasks. A few months after https://bugzilla.mozilla.org/show_bug.cgi?id=1640758
+            # is fixed, we can remove it.
+            if len(group_summary.tasks) > 0:
+                config_group_summaries[config_group] = group_summary
+
+        return config_group_summaries
 
     @memoized_property
     def group_summaries(self):
@@ -480,7 +486,16 @@ class Push:
             for group in task.groups:
                 groups[group].append(task)
 
-        return {group: GroupSummary(group, tasks) for group, tasks in groups.items()}
+        group_summaries = {}
+        for group, tasks in groups.items():
+            group_summary = GroupSummary(group, tasks)
+            # TODO: We need this check because GroupSummary might ignore some test-verify
+            # tasks. A few months after https://bugzilla.mozilla.org/show_bug.cgi?id=1640758
+            # is fixed, we can remove it.
+            if len(group_summary.tasks) > 0:
+                group_summaries[group] = group_summary
+
+        return group_summaries
 
     @memoized_property
     def label_summaries(self):

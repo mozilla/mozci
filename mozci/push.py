@@ -688,13 +688,15 @@ class Push:
             adjusted_candidate_regressions = copy.deepcopy(candidate_regressions)
 
             for name in candidate_regressions.keys():
+                if len(classified_as_cause[name]) == 0:
+                    continue
+
                 # If the classifications are all either 'intermittent' or 'fixed by commit' pointing
                 # to this push, and the last classification is 'fixed by commit', then consider it a
                 # sure regression. We are assuming sheriff's information might be wrong at first and
                 # adjusted later.
                 if (
-                    len(classified_as_cause[name]) > 0
-                    and all(
+                    all(
                         result is True or result is None
                         for result in classified_as_cause[name]
                     )
@@ -704,6 +706,9 @@ class Push:
                         -math.inf,
                         candidate_regressions[name][1],
                     )
+
+                if any(result is False for result in classified_as_cause[name]):
+                    del adjusted_candidate_regressions[name]
 
             yield other, adjusted_candidate_regressions
 

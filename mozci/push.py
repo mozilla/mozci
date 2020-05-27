@@ -710,6 +710,9 @@ class Push:
                 if any(result is False for result in classified_as_cause[name]):
                     del adjusted_candidate_regressions[name]
 
+                if all(result is None for result in classified_as_cause[name]):
+                    del adjusted_candidate_regressions[name]
+
             yield other, adjusted_candidate_regressions
 
             other = other.child

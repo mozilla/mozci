@@ -927,6 +927,40 @@ def test_fixed_by_commit_another_push_possible_classification3(
     assert p[i + 2].get_regressions("label") == {}
 
 
+def test_intermittent_then_unclassified(monkeypatch, create_pushes):
+    """
+    Tests the scenario where a task succeeded in a parent push, didn't run in the
+    push of interest and failed in a following push, with 'intermittent' classification,
+    then failed in a following push without classification.
+    """
+    p = create_pushes(6)
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].backedoutby = p[i + 4].rev
+    p[i + 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="intermittent",
+        )
+    ]
+    p[i + 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="not classified",
+        )
+    ]
+
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {}
+    # TODO: Should it be considered a regression of this push? (only if the push was backed-out)
+    assert p[i + 2].get_regressions("label") == {}
+
+
 def test_fixed_by_commit_after_intermittent(monkeypatch, create_pushes):
     """
     Tests the scenario where a task succeeded in a parent push, failed and was marked as intermittent

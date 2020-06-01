@@ -258,21 +258,25 @@ class TestTask(Task):
         assert not is_no_groups_suite(self.label)
 
         try:
-            path = [a for a in self.artifacts if a.endswith("errorsummary.log")][0]
+            paths = [a for a in self.artifacts if a.endswith("errorsummary.log")]
         except IndexError:
             return
 
-        groups = None
+        groups = set()
         group_results = {}
 
-        lines = [json.loads(l) for l in self.get_artifact(path).splitlines()]
+        lines = [
+            json.loads(l)
+            for path in paths
+            for l in self.get_artifact(path).splitlines()
+        ]
 
         has_group_result = any(line["action"] == "group_result" for line in lines)
         has_crashed = any(line["action"] == "crash" for line in lines)
 
         for line in lines:
             if line["action"] == "test_groups":
-                groups = list(set(line["groups"]) - {"default"})
+                groups |= set(line["groups"]) - {"default"}
 
             # TODO After April 1st 2021, switch to using group_result exclusively.
             elif not has_group_result and line["action"] == "test_result":
@@ -289,7 +293,9 @@ class TestTask(Task):
                     group_results[group] = "ERROR"
 
             elif line["action"] == "group_result":
-                group_results[line["group"]] = line["status"]
+                group = line["group"]
+                if group not in group_results or line["status"] != "OK":
+                    group_results[group] = line["status"]
 
             elif line["action"] == "log":
                 self._errors.append(line["message"])
@@ -304,7 +310,7 @@ class TestTask(Task):
         # or the suite crashed.
         # TODO After April 1st 2021, we can remove this assumption altogether, as all errorsummary.log
         # files will have 'group_result' entries.
-        if not has_group_result and not has_crashed and groups is not None:
+        if not has_group_result and not has_crashed and len(groups) > 0:
             self._results += [
                 GroupResult(group, True)
                 for group in groups

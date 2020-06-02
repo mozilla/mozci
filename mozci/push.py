@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import concurrent.futures
 import copy
+import itertools
 import math
 from argparse import Namespace
 from collections import defaultdict
@@ -646,9 +647,9 @@ class Push:
 
         return None
 
-    def _iterate_children(self):
+    def _iterate_children(self, max_depth=None):
         other = self
-        for _ in range(MAX_DEPTH + 1):
+        for i in itertools.count():
             yield other
 
             try:
@@ -656,7 +657,10 @@ class Push:
             except ChildPushNotFound:
                 break
 
-    def _iterate_failures(self, runnable_type):
+            if max_depth is not None and i == max_depth:
+                break
+
+    def _iterate_failures(self, runnable_type, max_depth=None):
         failclass = ("not classified", "fixed by commit")
 
         passing_runnables = set()
@@ -665,7 +669,7 @@ class Push:
         classified_as_cause = defaultdict(list)
 
         count = 0
-        for other in self._iterate_children():
+        for other in self._iterate_children(max_depth):
             for name, summary in getattr(other, f"{runnable_type}_summaries").items():
                 if name in passing_runnables:
                     # It definitely passed in one of the pushes between the current and its
@@ -789,12 +793,14 @@ class Push:
 
         # Skip checking regressions if we can't find any possible candidate.
         possible_bustage_fixes = set(
-            other for other in self._iterate_children() if fix_same_bugs(self, other)
+            other
+            for other in self._iterate_children(MAX_DEPTH)
+            if fix_same_bugs(self, other)
         )
         if len(possible_bustage_fixes) == 0:
             return None
 
-        for other, candidate_regressions in self._iterate_failures("label"):
+        for other, candidate_regressions in self._iterate_failures("label", MAX_DEPTH):
             if other == self or other not in possible_bustage_fixes:
                 continue
 

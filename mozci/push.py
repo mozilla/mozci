@@ -607,6 +607,8 @@ class Push:
 
             # Otherwise, if the backout push also contains the backout commit of this push,
             # we can consider it as a regression of this push.
+            # TODO: Set self_backout to True also if one of the commits in fix_push is a possible
+            # bustage fix.
             if self.backedout:
                 for backout in fix_hgmo.backouts:
                     if backout[:12] == self.backedoutby[:12]:
@@ -615,17 +617,26 @@ class Push:
             # Otherwise, as long as the commit which was backed-out was landed **before**
             # the appearance of this failure, we can be sure it was its cause and so
             # the current push is not at fault.
+            # TODO: We should actually check if the failure was already happening in the parents
+            # and compare the backout push ID with the the ID of first parent where it failed.
             for backout, backedouts in fix_hgmo.backouts.items():
+                if self.backedout and backout[:12] == self.backedoutby[:12]:
+                    continue
+
                 if any(
                     HGMO.create(backedout, branch=self.branch).pushid <= other.id
                     for backedout in backedouts
                 ):
                     if backout[:12] == classification_note[:12]:
+                        # TODO: also return False if self_backout is True but backout[:12] is not the push head
                         return False if not self_backout else None
                     else:
                         # The classification is pointing to a commit in the backout push, but not
                         # exactly the commit mentioned in the classification note.
                         other_backout = True
+
+            if self_backout and other_backout:
+                return None
 
             if self_backout:
                 return True

@@ -18,14 +18,7 @@ def test_hgmo_backouts(responses):
     responses.add(
         responses.GET,
         "https://hg.mozilla.org/integration/autoland/json-automationrelevance/abcdef",
-        json={"changesets": [{"backsoutnodes": []}]},
-        status=200,
-    )
-
-    responses.add(
-        responses.GET,
-        "https://hg.mozilla.org/integration/autoland/json-automationrelevance/abcdef",
-        json={"changesets": [{"node": "789", "backsoutnodes": [{"node": "123456"}]}]},
+        json={"changesets": [{"node": "789", "backsoutnodes": [], "pushhead": "789"}]},
         status=200,
     )
 
@@ -34,8 +27,58 @@ def test_hgmo_backouts(responses):
         "https://hg.mozilla.org/integration/autoland/json-automationrelevance/abcdef",
         json={
             "changesets": [
-                {"node": "789", "backsoutnodes": [{"node": "123456"}]},
+                {
+                    "node": "789",
+                    "backsoutnodes": [{"node": "123456"}],
+                    "pushhead": "789",
+                }
+            ]
+        },
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://hg.mozilla.org/integration/autoland/json-automationrelevance/abcdef",
+        json={
+            "changesets": [
+                {
+                    "node": "789",
+                    "backsoutnodes": [{"node": "123456"}],
+                    "pushhead": "789",
+                },
                 {"node": "jkl", "backsoutnodes": [{"node": "asd"}, {"node": "fgh"}]},
+            ]
+        },
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://hg.mozilla.org/integration/autoland/json-automationrelevance/abcdef",
+        json={
+            "changesets": [
+                {
+                    "node": "789",
+                    "backsoutnodes": [{"node": "123456"}],
+                    "pushhead": "ghi",
+                },
+            ]
+        },
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://hg.mozilla.org/integration/autoland/json-automationrelevance/ghi",
+        json={
+            "changesets": [
+                {"node": "ghi", "backsoutnodes": [{"node": "789"}], "pushhead": "ghi"},
+                {
+                    "node": "789",
+                    "backsoutnodes": [{"node": "123456"}],
+                    "pushhead": "ghi",
+                },
             ]
         },
         status=200,
@@ -53,6 +96,10 @@ def test_hgmo_backouts(responses):
     assert h.backouts == {"789": ["123456"], "jkl": ["asd", "fgh"]}
     assert h.changesets[0]["backsoutnodes"] == [{"node": "123456"}]
     assert h.changesets[1]["backsoutnodes"] == [{"node": "asd"}, {"node": "fgh"}]
+
+    h = HGMO("abcdef")
+    assert h.backouts == {"789": ["123456"], "ghi": ["789"]}
+    assert h.changesets[0]["backsoutnodes"] == [{"node": "123456"}]
 
 
 def test_hgmo_json_data(responses):

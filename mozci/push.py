@@ -722,10 +722,12 @@ class Push:
                         candidate_regressions[name][1],
                     )
 
-                if any(result is False for result in classified_as_cause[name]):
+                elif any(
+                    result is False for result in classified_as_cause[name]
+                ) and not any(result is True for result in classified_as_cause[name]):
                     del adjusted_candidate_regressions[name]
 
-                if all(result is None for result in classified_as_cause[name]):
+                elif all(result is None for result in classified_as_cause[name]):
                     del adjusted_candidate_regressions[name]
 
             yield other, adjusted_candidate_regressions

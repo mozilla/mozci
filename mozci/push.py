@@ -671,16 +671,15 @@ class Push:
         count = 0
         for other in self._iterate_children(max_depth):
             for name, summary in getattr(other, f"{runnable_type}_summaries").items():
-                if name in passing_runnables:
-                    # It definitely passed in one of the pushes between the current and its
-                    # children, so it is definitely not a regression in the current.
-                    continue
-
                 if summary.status == Status.PASS:
+                    if name not in candidate_regressions:
+                        passing_runnables.add(name)
                     continue
 
                 if all(c not in failclass for c, n in summary.classifications):
                     classified_as_cause[name].append(None)
+                    if name not in candidate_regressions:
+                        passing_runnables.add(name)
                     continue
 
                 is_classified_as_cause = self._is_classified_as_cause(
@@ -690,7 +689,6 @@ class Push:
                     classified_as_cause[name].append(True)
                 elif is_classified_as_cause is False:
                     classified_as_cause[name].append(False)
-                    passing_runnables.add(name)
                     continue
 
                 if name in candidate_regressions:
@@ -703,15 +701,13 @@ class Push:
             adjusted_candidate_regressions = copy.deepcopy(candidate_regressions)
 
             for name in candidate_regressions.keys():
-                if len(classified_as_cause[name]) == 0:
-                    continue
-
                 # If the classifications are all either 'intermittent' or 'fixed by commit' pointing
                 # to this push, and the last classification is 'fixed by commit', then consider it a
                 # sure regression. We are assuming sheriff's information might be wrong at first and
                 # adjusted later.
                 if (
-                    all(
+                    len(classified_as_cause[name]) > 0
+                    and all(
                         result is True or result is None
                         for result in classified_as_cause[name]
                     )
@@ -727,7 +723,14 @@ class Push:
                 ) and not any(result is True for result in classified_as_cause[name]):
                     del adjusted_candidate_regressions[name]
 
-                elif all(result is None for result in classified_as_cause[name]):
+                elif name in passing_runnables and not any(
+                    result is True for result in classified_as_cause[name]
+                ):
+                    del adjusted_candidate_regressions[name]
+
+                elif len(classified_as_cause[name]) > 0 and all(
+                    result is None for result in classified_as_cause[name]
+                ):
                     del adjusted_candidate_regressions[name]
 
             yield other, adjusted_candidate_regressions

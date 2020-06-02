@@ -75,6 +75,12 @@ class HGMO:
 
     @property
     def backouts(self):
+        # Sometimes json-automationrelevance doesn't return all commits of a push.
+        # https://bugzilla.mozilla.org/show_bug.cgi?id=1641729
+        push_head = self.changesets[0]["pushhead"]
+        if push_head not in {changeset["node"] for changeset in self.changesets}:
+            return HGMO.create(push_head, branch=self.context["branch"]).backouts
+
         return {
             changeset["node"]: [node["node"] for node in changeset["backsoutnodes"]]
             for changeset in self.changesets

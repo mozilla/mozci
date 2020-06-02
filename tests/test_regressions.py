@@ -674,15 +674,15 @@ def test_fixed_by_commit(monkeypatch, create_pushes):
     push of interest and failed in a following push, with 'fixed by commit' information
     pointing to the back-outs.
     """
-    p = create_pushes(3)
+    p = create_pushes(5)
     i = 1  # the index of the push we are mainly interested in
 
     def mock_backouts(cls):
-        if cls.context["rev"][:12] == "d25e5c66de225e2d1b989af61a0420874707dd14"[:12]:
-            return {"d25e5c66de225e2d1b989af61a0420874707dd14": [p[i].rev]}
+        if cls.context["rev"][:12] == p[i + 2].rev:
+            return {p[i + 2].rev: [p[i].rev]}
 
-        elif cls.context["rev"][:12] == "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"[:12]:
-            return {"012c3f1626b3e9bcd803d19aaf9584a81c5c95de": [p[i + 1].rev]}
+        elif cls.context["rev"] == p[i + 3].rev:
+            return {p[i + 3].rev: [p[i + 1].rev]}
 
         return {}
 
@@ -694,24 +694,24 @@ def test_fixed_by_commit(monkeypatch, create_pushes):
         Task.create(id="1", label="test-failure-current", result="success"),
         Task.create(id="1", label="test-failure-next", result="success"),
     ]
-    p[i].backedoutby = "d25e5c66de225e2d1b989af61a0420874707dd14"
+    p[i].backedoutby = p[i + 2].rev
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure-current",
             result="testfailed",
             classification="fixed by commit",
-            classification_note="d25e5c66de225e2d1b989af61a0420874707dd14",
+            classification_note=p[i + 2].rev,
         ),
         Task.create(
             id="1",
             label="test-failure-next",
             result="testfailed",
             classification="fixed by commit",
-            classification_note="012c3f1626b3",
+            classification_note=p[i + 3].rev,
         ),
     ]
-    p[i + 1].backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
+    p[i + 1].backedoutby = p[i + 3].rev
 
     assert p[i].get_regressions("label") == {"test-failure-current": 0}
     assert p[i + 1].get_regressions("label") == {"test-failure-next": 0}
@@ -723,15 +723,15 @@ def test_fixed_by_commit_task_didnt_run_in_parents(monkeypatch, create_pushes):
     push of interest and failed in a following push, with 'fixed by commit' information
     pointing to the back-outs.
     """
-    p = create_pushes(4)
+    p = create_pushes(5)
     i = 1  # the index of the push we are mainly interested in
 
     def mock_backouts(cls):
-        if cls.context["rev"][:12] == "d25e5c66de225e2d1b989af61a0420874707dd14"[:12]:
-            return {"d25e5c66de225e2d1b989af61a0420874707dd14": [p[i].rev]}
+        if cls.context["rev"] == p[i + 2].rev:
+            return {p[i + 2].rev: [p[i].rev]}
 
-        elif cls.context["rev"][:12] == "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"[:12]:
-            return {"012c3f1626b3e9bcd803d19aaf9584a81c5c95de": [p[i + 1].rev]}
+        elif cls.context["rev"] == p[i + 3].rev:
+            return {p[i + 3].rev: [p[i + 1].rev]}
 
         return {}
 
@@ -739,7 +739,7 @@ def test_fixed_by_commit_task_didnt_run_in_parents(monkeypatch, create_pushes):
 
     monkeypatch.setattr(HGMO, "pushid", property(lambda cls: 1))
 
-    p[i].backedoutby = "d25e5c66de225e2d1b989af61a0420874707dd14"
+    p[i].backedoutby = p[i + 2].rev
 
     p[i + 1].tasks = [
         Task.create(
@@ -747,10 +747,10 @@ def test_fixed_by_commit_task_didnt_run_in_parents(monkeypatch, create_pushes):
             label="test-failure-current",
             result="testfailed",
             classification="fixed by commit",
-            classification_note="d25e5c66de225e2d1b989af61a0420874707dd14",
+            classification_note=p[i + 2].rev,
         )
     ]
-    p[i + 1].backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
+    p[i + 1].backedoutby = p[i + 3].rev
 
     assert p[i].get_regressions("label") == {"test-failure-current": 0}
     assert p[i + 1].get_regressions("label") == {}
@@ -785,7 +785,7 @@ def test_fixed_by_commit_push_wasnt_backedout(monkeypatch, create_pushes):
             classification_note="xxx",
         )
     ]
-    p[i + 1].backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
+    p[i + 1].backedoutby = p[i + 2].rev
 
     assert p[i].get_regressions("label") == {}
     assert p[i + 1].get_regressions("label") == {}

@@ -299,7 +299,7 @@ class TestTask(Task):
             if result != "SKIP"
         ]
 
-        if groups is not None:
+        if not has_group_result and groups is not None:
             # Assume all groups for which we have no results passed.
             # TODO After 10 months from the resolution of https://bugzilla.mozilla.org/show_bug.cgi?id=1631515,
             # enable the following assertion and stop assuming all groups for which we have no results passed.

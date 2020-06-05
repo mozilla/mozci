@@ -268,6 +268,7 @@ class TestTask(Task):
         lines = [json.loads(l) for l in self.get_artifact(path).splitlines()]
 
         has_group_result = any(line["action"] == "group_result" for line in lines)
+        has_crashed = any(line["action"] == "crash" for line in lines)
 
         for line in lines:
             if line["action"] == "test_groups":
@@ -299,8 +300,9 @@ class TestTask(Task):
             if result != "SKIP"
         ]
 
-        if not has_group_result and groups is not None:
-            # Assume all groups for which we have no results passed.
+        # Assume all groups for which we have no results passed, unless we have 'group_result' lines
+        # or the suite crashed.
+        if not has_group_result and not has_crashed and groups is not None:
             # TODO After 10 months from the resolution of https://bugzilla.mozilla.org/show_bug.cgi?id=1631515,
             # enable the following assertion and stop assuming all groups for which we have no results passed.
             # assert set(groups) == set(group_results), f"There are some groups with no results in task {self.id}"

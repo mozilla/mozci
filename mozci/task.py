@@ -302,11 +302,9 @@ class TestTask(Task):
 
         # Assume all groups for which we have no results passed, unless we have 'group_result' lines
         # or the suite crashed.
+        # TODO After April 1st 2021, we can remove this assumption altogether, as all errorsummary.log
+        # files will have 'group_result' entries.
         if not has_group_result and not has_crashed and groups is not None:
-            # TODO After 10 months from the resolution of https://bugzilla.mozilla.org/show_bug.cgi?id=1631515,
-            # enable the following assertion and stop assuming all groups for which we have no results passed.
-            # assert set(groups) == set(group_results), f"There are some groups with no results in task {self.id}"
-
             self._results += [
                 GroupResult(group, True)
                 for group in groups

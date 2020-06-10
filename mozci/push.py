@@ -89,11 +89,7 @@ class Push:
         Returns:
             set: A set of bug IDs.
         """
-        return set(
-            bug["no"]
-            for changeset in self._hgmo.changesets
-            for bug in changeset["bugs"]
-        )
+        return self._hgmo.bugs
 
     @property
     def date(self):
@@ -583,8 +579,8 @@ class Push:
                 )
                 return None
 
-            self_backout = False
-            other_backout = False
+            is_self_fix = False
+            is_other_fix = False
 
             # If the backout commit also backs out one of the commits of this push, then
             # we can consider it as a regression of this push.
@@ -598,16 +594,19 @@ class Push:
                     rev[:12] in {backedout[:12] for backedout in backedouts}
                     for rev in self.revs
                 ):
-                    self_backout = True
+                    is_self_fix = True
 
             # Otherwise, if the backout push also contains the backout commit of this push,
             # we can consider it as a regression of this push.
-            # TODO: Set self_backout to True also if one of the commits in fix_push is a possible
-            # bustage fix.
             if self.backedout:
                 for backout in fix_hgmo.backouts:
                     if backout[:12] == self.backedoutby[:12]:
-                        self_backout = True
+                        is_self_fix = True
+
+            # If one of the commits in the backout push is a bustage fix, then we could
+            # consider it as a regression of this push.
+            if not is_self_fix:
+                is_self_fix |= len(fix_hgmo.bugs_without_backouts & self.bugs) > 0
 
             # Otherwise, as long as the commit which was backed-out was landed **before**
             # the appearance of this failure, we can be sure it was its cause and so
@@ -622,16 +621,29 @@ class Push:
                     HGMO.create(backedout, branch=self.branch).pushid <= other.id
                     for backedout in backedouts
                 ):
-                    other_backout = True
+                    is_other_fix = True
+
+            # If the backout push contains a bustage fix of another push, then we could
+            # consider it as a regression of another push.
+            if not is_other_fix and len(fix_hgmo.bugs_without_backouts) > 0:
+                other_parent = other
+                for i in range(MAX_DEPTH):
+                    if (
+                        other_parent != self
+                        and len(fix_hgmo.bugs_without_backouts & other_parent.bugs) > 0
+                    ):
+                        is_other_fix = True
+
+                    other_parent = other_parent.parent
 
             # TODO: Consider the classification as precise if it refers to a commit which is not the push head.
-            if self_backout and other_backout:
+            if is_self_fix and is_other_fix:
                 return None
 
-            if self_backout:
+            if is_self_fix:
                 return True
 
-            if other_backout:
+            if is_other_fix:
                 return False
 
         return None

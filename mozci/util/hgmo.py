@@ -86,3 +86,18 @@ class HGMO:
             for changeset in self.changesets
             if len(changeset["backsoutnodes"])
         }
+
+    @property
+    def bugs(self):
+        return set(
+            bug["no"] for changeset in self.changesets for bug in changeset["bugs"]
+        )
+
+    @property
+    def bugs_without_backouts(self):
+        return set(
+            bug["no"]
+            for changeset in self.changesets
+            for bug in changeset["bugs"]
+            if len(changeset["backsoutnodes"]) == 0
+        )

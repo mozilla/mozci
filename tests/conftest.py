@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import json
+
 import pytest
 from responses import RequestsMock
 
@@ -14,7 +16,7 @@ def reset_hgmo_cache():
 
 @pytest.fixture
 def responses():
-    with RequestsMock() as rsps:
+    with RequestsMock(assert_all_requests_are_fired=False) as rsps:
         yield rsps
 
 
@@ -36,33 +38,42 @@ def create_push(monkeypatch, responses):
 
     monkeypatch.setattr(HGMO, "pushid", property(mock_pushid))
 
-    def inner(
-        rev=None, branch="integration/autoland", json=None, automationrelevance=None
-    ):
+    def inner(rev=None, branch="integration/autoland", json_data=None):
         nonlocal prev_push, push_id
 
         if not rev:
             rev = "rev{}".format(push_id)
 
-        if json is None:
-            json = {
+        if json_data is None:
+            json_data = {
                 "node": rev,
             }
 
         responses.add(
             responses.GET,
             HGMO.JSON_TEMPLATE.format(branch=branch, rev=rev),
-            json=json,
+            json=json_data,
             status=200,
         )
 
-        if automationrelevance is not None:
-            responses.add(
-                responses.GET,
-                HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(branch=branch, rev=rev),
-                json=automationrelevance,
-                status=200,
-            )
+        def automationrelevance_callback(request):
+            *repo, _, revision = request.path_url[1:].split("/")
+            body = {
+                "changesets": [
+                    {
+                        "bugs": [{"no": bug_id} for bug_id in push.bugs],
+                        "backsoutnodes": [],
+                    }
+                ]
+            }
+            return (200, {}, json.dumps(body))
+
+        responses.add_callback(
+            responses.GET,
+            HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(branch=branch, rev=rev),
+            callback=automationrelevance_callback,
+            content_type="application/json",
+        )
 
         push = Push(rev, branch)
         push._id = push_id

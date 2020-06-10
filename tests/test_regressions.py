@@ -762,12 +762,12 @@ def test_fixed_by_commit_push_wasnt_backedout(monkeypatch, create_pushes):
     push of interest and failed in a following push, with 'fixed by commit' information
     pointing to a back-out of another push.
     """
-    p = create_pushes(4)
+    p = create_pushes(5)
     i = 1  # the index of the push we are mainly interested in
 
     def mock_backouts(cls):
-        if cls.context["rev"] == "xxx":
-            return {"xxx": [p[i - 1].rev]}
+        if cls.context["rev"] == p[i + 3].rev:
+            return {p[i + 3].rev: [p[i - 1].rev]}
 
         return {}
 
@@ -782,7 +782,7 @@ def test_fixed_by_commit_push_wasnt_backedout(monkeypatch, create_pushes):
             label="test-failure-current",
             result="testfailed",
             classification="fixed by commit",
-            classification_note="xxx",
+            classification_note=p[i + 3].rev,
         )
     ]
     p[i + 1].backedoutby = p[i + 2].rev
@@ -840,10 +840,10 @@ def test_fixed_by_commit_another_push_possible_classification2(
     i = 1  # the index of the push we are mainly interested in
 
     def mock_backouts(cls):
-        if cls.context["rev"] == "3rev1":
+        if cls.context["rev"] == "rev3":
             return {
-                "3rev1": [p[i + 2].rev],
-                "3rev2": [p[i + 1].rev],
+                "rev3": [p[i + 2].rev],
+                "rev3.2": [p[i + 1].rev],
             }
 
         return {}
@@ -858,10 +858,10 @@ def test_fixed_by_commit_another_push_possible_classification2(
             label="test-failure",
             result="testfailed",
             classification="fixed by commit",
-            classification_note="3rev1",
+            classification_note="rev3",
         )
     ]
-    p[i + 1].backedoutby = "3rev2"
+    p[i + 1].backedoutby = "rev3.2"
     p[i + 2].tasks = [
         Task.create(
             id="1",
@@ -871,8 +871,8 @@ def test_fixed_by_commit_another_push_possible_classification2(
             classification_note="3rev1",
         )
     ]
-    p[i + 2].backedoutby = "3rev1"
-    p[i + 3]._revs = ["3rev1", "3rev2"]
+    p[i + 2].backedoutby = "rev3"
+    p[i + 3]._revs = ["rev3", "rev3.2"]
 
     assert p[i].get_regressions("label") == {}
     assert p[i + 1].get_regressions("label") == {"test-failure": 0}
@@ -934,10 +934,10 @@ def test_fixed_by_commit_another_push_possible_classification4(
     i = 1  # the index of the push we are mainly interested in
 
     def mock_backouts(cls):
-        if cls.context["rev"] == "3rev1":
+        if cls.context["rev"] == p[i + 3].rev:
             return {
-                "3rev1": [p[i].rev],
-                "3rev2": [p[i + 1].rev],
+                p[i + 3].rev: [p[i].rev],
+                "rev3.2": [p[i + 1].rev],
             }
 
         return {}
@@ -945,7 +945,7 @@ def test_fixed_by_commit_another_push_possible_classification4(
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
-    p[i].backedoutby = "3rev1"
+    p[i].backedoutby = p[i + 3].rev
     p[i + 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
     p[i + 2].tasks = [
         Task.create(
@@ -953,11 +953,11 @@ def test_fixed_by_commit_another_push_possible_classification4(
             label="test-failure",
             result="testfailed",
             classification="fixed by commit",
-            classification_note="3rev1",
+            classification_note=p[i + 3].rev,
         )
     ]
-    p[i + 2].backedoutby = "3rev2"
-    p[i + 3]._revs = ["3rev1", "3rev2"]
+    p[i + 2].backedoutby = "rev3.2"
+    p[i + 3]._revs = [p[i + 3].rev, "rev3.2"]
 
     assert p[i].get_regressions("label") == {}
     assert p[i + 1].get_regressions("label") == {}
@@ -1076,6 +1076,53 @@ def test_fixed_by_commit_another_push_possible_classification7(
     assert p[i].get_regressions("label") == {}
     assert p[i + 1].get_regressions("label") == {}
     assert p[i + 2].get_regressions("label") == {"test-failure": 0}
+    assert p[i + 3].get_regressions("label") == {}
+
+
+def test_fixed_by_commit_another_push_possible_classification8(
+    monkeypatch, create_pushes
+):
+    p = create_pushes(6)
+    i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == p[i + 4].rev:
+            return {
+                p[i + 4].rev: [p[i + 2].rev],
+            }
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i + 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note=p[i + 4].rev,
+        )
+    ]
+    p[i + 2].tasks = []
+    p[i + 2].backedoutby = p[i + 4].rev
+    p[i + 3].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note=p[i + 4].rev,
+        )
+    ]
+    p[i + 4].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i + 4].bugs = p[i].bugs
+    p[i + 4]._revs = [p[i + 4].rev, "rev4.2"]
+
+    assert p[i].get_regressions("label") == {"test-failure": 0}
+    assert p[i + 1].get_regressions("label") == {}
+    assert p[i + 2].get_regressions("label") == {}
     assert p[i + 3].get_regressions("label") == {}
 
 
@@ -1409,8 +1456,8 @@ def test_fixed_by_commit_another_push_wrong_classification(monkeypatch, create_p
     i = 1  # the index of the push we are mainly interested in
 
     def mock_backouts(cls):
-        if cls.context["rev"] == "rev4.1":
-            return {"rev4.1": [p[i + 1].rev], "rev4.2": [p[i].rev]}
+        if cls.context["rev"] == "rev4":
+            return {"rev4": [p[i + 1].rev], "rev4.2": [p[i].rev]}
 
         return {}
 
@@ -1423,7 +1470,7 @@ def test_fixed_by_commit_another_push_wrong_classification(monkeypatch, create_p
             label="test-failure",
             result="testfailed",
             classification="fixed by commit",
-            classification_note="rev4.1",
+            classification_note="rev4",
         )
     ]
     p[i].backedoutby = "rev4.2"
@@ -1433,11 +1480,11 @@ def test_fixed_by_commit_another_push_wrong_classification(monkeypatch, create_p
             label="test-failure",
             result="testfailed",
             classification="fixed by commit",
-            classification_note="rev4.1",
+            classification_note="rev4",
         )
     ]
-    p[i + 1].backedoutby = "rev4.1"
-    p[i + 2]._revs = ["rev4.1", "rev4.2"]
+    p[i + 1].backedoutby = "rev4"
+    p[i + 2]._revs = ["rev4", "rev4.2"]
 
     assert p[i].get_regressions("label") == {"test-failure": 0}
     assert p[i + 1].get_regressions("label") == {}
@@ -1584,8 +1631,8 @@ def test_fixed_by_commit_no_backout(monkeypatch, create_pushes):
         if cls.context["rev"] == "xxx":
             return {}
 
-        if cls.context["rev"] == "012c3f1626b3":
-            return {"012c3f1626b3e9bcd803d19aaf9584a81c5c95de": p[i + 1].rev}
+        if cls.context["rev"] == p[i + 2].rev:
+            return {p[i + 2].rev: p[i + 1].rev}
 
         return {}
 
@@ -1597,7 +1644,7 @@ def test_fixed_by_commit_no_backout(monkeypatch, create_pushes):
         Task.create(id="1", label="test-failure-current", result="success"),
         Task.create(id="1", label="test-failure-next", result="success"),
     ]
-    p[i].backedoutby = "d25e5c66de225e2d1b989af61a0420874707dd14"
+    p[i].backedoutby = p[i + 3].rev
 
     p[i + 1].tasks = [
         Task.create(
@@ -1612,13 +1659,10 @@ def test_fixed_by_commit_no_backout(monkeypatch, create_pushes):
             label="test-failure-next",
             result="testfailed",
             classification="fixed by commit",
-            classification_note="012c3f1626b3",
+            classification_note=p[i + 2].rev,
         ),
     ]
-    p[i + 1].backedoutby = "012c3f1626b3e9bcd803d19aaf9584a81c5c95de"
-
-    p[i + 2]._revs = ["012c3f1626b3e9bcd803d19aaf9584a81c5c95de"]
-    p[i + 3]._revs = ["d25e5c66de225e2d1b989af61a0420874707dd14"]
+    p[i + 1].backedoutby = p[i + 2].rev
 
     assert p[i].get_regressions("label") == {"test-failure-current": 1}
     assert p[i + 1].get_regressions("label") == {

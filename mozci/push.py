@@ -344,6 +344,7 @@ class Push:
         required_keys = (
             "id",
             "label",
+            "result",
         )
 
         # Normalize and validate.

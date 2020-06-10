@@ -839,7 +839,8 @@ class Push:
             other = self.parent
             prior_regression = False
 
-            while count >= 0 and count < MAX_DEPTH:
+            i = 0
+            while count >= 0 and i < MAX_DEPTH:
                 runnable_summaries = getattr(other, f"{runnable_type}_summaries")
 
                 if name in runnable_summaries:
@@ -849,6 +850,7 @@ class Push:
 
                 other = other.parent
                 count += 1
+                i += 1
 
             # Given that our "bustage fix" detection is a heuristic which might fail, we
             # penalize regressions for pushes which weren't backed-out by doubling their count

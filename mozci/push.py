@@ -725,8 +725,9 @@ class Push:
                 ) and not any(result is True for result in classified_as_cause[name]):
                     del adjusted_candidate_regressions[name]
 
-                elif name in passing_runnables and not any(
-                    result is True for result in classified_as_cause[name]
+                elif name in passing_runnables and (
+                    not any(result is True for result in classified_as_cause[name])
+                    or any(result is False for result in classified_as_cause[name])
                 ):
                     del adjusted_candidate_regressions[name]
 

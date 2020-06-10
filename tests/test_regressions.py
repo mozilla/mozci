@@ -876,7 +876,7 @@ def test_fixed_by_commit_another_push_possible_classification2(
 
     assert p[i].get_regressions("label") == {}
     assert p[i + 1].get_regressions("label") == {"test-failure": 0}
-    assert p[i + 2].get_regressions("label") == {"test-failure": 0}
+    assert p[i + 2].get_regressions("label") == {}
 
 
 def test_fixed_by_commit_another_push_possible_classification3(
@@ -925,6 +925,158 @@ def test_fixed_by_commit_another_push_possible_classification3(
     assert p[i].get_regressions("label") == {}
     assert p[i + 1].get_regressions("label") == {"test-failure": 0}
     assert p[i + 2].get_regressions("label") == {}
+
+
+def test_fixed_by_commit_another_push_possible_classification4(
+    monkeypatch, create_pushes
+):
+    p = create_pushes(6)
+    i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == "3rev1":
+            return {
+                "3rev1": [p[i].rev],
+                "3rev2": [p[i + 1].rev],
+            }
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].backedoutby = "3rev1"
+    p[i + 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i + 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note="3rev1",
+        )
+    ]
+    p[i + 2].backedoutby = "3rev2"
+    p[i + 3]._revs = ["3rev1", "3rev2"]
+
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {}
+    assert p[i + 2].get_regressions("label") == {"test-failure": 0}
+    assert p[i + 3].get_regressions("label") == {}
+
+
+def test_fixed_by_commit_another_push_possible_classification5(
+    monkeypatch, create_pushes
+):
+    p = create_pushes(6)
+    i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == "3rev1":
+            return {
+                "3rev1": [p[i + 1].rev],
+                "3rev2": [p[i].rev],
+            }
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].backedoutby = "3rev2"
+    p[i + 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i + 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note="3rev1",
+        )
+    ]
+    p[i + 2].backedoutby = "3rev1"
+    p[i + 3]._revs = ["3rev1", "3rev2"]
+
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {}
+    assert p[i + 2].get_regressions("label") == {"test-failure": 0}
+    assert p[i + 3].get_regressions("label") == {}
+
+
+def test_fixed_by_commit_another_push_possible_classification6(
+    monkeypatch, create_pushes
+):
+    p = create_pushes(6)
+    i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == "3rev1":
+            return {
+                "3rev1": [p[i].rev],
+                "3rev2": [p[i + 1].rev],
+            }
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].backedoutby = "3rev1"
+    p[i + 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i + 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note="3rev2",
+        )
+    ]
+    p[i + 2].backedoutby = "3rev2"
+    p[i + 3]._revs = ["3rev1", "3rev2"]
+
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {}
+    assert p[i + 2].get_regressions("label") == {"test-failure": 0}
+    assert p[i + 3].get_regressions("label") == {}
+
+
+def test_fixed_by_commit_another_push_possible_classification7(
+    monkeypatch, create_pushes
+):
+    p = create_pushes(6)
+    i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == "3rev1":
+            return {
+                "3rev1": [p[i + 1].rev],
+                "3rev2": [p[i].rev],
+            }
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].backedoutby = "3rev2"
+    p[i + 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i + 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note="3rev2",
+        )
+    ]
+    p[i + 2].backedoutby = "3rev1"
+    p[i + 3]._revs = ["3rev1", "3rev2"]
+
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {}
+    assert p[i + 2].get_regressions("label") == {"test-failure": 0}
+    assert p[i + 3].get_regressions("label") == {}
 
 
 def test_intermittent_then_unclassified(monkeypatch, create_pushes):
@@ -1288,7 +1440,7 @@ def test_fixed_by_commit_another_push_wrong_classification(monkeypatch, create_p
     p[i + 2]._revs = ["rev4.1", "rev4.2"]
 
     assert p[i].get_regressions("label") == {"test-failure": 0}
-    assert p[i + 1].get_regressions("label") == {"test-failure": 0}
+    assert p[i + 1].get_regressions("label") == {}
 
 
 def test_fixed_by_commit_another_push_wrong_classification_bustage_fixed(
@@ -1393,6 +1545,8 @@ def test_fixed_by_commit_multiple_backout(monkeypatch, create_pushes):
             return int(p[i]._id)
         elif cls.context["rev"] == "rev3":
             return int(3)
+        elif cls.context["rev"] == "rev18":
+            return int(18)
         else:
             raise Exception(cls.context["rev"])
 
@@ -1413,8 +1567,8 @@ def test_fixed_by_commit_multiple_backout(monkeypatch, create_pushes):
     p[i + 1].backedoutby = "rev4.1"
     p[i + 2]._revs = ["rev4.1", "rev4.2"]
 
-    assert p[i].get_regressions("label") == {"test-failure": 0}
-    assert p[i + 1].get_regressions("label") == {"test-failure": 0}
+    assert p[i].get_regressions("label") == {"test-failure": 1}
+    assert p[i + 1].get_regressions("label") == {"test-failure": 1}
 
 
 def test_fixed_by_commit_no_backout(monkeypatch, create_pushes):

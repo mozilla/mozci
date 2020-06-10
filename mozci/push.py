@@ -580,8 +580,8 @@ class Push:
                 )
                 return None
 
-            is_self_fix = False
-            is_other_fix = False
+            self_fix = None
+            other_fixes = set()
 
             # If the backout commit also backs out one of the commits of this push, then
             # we can consider it as a regression of this push.
@@ -595,19 +595,24 @@ class Push:
                     rev[:12] in {backedout[:12] for backedout in backedouts}
                     for rev in self.revs
                 ):
-                    is_self_fix = True
+                    self_fix = backout[:12]
+                    break
 
             # Otherwise, if the backout push also contains the backout commit of this push,
             # we can consider it as a regression of this push.
             if self.backedout:
                 for backout in fix_hgmo.backouts:
                     if backout[:12] == self.backedoutby[:12]:
-                        is_self_fix = True
+                        self_fix = backout[:12]
+                        break
 
             # If one of the commits in the backout push is a bustage fix, then we could
             # consider it as a regression of this push.
-            if not is_self_fix:
-                is_self_fix |= len(fix_hgmo.bugs_without_backouts & self.bugs) > 0
+            if self_fix is None:
+                for bug in self.bugs:
+                    if bug in fix_hgmo.bugs_without_backouts:
+                        self_fix = fix_hgmo.bugs_without_backouts[bug][:12]
+                        break
 
             # Otherwise, as long as the commit which was backed-out was landed **before**
             # the appearance of this failure, we can be sure it was its cause and so
@@ -622,29 +627,45 @@ class Push:
                     HGMO.create(backedout, branch=self.branch).pushid <= other.id
                     for backedout in backedouts
                 ):
-                    is_other_fix = True
+                    other_fixes.add(backout[:12])
 
             # If the backout push contains a bustage fix of another push, then we could
             # consider it as a regression of another push.
-            if not is_other_fix and len(fix_hgmo.bugs_without_backouts) > 0:
+            if len(fix_hgmo.bugs_without_backouts) > 0:
                 other_parent = other
                 for i in range(MAX_DEPTH):
-                    if (
-                        other_parent != self
-                        and len(fix_hgmo.bugs_without_backouts & other_parent.bugs) > 0
-                    ):
-                        is_other_fix = True
+                    if other_parent != self:
+                        for bug in other_parent.bugs:
+                            if bug in fix_hgmo.bugs_without_backouts:
+                                other_fixes.add(
+                                    fix_hgmo.bugs_without_backouts[bug][:12]
+                                )
 
                     other_parent = other_parent.parent
 
-            # TODO: Consider the classification as precise if it refers to a commit which is not the push head.
-            if is_self_fix and is_other_fix:
+            if self_fix and other_fixes:
+                # If the classification points to a commit in the middle of the backout push and not the backout push head,
+                # we can consider the classification to be correct.
+                if (
+                    self_fix != fix_hgmo.pushhead[:12]
+                    and classification_note[:12] == self_fix
+                    and classification_note[:12] not in other_fixes
+                ):
+                    return True
+                elif any(
+                    other_fix != fix_hgmo.pushhead[:12]
+                    and classification_note[:12] == other_fix
+                    and classification_note[:12] != self_fix
+                    for other_fix in other_fixes
+                ):
+                    return False
+
                 return None
 
-            if is_self_fix:
+            if self_fix:
                 return True
 
-            if is_other_fix:
+            if other_fixes:
                 return False
 
         return None

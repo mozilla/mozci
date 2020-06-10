@@ -1568,6 +1568,54 @@ def test_fixed_by_commit_another_push_wrong_classification_bustage_fixed2(
     assert p[i + 2].get_regressions("label") == {"test-failure": 2}
 
 
+def test_fixed_by_commit_another_push_wrong_classification2(monkeypatch, create_pushes):
+    p = create_pushes(7)
+    i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == p[i + 4].rev:
+            return {
+                p[i + 4].rev: [p[i].rev],
+            }
+
+        if cls.context["rev"] == p[i + 5].rev:
+            return {
+                p[i + 5].rev: [p[i + 1].rev],
+            }
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].backedoutby = p[i + 4].rev
+    p[i + 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note=p[i + 4].rev,
+        )
+    ]
+    p[i + 1].backedoutby = p[i + 5].rev
+    p[i + 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note=p[i + 5].rev,
+        )
+    ]
+
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {"test-failure": 1}
+    assert p[i + 2].get_regressions("label") == {}
+    assert p[i + 3].get_regressions("label") == {}
+
+
 def test_fixed_by_commit_multiple_backout(monkeypatch, create_pushes):
     """
     Tests the scenario where a task succeeded in a parent push, failed in the

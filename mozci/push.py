@@ -563,12 +563,6 @@ class Push:
         # If the failure was classified as fixed by commit, and the fixing commit
         # is a backout of the current push, it is definitely a regression of the
         # current push.
-        if (
-            self.backedout
-            and self.backedoutby[:12] in fixed_by_commit_classification_notes
-        ):
-            return True
-
         # If the failure was classified as fixed by commit, and the fixing commit
         # is a backout of another push, it is definitely not a regression of the
         # current push.
@@ -589,6 +583,9 @@ class Push:
                 )
                 return None
 
+            self_backout = False
+            other_backout = False
+
             # If the backout commit also backs out one of the commits of this push, then
             # we can consider it as a regression of this push.
             # NOTE: this should never happen in practice because of current development
@@ -601,10 +598,7 @@ class Push:
                     rev[:12] in {backedout[:12] for backedout in backedouts}
                     for rev in self.revs
                 ):
-                    return True
-
-            self_backout = False
-            other_backout = False
+                    self_backout = True
 
             # Otherwise, if the backout push also contains the backout commit of this push,
             # we can consider it as a regression of this push.
@@ -628,14 +622,9 @@ class Push:
                     HGMO.create(backedout, branch=self.branch).pushid <= other.id
                     for backedout in backedouts
                 ):
-                    if backout[:12] == classification_note[:12]:
-                        # TODO: also return False if self_backout is True but backout[:12] is not the push head
-                        return False if not self_backout else None
-                    else:
-                        # The classification is pointing to a commit in the backout push, but not
-                        # exactly the commit mentioned in the classification note.
-                        other_backout = True
+                    other_backout = True
 
+            # TODO: Consider the classification as precise if it refers to a commit which is not the push head.
             if self_backout and other_backout:
                 return None
 

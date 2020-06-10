@@ -61,9 +61,12 @@ def create_push(monkeypatch, responses):
             body = {
                 "changesets": [
                     {
+                        "node": rev,
                         "bugs": [{"no": bug_id} for bug_id in push.bugs],
                         "backsoutnodes": [],
+                        "pushhead": push.rev,
                     }
+                    for rev in push._revs
                 ]
             }
             return (200, {}, json.dumps(body))

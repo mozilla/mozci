@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import requests
 
 from mozci.push import MAX_DEPTH
 from mozci.task import Task
@@ -972,9 +973,9 @@ def test_fixed_by_commit_another_push_possible_classification5(
     i = 1  # the index of the push we are mainly interested in
 
     def mock_backouts(cls):
-        if cls.context["rev"] == "3rev1":
+        if cls.context["rev"] == p[i + 3].rev:
             return {
-                "3rev1": [p[i + 1].rev],
+                p[i + 3].rev: [p[i + 1].rev],
                 "3rev2": [p[i].rev],
             }
 
@@ -991,11 +992,11 @@ def test_fixed_by_commit_another_push_possible_classification5(
             label="test-failure",
             result="testfailed",
             classification="fixed by commit",
-            classification_note="3rev1",
+            classification_note=p[i + 3].rev,
         )
     ]
-    p[i + 2].backedoutby = "3rev1"
-    p[i + 3]._revs = ["3rev1", "3rev2"]
+    p[i + 2].backedoutby = p[i + 3].rev
+    p[i + 3]._revs = [p[i + 3].rev, "3rev2"]
 
     assert p[i].get_regressions("label") == {}
     assert p[i + 1].get_regressions("label") == {}
@@ -1004,15 +1005,29 @@ def test_fixed_by_commit_another_push_possible_classification5(
 
 
 def test_fixed_by_commit_another_push_possible_classification6(
-    monkeypatch, create_pushes
+    monkeypatch, create_pushes, responses
 ):
     p = create_pushes(6)
     i = 1  # the index of the push we are mainly interested in
 
+    r = requests.get(
+        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+            branch="integration/autoland", rev=p[i + 3].rev
+        )
+    )
+
+    responses.add(
+        responses.GET,
+        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+            branch="integration/autoland", rev="3rev2"
+        ),
+        json=r.json(),
+    )
+
     def mock_backouts(cls):
-        if cls.context["rev"] == "3rev1":
+        if cls.context["rev"] == p[i + 3].rev:
             return {
-                "3rev1": [p[i].rev],
+                p[i + 3].rev: [p[i].rev],
                 "3rev2": [p[i + 1].rev],
             }
 
@@ -1021,7 +1036,7 @@ def test_fixed_by_commit_another_push_possible_classification6(
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
-    p[i].backedoutby = "3rev1"
+    p[i].backedoutby = p[i + 3].rev
     p[i + 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
     p[i + 2].tasks = [
         Task.create(
@@ -1033,7 +1048,7 @@ def test_fixed_by_commit_another_push_possible_classification6(
         )
     ]
     p[i + 2].backedoutby = "3rev2"
-    p[i + 3]._revs = ["3rev1", "3rev2"]
+    p[i + 3]._revs = [p[i + 3].rev, "3rev2"]
 
     assert p[i].get_regressions("label") == {}
     assert p[i + 1].get_regressions("label") == {}
@@ -1042,15 +1057,29 @@ def test_fixed_by_commit_another_push_possible_classification6(
 
 
 def test_fixed_by_commit_another_push_possible_classification7(
-    monkeypatch, create_pushes
+    monkeypatch, create_pushes, responses
 ):
     p = create_pushes(6)
     i = 1  # the index of the push we are mainly interested in
 
+    r = requests.get(
+        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+            branch="integration/autoland", rev=p[i + 3].rev
+        )
+    )
+
+    responses.add(
+        responses.GET,
+        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+            branch="integration/autoland", rev="3rev2"
+        ),
+        json=r.json(),
+    )
+
     def mock_backouts(cls):
-        if cls.context["rev"] == "3rev1":
+        if cls.context["rev"] == "3rev2":
             return {
-                "3rev1": [p[i + 1].rev],
+                p[i + 3].rev: [p[i + 1].rev],
                 "3rev2": [p[i].rev],
             }
 
@@ -1070,12 +1099,12 @@ def test_fixed_by_commit_another_push_possible_classification7(
             classification_note="3rev2",
         )
     ]
-    p[i + 2].backedoutby = "3rev1"
-    p[i + 3]._revs = ["3rev1", "3rev2"]
+    p[i + 2].backedoutby = p[i + 3].rev
+    p[i + 3]._revs = [p[i + 3].rev, "3rev2"]
 
-    assert p[i].get_regressions("label") == {}
+    assert p[i].get_regressions("label") == {"test-failure": 0}
     assert p[i + 1].get_regressions("label") == {}
-    assert p[i + 2].get_regressions("label") == {"test-failure": 0}
+    assert p[i + 2].get_regressions("label") == {}
     assert p[i + 3].get_regressions("label") == {}
 
 
@@ -1626,8 +1655,8 @@ def test_fixed_by_commit_multiple_backout(monkeypatch, create_pushes):
     i = 1  # the index of the push we are mainly interested in
 
     def mock_backouts(cls):
-        if cls.context["rev"] == "rev4.1":
-            return {"rev4.1": [p[i + 1].rev, "rev1.2"], "rev4.2": ["rev1.1"]}
+        if cls.context["rev"] == p[i + 2].rev:
+            return {p[i + 2].rev: [p[i + 1].rev, "rev1.2"], "rev4.2": ["rev1.1"]}
 
         return {}
 
@@ -1656,11 +1685,11 @@ def test_fixed_by_commit_multiple_backout(monkeypatch, create_pushes):
             label="test-failure",
             result="testfailed",
             classification="fixed by commit",
-            classification_note="rev4.1",
+            classification_note=p[i + 2].rev,
         )
     ]
-    p[i + 1].backedoutby = "rev4.1"
-    p[i + 2]._revs = ["rev4.1", "rev4.2"]
+    p[i + 1].backedoutby = p[i + 2].rev
+    p[i + 2]._revs = [p[i + 2].rev, "rev4.2"]
 
     assert p[i].get_regressions("label") == {"test-failure": 1}
     assert p[i + 1].get_regressions("label") == {"test-failure": 1}

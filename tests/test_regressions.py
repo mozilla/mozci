@@ -926,7 +926,7 @@ def test_fixed_by_commit_another_push_possible_classification3(
     def mock_backouts(cls):
         if cls.context["rev"] == p[i + 3].rev:
             return {
-                p[i + 3].rev: [p[i + 2].rev],
+                p[i + 3].rev: [p[i + 1].rev],
             }
 
         return {}
@@ -1179,6 +1179,53 @@ def test_fixed_by_commit_another_push_possible_classification8(
     p[i + 4].tasks = [Task.create(id="1", label="test-failure", result="success")]
     p[i + 4].bugs = p[i].bugs
     p[i + 4]._revs = [p[i + 4].rev, "rev4.2"]
+
+    assert p[i].get_regressions("label") == {"test-failure": 0}
+    assert p[i + 1].get_regressions("label") == {}
+    assert p[i + 2].get_regressions("label") == {}
+    assert p[i + 3].get_regressions("label") == {}
+
+
+def test_fixed_by_commit_another_push_possible_classification9(
+    monkeypatch, create_pushes
+):
+    p = create_pushes(6)
+    i = 1  # the index of the push we are mainly interested in
+
+    def mock_backouts(cls):
+        if cls.context["rev"] == p[i + 3].rev:
+            return {
+                p[i + 3].rev: [p[i + 2].rev],
+                "3rev2": [p[i].rev],
+            }
+
+        return {}
+
+    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i].backedoutby = "3rev2"
+    p[i + 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note=p[i + 3].rev,
+        )
+    ]
+    p[i + 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-failure",
+            result="testfailed",
+            classification="fixed by commit",
+            classification_note=p[i + 3].rev,
+        )
+    ]
+    p[i + 2].backedoutby = p[i + 3].rev
+    p[i + 3]._revs = [p[i + 3].rev, "3rev2"]
 
     assert p[i].get_regressions("label") == {"test-failure": 0}
     assert p[i + 1].get_regressions("label") == {}

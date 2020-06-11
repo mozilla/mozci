@@ -695,6 +695,10 @@ class Push:
         count = 0
         for other in self._iterate_children(max_depth):
             for name, summary in getattr(other, f"{runnable_type}_summaries").items():
+                # test-verify is special, we don't want to look at children pushes.
+                if self != other and runnable_type == "label" and "test-verify" in name:
+                    break
+
                 if summary.status == Status.PASS:
                     ever_passing_runnables.add(name)
                     if name not in candidate_regressions:
@@ -891,21 +895,24 @@ class Push:
             other = self.parent
             prior_regression = False
 
-            i = 0
-            while count >= 0 and i < MAX_DEPTH:
-                runnable_summaries = getattr(other, f"{runnable_type}_summaries")
+            # test-verify is special, we can assume the test-verify task is not the same as the one
+            # in the parent pushes.
+            if runnable_type != "label" or "test-verify" not in name:
+                i = 0
+                while count >= 0 and i < MAX_DEPTH:
+                    runnable_summaries = getattr(other, f"{runnable_type}_summaries")
 
-                if name in runnable_summaries:
-                    summary = runnable_summaries[name]
-                    if summary.status != Status.PASS and all(
-                        c != "intermittent" for c, n in summary.classifications
-                    ):
-                        prior_regression = True
-                    break
+                    if name in runnable_summaries:
+                        summary = runnable_summaries[name]
+                        if summary.status != Status.PASS and all(
+                            c != "intermittent" for c, n in summary.classifications
+                        ):
+                            prior_regression = True
+                        break
 
-                other = other.parent
-                count += 1
-                i += 1
+                    other = other.parent
+                    count += 1
+                    i += 1
 
             # Given that our "bustage fix" detection is a heuristic which might fail, we
             # penalize regressions for pushes which weren't backed-out by doubling their count

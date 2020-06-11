@@ -686,6 +686,7 @@ class Push:
     def _iterate_failures(self, runnable_type, max_depth=None):
         failclass = ("not classified", "fixed by commit")
 
+        ever_passing_runnables = set()
         passing_runnables = set()
         candidate_regressions = {}
 
@@ -695,6 +696,7 @@ class Push:
         for other in self._iterate_children(max_depth):
             for name, summary in getattr(other, f"{runnable_type}_summaries").items():
                 if summary.status == Status.PASS:
+                    ever_passing_runnables.add(name)
                     if name not in candidate_regressions:
                         passing_runnables.add(name)
                     continue
@@ -749,6 +751,15 @@ class Push:
                 elif name in passing_runnables and (
                     not any(result is True for result in classified_as_cause[name])
                     or any(result is False for result in classified_as_cause[name])
+                ):
+                    del adjusted_candidate_regressions[name]
+
+                # If the runnable passed in any child push and the classification for the last seen failure is
+                # 'intermittent', remove the regression from the candidate list.
+                elif (
+                    len(classified_as_cause[name]) > 0
+                    and name in ever_passing_runnables
+                    and classified_as_cause[name][-1] is None
                 ):
                     del adjusted_candidate_regressions[name]
 

@@ -743,11 +743,16 @@ class Push:
                         candidate_regressions[name][1],
                     )
 
+                # If there is at least one classification that points to another push and no classification
+                # that points to this push, remove the regerssion from the candidate list.
                 elif any(
                     result is False for result in classified_as_cause[name]
                 ) and not any(result is True for result in classified_as_cause[name]):
                     del adjusted_candidate_regressions[name]
 
+                # If the runnable passed first and failed in a child push and there is no classification pointing
+                # to this push or there is at least one pointing to another push, remove the regression from the
+                # candidate list.
                 elif name in passing_runnables and (
                     not any(result is True for result in classified_as_cause[name])
                     or any(result is False for result in classified_as_cause[name])
@@ -763,6 +768,7 @@ class Push:
                 ):
                     del adjusted_candidate_regressions[name]
 
+                # If all classifications are 'intermittent', remove the regression from the candidate list.
                 elif len(classified_as_cause[name]) > 0 and all(
                     result is None for result in classified_as_cause[name]
                 ):

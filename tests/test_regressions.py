@@ -45,6 +45,37 @@ def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_failed_in_gran
     assert p[i + 2].get_regressions("label") == {}
 
 
+def test_intermittent_in_parent_didnt_run_in_current_failed_in_child(create_pushes,):
+    """
+    Tests the scenario where a task failed with a known intermittent in a parent push, didn't run in the
+    push of interest, and failed in its following push.
+    """
+    p = create_pushes(4)
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-prova",
+            result="testfailed",
+            classification="intermittent",
+        )
+    ]
+    p[i].backedoutby = p[i + 2].rev
+    p[i + 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        )
+    ]
+
+    assert p[i - 1].get_regressions("label") == {}
+    assert p[i].get_regressions("label") == {"test-prova": 1}
+    assert p[i + 1].get_regressions("label") == {}
+
+
 def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_succeeded_in_grandchild(
     create_pushes,
 ):

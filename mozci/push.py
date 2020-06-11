@@ -879,7 +879,10 @@ class Push:
                 runnable_summaries = getattr(other, f"{runnable_type}_summaries")
 
                 if name in runnable_summaries:
-                    if runnable_summaries[name].status != Status.PASS:
+                    summary = runnable_summaries[name]
+                    if summary.status != Status.PASS and all(
+                        c != "intermittent" for c, n in summary.classifications
+                    ):
                         prior_regression = True
                     break
 

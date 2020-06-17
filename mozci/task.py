@@ -29,6 +29,8 @@ SUITES = (
     "mochitest-chrome",
     "mochitest-devtools-chrome",
     "mochitest-browser-chrome",
+    "web-platform-tests-crashtest",
+    "web-platform-tests-reftest",
     "web-platform-tests-wdspec",
     "web-platform-tests",
     "mochitest-media",

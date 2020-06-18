@@ -92,7 +92,7 @@ def is_bad_group(task_id: str, group: str) -> bool:
 
     if not bad_group_warned and (bad_group or "\\" in group):
         bad_group_warned = True
-        logger.warning(f"Bad group name in task {task_id}: {group}")
+        logger.warning(f"Bad group name in task {task_id}: '{group}'")
 
     return bad_group
 

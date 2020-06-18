@@ -1981,3 +1981,44 @@ def test_intermittent_classification(create_pushes):
 
     assert p[i].get_regressions("label") == {}
     assert p[i + 1].get_regressions("label") == {}
+
+
+def test_try(
+    create_push, create_pushes,
+):
+    p = create_pushes(3)
+    i = 1
+
+    try_p = create_push(branch="try")
+    try_p.parent = p[i]
+
+    p[i - 1].tasks = [
+        Task.create(id="1", label="test-new", result="success"),
+        Task.create(id="1", label="test-preexisting", result="success"),
+    ]
+    p[i].tasks = [
+        Task.create(
+            id="1",
+            label="test-preexisting",
+            result="testfailed",
+            classification="not classified",
+        ),
+    ]
+    p[i].backedoutby = p[i + 1].rev
+    try_p.tasks = [
+        Task.create(
+            id="1",
+            label="test-new",
+            result="testfailed",
+            classification="not classified",
+        ),
+        Task.create(
+            id="1",
+            label="test-preexisting",
+            result="testfailed",
+            classification="not classified",
+        ),
+    ]
+
+    assert p[i].get_regressions("label") == {"test-preexisting": 0}
+    assert try_p.get_regressions("label") == {"test-new": 2}

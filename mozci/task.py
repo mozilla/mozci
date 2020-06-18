@@ -99,6 +99,11 @@ def is_bad_group(task_id: str, group: str) -> bool:
 
 # Transform WPT group names to a full relative path in mozilla-central.
 def wpt_workaround(group: str) -> str:
+    # No need to transform empty groups (also, they will be filtered out
+    # in a following step).
+    if not group.strip():
+        return group
+
     assert group.startswith("/"), f"Group {group} doesn't start with /"
     if group.startswith("/_mozilla/"):
         return os.path.join(

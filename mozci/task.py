@@ -43,6 +43,7 @@ SUITES = (
     "mochitest-a11y",
     "xpcshell",
     "crashtest",
+    "jsreftest",
     "reftest-no-accel",
     "gtest",
     "telemetry-tests-client",

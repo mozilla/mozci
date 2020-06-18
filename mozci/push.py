@@ -806,7 +806,7 @@ class Push:
         for other, candidate_regressions in self._iterate_failures(runnable_type):
             # Break early if we reached the backout of this push, since any failure
             # after that won't be blamed on this push.
-            if (
+            if self.branch != "try" and (
                 self.backedoutby in other.child.revs
                 or self.bustage_fixed_by in other.child.revs
             ):
@@ -893,7 +893,7 @@ class Push:
 
         # If the push was not backed-out and was not "bustage fixed", it can't
         # have caused regressions.
-        if not self.backedout and not self.bustage_fixed_by:
+        if self.branch != "try" and not self.backedout and not self.bustage_fixed_by:
             return regressions
 
         for name, (count, status) in self.get_candidate_regressions(

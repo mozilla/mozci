@@ -786,8 +786,9 @@ class Push:
 
             yield other, adjusted_candidate_regressions
 
-            other = other.child
-            count += 1
+            if self.branch != "try":
+                other = other.child
+                count += 1
 
     def get_candidate_regressions(self, runnable_type):
         """Retrieve the set of "runnables" that are regression candidates for this push.

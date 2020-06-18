@@ -88,7 +88,8 @@ def create_push(monkeypatch, responses):
 
         if prev_push:
             push.parent = prev_push
-            prev_push.child = push
+            if branch != "try":
+                prev_push.child = push
 
         # Update global state
         prev_push = push

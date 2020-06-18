@@ -925,7 +925,7 @@ class Push:
             # penalize regressions for pushes which weren't backed-out by doubling their count
             # (basically, we consider the push to be further away from the failure, which makes
             # it more likely to fall outside of MAX_DEPTH).
-            if not self.backedout:
+            if self.branch != "try" and not self.backedout:
                 count *= 2
 
             # Also penalize cases where the status was intermittent.

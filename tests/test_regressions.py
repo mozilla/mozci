@@ -2021,4 +2021,4 @@ def test_try(
     ]
 
     assert p[i].get_regressions("label") == {"test-preexisting": 0}
-    assert try_p.get_regressions("label") == {"test-new": 2}
+    assert try_p.get_regressions("label") == {"test-new": 1}

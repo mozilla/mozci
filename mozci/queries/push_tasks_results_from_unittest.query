@@ -3,7 +3,7 @@ groupby:
     - {name: id, value: task.id}
     - {name: _result_group, value: result.group}
 select:
-    - {name: _result_ok, value: result.ok, aggregate: min}
+    - {name: _result_ok, value: result.ok_intermittent, aggregate: min}
 where:
     and:
         - prefix: {repo.changeset.id: {$eval: rev}}

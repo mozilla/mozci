@@ -402,6 +402,18 @@ class GroupSummary(RunnableSummary):
             and any(result.group == self.name and not result.ok for result in t.results)
         ]
 
+    @property
+    def durations(self):
+        return [t.duration for t in self.tasks]
+
+    @property
+    def total_duration(self):
+        return sum(self.durations)
+
+    @property
+    def median_duration(self):
+        return median(self.durations)
+
     @memoized_property
     def status(self):
         overall_status_by_label = {}
@@ -442,8 +454,6 @@ class LabelSummary(RunnableSummary):
 
     label: str
     tasks: List[Task]
-    from_date: str = ""
-    to_date: str = ""
 
     def __post_init__(self):
         assert all(t.label == self.label for t in self.tasks)

@@ -1,0 +1,11 @@
+from: unittest
+select:
+    - result.test
+    - result.start_time
+    - result.end_time
+limit: 1000
+where:
+    and:
+        - in: {result.status: ["OK","PASS","FAIL"]}
+        - eq: {task.id: {$eval: task_id}}
+        - eq: {result.group: {$eval: group}}

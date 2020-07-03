@@ -2,6 +2,7 @@
 import json
 import os
 from abc import ABC, abstractmethod
+from argparse import Namespace
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import signature
@@ -9,6 +10,7 @@ from statistics import median
 from typing import Dict, List, Optional
 
 import requests
+from adr.query import run_query
 from adr.util import memoized_property
 from loguru import logger
 from urllib3.response import HTTPResponse
@@ -402,6 +404,30 @@ class GroupSummary(RunnableSummary):
             and any(result.group == self.name and not result.ok for result in t.results)
         ]
 
+    @property
+    def durations(self):
+        def _subtract(tup):
+            return tup[0] - tup[1]
+
+        durations = []
+
+        for task in self.tasks:
+            data = run_query("group_summary_by_task_id",
+                               Namespace(task_id=task.id, group=self.name))['data']
+
+            durations.append(sum(map(_subtract,
+                             zip(data['result.end_time'], data['result.start_time']))))
+
+        return durations
+
+    @property
+    def total_duration(self):
+        return sum(self.durations)
+
+    @property
+    def median_duration(self):
+        return median(self.durations)
+
     @memoized_property
     def status(self):
         overall_status_by_label = {}
@@ -442,8 +468,6 @@ class LabelSummary(RunnableSummary):
 
     label: str
     tasks: List[Task]
-    from_date: str = ""
-    to_date: str = ""
 
     def __post_init__(self):
         assert all(t.label == self.label for t in self.tasks)

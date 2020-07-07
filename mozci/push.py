@@ -5,6 +5,7 @@ import itertools
 import math
 from argparse import Namespace
 from collections import defaultdict
+from typing import Iterator, Set, Tuple, Union
 
 import adr
 from adr.errors import MissingDataError
@@ -969,7 +970,7 @@ class Push:
         )
 
     @memoize
-    def get_shadow_scheduler_tasks(self, name):
+    def get_shadow_scheduler_tasks(self, name: str) -> Set[str]:
         """Returns all tasks the given shadow scheduler would have scheduled,
         or None if the given scheduler didn't run.
 
@@ -984,13 +985,16 @@ class Push:
         labels = task.get_artifact("public/shadow-scheduler/optimized_tasks.list")
         return set(labels.splitlines())
 
-    def generate_all_shadow_scheduler_tasks(self):
+    def generate_all_shadow_scheduler_tasks(
+        self,
+    ) -> Iterator[Tuple[str, Union[Set[str], Exception]]]:
         """Generates all tasks from all of the shadow schedulers that ran on the push.
 
         Yields:
-            tuple: Of the form (<name>, [<label>]) where the first value is the
+            tuple: Of the form (<name>, {<label>}) where the first value is the
             name of the shadow scheduler and the second is the set of tasks it
-            would have scheduled.
+            would have scheduled, or an exception instance in case the shadow
+            scheduler failed.
         """
         names = [
             label.split("shadow-scheduler-")[1]
@@ -998,7 +1002,10 @@ class Push:
             if "shadow-scheduler" in label
         ]
         for name in sorted(names):
-            yield name, self.get_shadow_scheduler_tasks(name)
+            try:
+                yield name, self.get_shadow_scheduler_tasks(name)
+            except Exception as e:
+                yield name, e
 
     def __repr__(self):
         return f"{super(Push, self).__repr__()} rev='{self.rev}'"

@@ -24,7 +24,7 @@ For example:
 from mozci.push import Push
 
 push = Push("79041cab0cc2", branch="autoland")
-print("\n".join([t.label for t in push.tasks if t.failed])
+print("\n".join([t.label for t in push.tasks if t.failed]))
 ```
 
 This will print all the failing tasks from a given push. See the

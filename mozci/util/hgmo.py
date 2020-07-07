@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Dict, Tuple
 
+import requests
 from adr.util.memoize import memoize, memoized_property
 
 from mozci.errors import PushNotFound
@@ -38,7 +39,10 @@ class HGMO:
         return instance
 
     def _get_resource(self, url):
-        r = get_session("hgmo").get(url)
+        try:
+            r = get_session("hgmo").get(url)
+        except requests.exceptions.RetryError as e:
+            raise PushNotFound(f"{e} error when getting {url}", **self.context)
 
         if r.status_code == 404:
             raise PushNotFound(f"{r.status_code} response from {url}", **self.context)

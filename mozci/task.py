@@ -413,10 +413,10 @@ class GroupSummary(RunnableSummary):
 
         for task in self.tasks:
             data = run_query("group_summary_by_task_id",
-                               Namespace(task_id=task.id, group=self.name))['data']
+                               Namespace(task_id=task.id, group=self.name))["data"]
 
             durations.append(sum(map(_subtract,
-                             zip(data['result.end_time'], data['result.start_time']))))
+                             zip(data["result.end_time"], data["result.start_time"]))))
 
         return durations
 

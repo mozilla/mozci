@@ -367,11 +367,11 @@ class Push:
                 if isinstance(task["classification_note"], list):
                     task["classification_note"] = task["classification_note"][-1]
 
-            if task.get("_result_ok"):
-                oks = task.pop("_result_ok")
+            if task.get("_result_group"):
+                groups = task.pop("_result_group")
 
-                if task.get("_result_group"):
-                    groups = task.pop("_result_group")
+                if task.get("_result_ok"):
+                    oks = task.pop("_result_ok")
 
                     task["_results"] = [
                         GroupResult(group=group, ok=ok)

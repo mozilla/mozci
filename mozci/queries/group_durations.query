@@ -1,0 +1,13 @@
+from: unittest
+groupby:
+    - task.id
+    - result.group
+select:
+    - {name: result_duration, value: result.duration, aggregate: sum}
+limit: 100000
+where:
+    and:
+        - ne: {result.status: "SKIP"}
+        - in: {task.id: {$eval: task_id}}
+        - ne: {result.duration: 0}
+        - exists: result.group

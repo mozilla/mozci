@@ -1030,3 +1030,72 @@ def make_push_objects(**kwargs):
             cur._child = pushes[i + 1]
 
     return pushes
+
+
+def make_summary_objects(**kwargs):
+    func = "make_{}_summary_objects".format(kwargs.get("type").lower())
+
+    # Obtain list of all pushes for the specified branch, from_date and to_date.
+    pushes = make_push_objects(**kwargs)
+
+    try:
+        # Dynamically run the method name `func`.
+        summaries = globals()[func](pushes, **kwargs)
+    except KeyError:
+        return []
+
+    # Sort by either the label or the name attribute.
+    # sort_attr = 'label' if kwargs.get('type').lower() == 'label' else 'name')
+    summaries.sort(key=lambda x: (getattr(x, "label", "name")))
+    return summaries
+
+
+def make_label_summary_objects(pushes, **kwargs):
+    # Flatten list of tasks for every push to a 1-dimensional list.
+    tasks = sorted(
+        [task for push in pushes for task in push.tasks], key=lambda x: x.label
+    )
+
+    mapping = defaultdict(lambda: defaultdict(list))
+
+    # Make a mapping keyed by task.label containing Task objects.
+    for task in tasks:
+        mapping[task.label]["tasks"].append(task)
+
+    summaries = []
+
+    for key, value in mapping.items():
+        summaries.append(LabelSummary(key, value["tasks"]))
+
+    return summaries
+
+
+def make_group_summary_objects(pushes, **kwargs):
+    # Obtain all the task.id values contained in the pushes. It will be used to
+    # limit the query to the list of task.ids.
+    task_ids = [task.id for push in pushes for task in push.tasks]
+
+    # Extract the results of the query.
+    results = run_query("group_durations", Namespace(task_id=task_ids))["data"]
+
+    # Sort by the result.group attribute.
+    results = sorted(results, key=lambda x: x[1])
+
+    # Dictionary to hold the mapping of result.group to task.id/result.duration.
+    mapping = defaultdict(lambda: defaultdict(list))
+
+    for task_id, result_group, result_duration in results:
+        # Obtain TestTask object that matches the task_id.
+        task = [t for push in pushes for t in push.tasks if t.id == task_id].pop()
+
+        # Build the mapping of group to the group durations and TestTask objects.
+        mapping[result_group]["tasks"].append(task)
+        mapping[result_group]["durations"].append(result_duration)
+
+    summaries = []
+
+    # Instantiate a GroupSummary object and append to list of summary objects.
+    for key, value in mapping.items():
+        summaries.append(GroupSummary(key, value["tasks"], value["durations"]))
+
+    return summaries

@@ -7,16 +7,17 @@ import adr
 import pytest
 from adr.query import run_query
 
-from mozci import task
+from mozci import config, task
 from mozci.push import Push, make_push_objects
 from mozci.task import TestTask
 
+here = os.path.abspath(os.path.dirname(__file__))
 pytestmark = pytest.mark.skipif(
     os.environ.get("TRAVIS_EVENT_TYPE") != "cron", reason="Not run by a cron task"
 )
 
-if not os.environ.get("ADR_CONFIG_PATH"):
-    raise Exception("Set ADR_CONFIG_PATH to tests/config.toml")
+if not os.environ.get("MOZCI_CONFIG_PATH"):
+    raise Exception("Set MOZCI_CONFIG_PATH to tests/config.toml")
 
 
 @pytest.fixture
@@ -24,14 +25,19 @@ def cache():
     # The directory is defined in tests/config.toml
     # If you want to iterate fast on tests that use the cache you can temporarily
     # comment out the steps deleting the cache
-    cache_path = "adr_tests_cache"
+    cache_path = "mozci_tests_cache"
     try:
         if os.path.isdir(cache_path):
             # Make sure we start from a clean slate
             shutil.rmtree(cache_path)
-        yield adr.config.cache
+        yield config.cache
     finally:
         shutil.rmtree(cache_path)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def load_source():
+    adr.sources.load_source(here)
 
 
 def test_create_pushes_and_get_regressions():

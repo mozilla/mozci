@@ -11,6 +11,15 @@ authors = [
 python = "^3.7"
 adr = "^0.19"
 taskcluster_urls = ">=12.1,<14.0"
+appdirs = "^1.4.4"
+loguru = "^0.5.1"
+cachy = "^0.3.0"
+tomlkit = "^0.6.0"
+boto3 = {version = "^1.14.20", optional = true}
+zstandard = {version = "^0.14.0", optional = true}
+python3-memcached = {version = "^1.51", optional = true}
+redis = {version = "^3.5.3", optional = true}
+requests = "^2.24.0"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.6"

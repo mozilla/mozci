@@ -1,8 +1,9 @@
-[adr]
-sources = ["tests"]
+[mozci]
 verbose = 1
-[adr.cache]
+
+[mozci.cache]
 default = "file"
 retention = 1000
-[adr.cache.stores]
-file = { driver = "file", path = "adr_tests_cache" }
+
+[mozci.cache.stores]
+file = { driver = "file", path = "mozci_tests_cache" }

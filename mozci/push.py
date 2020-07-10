@@ -7,12 +7,12 @@ from argparse import Namespace
 from collections import defaultdict
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
-import adr
 from adr.errors import MissingDataError
 from adr.query import run_query
 from adr.util.memoize import memoize, memoized_property
 from loguru import logger
 
+from mozci import config
 from mozci.errors import (
     ArtifactNotFound,
     ChildPushNotFound,
@@ -308,7 +308,7 @@ class Push:
             pass
 
         # Let's gather error/results from cache or AD/Taskcluster
-        test_tasks_results = adr.config.cache.get(self.push_uuid, {})
+        test_tasks_results = config.cache.get(self.push_uuid, {})
         was_cached = len(test_tasks_results.keys()) != 0
         if not was_cached:
             # Gather information from the unittest table. We allow missing data for this table because
@@ -411,8 +411,8 @@ class Push:
         )
         # We *only* cache errors and results
         # cachy's put() overwrites the value in the cache; add() would only add if its empty
-        adr.config.cache.put(
-            self.push_uuid, test_tasks, adr.config["cache"]["retention"],
+        config.cache.put(
+            self.push_uuid, test_tasks, config["cache"]["retention"],
         )
 
     @property

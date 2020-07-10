@@ -379,7 +379,7 @@ class GroupSummary(RunnableSummary):
 
     name: str
     tasks: List[Task]
-    durations: Optional[List[float]] = field(default_factory=List[float])
+    durations: Optional[List[float]] = field(default_factory=lambda: [0.0])
 
     def __post_init__(self):
         # WPT names are not normalized relative to topsrcdir, but subsequent check

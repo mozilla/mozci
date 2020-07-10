@@ -111,3 +111,6 @@ venv.bak/
 /*.iml
 /requirements.txt
 /requirements.in
+
+# Editor stuff:
+.vim

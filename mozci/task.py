@@ -394,11 +394,11 @@ class GroupSummary(RunnableSummary):
 
     name: str
     tasks: List[Task]
-    durations: Optional[List[float]] = field(default_factory=lambda: [0.0])
+    _durations: Optional[List[float]] = field(default_factory=lambda: [0.0])
 
     def __post_init__(self):
-        # WPT names are not normalized relative to topsrcdir, but subsequent check
-        # will fail if not normalized.
+        # WPT names are not normalized relative to topsrcdir, so subsequent check
+        # will fail unless normalized.
         if self.name.startswith("/"):
             self.name = wpt_workaround(self.name)
         assert all(self.name in t.groups for t in self.tasks)
@@ -421,6 +421,10 @@ class GroupSummary(RunnableSummary):
             if t.failed
             and any(result.group == self.name and not result.ok for result in t.results)
         ]
+
+    @property
+    def durations(self):
+        return self._durations
 
     @property
     def total_duration(self):

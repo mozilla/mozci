@@ -372,6 +372,21 @@ class RunnableSummary(ABC):
     def status(self):
         ...
 
+    @property
+    @abstractmethod
+    def durations(self):
+        ...
+
+    @property
+    @abstractmethod
+    def total_duration(self):
+        ...
+
+    @property
+    @abstractmethod
+    def median_duration(self):
+        ...
+
 
 @dataclass
 class GroupSummary(RunnableSummary):

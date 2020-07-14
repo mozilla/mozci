@@ -1032,25 +1032,50 @@ def make_push_objects(**kwargs):
     return pushes
 
 
-def make_summary_objects(**kwargs):
-    func = "make_{}_summary_objects".format(kwargs.get("type").lower())
+def make_summary_objects(from_date, to_date, branch, type):
+    """Returns a list of summary objects matching the parameters.
 
-    # Obtain list of all pushes for the specified branch, from_date and to_date.
-    pushes = make_push_objects(**kwargs)
+    When invoked with a `type` argument, this method will return a list of
+    Summary objects of the corresponding type. For example, `type='group'` will
+    return a list of GroupSummary objects.
 
-    try:
-        # Dynamically run the method name `func`.
-        summaries = globals()[func](pushes, **kwargs)
-    except KeyError:
+    Args:
+        from_date (str): String representing an acceptable date value in ActiveData.
+        to_date (str): String representing an acceptable date value in ActiveData.
+        branch (str): String that references one of the Mozilla CI's repositories.
+        type (str): String that references one of the supported Summary types.
+
+    Returns:
+        list: List of Summary objects, or an empty list.
+
+    """
+    # Retrieve the function by name using the provided `type` argument.
+    func = "make_{}_summary_objects".format(type).lower()
+
+    # If the method name `func` (which would map to either of the helper
+    # methods) are not found, then return an empty list.
+    if not func:
         return []
 
+    # Obtain list of all pushes for the specified branch, from_date and to_date.
+    pushes = make_push_objects(from_date=from_date, to_date=to_date, branch=branch)
+
+    summaries = globals()[func](pushes)
+
     # Sort by either the label or the name attribute.
-    # sort_attr = 'label' if kwargs.get('type').lower() == 'label' else 'name')
     summaries.sort(key=lambda x: (getattr(x, "label", "name")))
     return summaries
 
 
-def make_label_summary_objects(pushes, **kwargs):
+def make_label_summary_objects(pushes):
+    """Generates a list of LabelSummary objects from a list of pushes.
+
+    Args:
+        pushes (list): List of Push objects.
+
+    Returns:
+        list: List of LabelSummary objects.
+    """
     # Flatten list of tasks for every push to a 1-dimensional list.
     tasks = sorted(
         [task for push in pushes for task in push.tasks], key=lambda x: x.label
@@ -1070,18 +1095,26 @@ def make_label_summary_objects(pushes, **kwargs):
     return summaries
 
 
-def make_group_summary_objects(pushes, **kwargs):
-    # Obtain all the task.id values contained in the pushes. It will be used to
-    # limit the query to the list of task.ids.
+def make_group_summary_objects(pushes):
+    """Generates a list of GroupSummary objects from a list of pushes.
+
+    Args:
+        pushes (list): List of Push objects.
+
+    Returns:
+        list: List of GroupSummary objects.
+    """
+    # Obtain all the task.id values contained in the pushes. It will be used in
+    # the `where` query against ActiveData.
     task_ids = [task.id for push in pushes for task in push.tasks]
 
-    # Extract the results of the query.
+    # Extract the results of the above query.
     results = run_query("group_durations", Namespace(task_id=task_ids))["data"]
 
     # Sort by the result.group attribute.
     results = sorted(results, key=lambda x: x[1])
 
-    # Dictionary to hold the mapping of result.group to task.id/result.duration.
+    # Dictionary to hold the mapping of result.group: task.id and result.duration.
     mapping = defaultdict(lambda: defaultdict(list))
 
     for task_id, result_group, result_duration in results:

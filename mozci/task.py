@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import signature
+from statistics import median
 from typing import Dict, List, Optional
 
 import requests
@@ -371,6 +372,21 @@ class RunnableSummary(ABC):
     def status(self):
         ...
 
+    @property
+    @abstractmethod
+    def durations(self):
+        ...
+
+    @property
+    @abstractmethod
+    def total_duration(self):
+        ...
+
+    @property
+    @abstractmethod
+    def median_duration(self):
+        ...
+
 
 @dataclass
 class GroupSummary(RunnableSummary):
@@ -378,8 +394,13 @@ class GroupSummary(RunnableSummary):
 
     name: str
     tasks: List[Task]
+    _durations: Optional[List[float]] = field(default_factory=lambda: [0.0])
 
     def __post_init__(self):
+        # WPT names are not normalized relative to topsrcdir, so subsequent check
+        # will fail unless normalized.
+        if self.name.startswith("/"):
+            self.name = wpt_workaround(self.name)
         assert all(self.name in t.groups for t in self.tasks)
 
         # Because of https://bugzilla.mozilla.org/show_bug.cgi?id=1640758, we can't trust
@@ -400,6 +421,18 @@ class GroupSummary(RunnableSummary):
             if t.failed
             and any(result.group == self.name and not result.ok for result in t.results)
         ]
+
+    @property
+    def durations(self):
+        return self._durations
+
+    @property
+    def total_duration(self):
+        return sum(self.durations)
+
+    @property
+    def median_duration(self):
+        return median(self.durations)
 
     @memoized_property
     def status(self):
@@ -450,6 +483,18 @@ class LabelSummary(RunnableSummary):
         return [
             (t.classification, t.classification_note) for t in self.tasks if t.failed
         ]
+
+    @property
+    def durations(self):
+        return [t.duration for t in self.tasks]
+
+    @property
+    def total_duration(self):
+        return sum(self.durations)
+
+    @property
+    def median_duration(self):
+        return median(self.durations)
 
     @memoized_property
     def status(self):

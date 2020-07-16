@@ -2,6 +2,7 @@
 import json
 import os
 from abc import ABC, abstractmethod
+from argparse import Namespace
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import signature
@@ -9,6 +10,7 @@ from statistics import median
 from typing import Dict, List, Optional
 
 import requests
+from adr.query import run_query
 from adr.util import memoized_property
 from loguru import logger
 from urllib3.response import HTTPResponse
@@ -357,6 +359,30 @@ class TestTask(Task):
         # Remove the chunk number.
         parts = config.split("-")
         return "-".join(parts[:-1] if parts[-1].isdigit() else parts)
+
+    @property
+    def overhead(self):
+        """Calculate the overhead of a task.
+
+        The methodology is simple: each task (action) has a start/end time.
+        Each group also has a start/end time. Take the earlist known group start
+        and latest known group end time, ensure the two falls somewhere in between
+        task start/end.
+
+        Then calculate the overhead by taking the difference between the start
+        and end times.
+
+        Returns:
+            float: difference between task start/end and group star/end times.
+        """
+        data = run_query("test_task_overhead", Namespace(task_id=self.id))["data"].pop()
+        # Sanity check to ensure group start/end times are within task start/end.
+        assert data["task_min"] < data["group_min"]
+        assert data["task_max"] > data["group_max"]
+
+        return (data["group_min"] - data["task_min"]) + (
+            data["task_max"] - data["group_max"]
+        )
 
 
 # Don't perform type checking because of https://github.com/python/mypy/issues/5374.

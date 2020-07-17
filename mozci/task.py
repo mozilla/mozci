@@ -377,8 +377,8 @@ class TestTask(Task):
         """
         data = run_query("test_task_overhead", Namespace(task_id=self.id))["data"].pop()
         # Sanity check to ensure group start/end times are within task start/end.
-        assert data["task_min"] < data["group_min"]
-        assert data["task_max"] > data["group_max"]
+        if data["task_min"] < data["group_min"] or data["task_max"] > data["group_max"]:
+            logger.warning(f"task f{self.id} has inconsistent group duration.")
 
         return (data["group_min"] - data["task_min"]) + (
             data["task_max"] - data["group_max"]

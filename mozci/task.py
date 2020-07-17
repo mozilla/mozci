@@ -365,15 +365,15 @@ class TestTask(Task):
         """Calculate the overhead of a task.
 
         The methodology is simple: each task (action) has a start/end time.
-        Each group also has a start/end time. Take the earlist known group start
+        Each group also has a start/end time. Take the earliest known group start
         and latest known group end time, ensure the two falls somewhere in between
         task start/end.
 
-        Then calculate the overhead by taking the difference between the start
-        and end times.
+        This definition of overhead does not take into account inter-group overhead
+        eg. restarting browser, teardown, etc.
 
         Returns:
-            float: difference between task start/end and group star/end times.
+            float: difference between task start/end and group start/end times.
         """
         data = run_query("test_task_overhead", Namespace(task_id=self.id))["data"].pop()
         # Sanity check to ensure group start/end times are within task start/end.

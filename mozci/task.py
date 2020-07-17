@@ -522,6 +522,18 @@ class LabelSummary(RunnableSummary):
     def median_duration(self):
         return median(self.durations)
 
+    @property
+    def overheads(self):
+        return [task.overhead for task in self.tasks]
+
+    @property
+    def total_overheads(self):
+        return sum(self.overheads)
+
+    @property
+    def median_overhead(self):
+        return median(self.overheads)
+
     @memoized_property
     def status(self):
         overall_status = None

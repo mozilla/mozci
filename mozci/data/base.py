@@ -69,3 +69,11 @@ class DataHandler:
         # Validate output.
         contract.validate_out(result)
         return result
+
+
+def register_sources():
+    from mozci.data.sources import activedata
+
+    DataHandler.ALL_SOURCES = {
+        "adr": activedata.ActiveDataSource(),
+    }

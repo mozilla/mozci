@@ -12,7 +12,7 @@ from adr.query import run_query
 from adr.util.memoize import memoize, memoized_property
 from loguru import logger
 
-from mozci import config
+from mozci import config, data
 from mozci.errors import (
     ArtifactNotFound,
     ChildPushNotFound,
@@ -218,7 +218,7 @@ class Push:
                 return self.create_push(self.id + 1)
             except PushNotFound as e:
                 raise ChildPushNotFound(
-                    f"child push does not exist", rev=self.rev, branch=self.branch
+                    "child push does not exist", rev=self.rev, branch=self.branch
                 ) from e
 
         raise ChildPushNotFound(
@@ -244,82 +244,46 @@ class Push:
         Returns:
             list: A list of `Task` objects.
         """
-        args = Namespace(rev=self.rev, branch=self.branch)
-        tasks = defaultdict(dict)
-        retries = defaultdict(int)
-
-        list_keys = (
-            "_result_ok",
-            "_result_group",
-        )
-
-        def add(result):
-            if "header" in result:
-                result["data"] = [
-                    {
-                        field: value
-                        for field, value in zip(result["header"], entry)
-                        if value is not None
-                    }
-                    for entry in result["data"]
-                ]
-
-            for task in result["data"]:
-                if "id" not in task:
-                    logger.trace(f"Skipping {task} because of missing id.")
-                    continue
-
-                task_id = task["id"]
-
-                # If a task is re-run, use the data from the last run.
-                if "retry_id" in task:
-                    if task["retry_id"] < retries[task_id]:
-                        logger.trace(
-                            f"Skipping {task} because there is a newer run of it."
-                        )
-                        continue
-
-                    retries[task_id] = task["retry_id"]
-
-                    # We don't need to store the retry ID.
-                    del task["retry_id"]
-
-                cur_task = tasks[task_id]
-
-                for key, val in task.items():
-                    if key in list_keys:
-                        if key not in cur_task:
-                            cur_task[key] = []
-
-                        cur_task[key].append(val)
-                    else:
-                        cur_task[key] = val
-
         # Gather information from the treeherder table.
+        tasks = []
         try:
-            add(run_query("push_tasks_from_treeherder", args))
+            tasks = data.handler.get("push_tasks", branch=self.branch, rev=self.rev)
+            tasks = [Task.create(**task) for task in tasks]
         except MissingDataError:
             pass
 
         # Gather task tags from the task table.
         try:
-            add(run_query("push_tasks_tags_from_task", args))
+            tags_by_task = data.handler.get("push_tasks_tags", branch=self.branch, rev=self.rev)
+            for task in tasks:
+                tags = tags_by_task.get(task.id)
+                if tags:
+                    task.tags.update(tags)
         except MissingDataError:
             pass
 
         # Let's gather error/results from cache or AD/Taskcluster
         test_tasks_results = config.cache.get(self.push_uuid, {})
         was_cached = len(test_tasks_results.keys()) != 0
+        groups = None
         if not was_cached:
             # Gather information from the unittest table. We allow missing data for this table because
             # ActiveData only holds very recent data in it, but we have fallbacks on Taskcluster
             # artifacts.
             try:
-                add(run_query("push_tasks_results_from_unittest", args, cache=False))
+                groups = data.handler.get(
+                    "push_test_groups", branch=self.branch, rev=self.rev
+                )
+                for task in tasks:
+                    results = groups.get(task.id)
+                    if results is not None:
+                        task._results = [
+                            GroupResult(group=group, ok=ok)
+                            for group, ok in results.items()
+                        ]
+
             except MissingDataError:
                 pass
-
-        tasks = Push._normalized_tasks(tasks)
 
         # Add any data available in the cache
         if was_cached:
@@ -351,49 +315,6 @@ class Push:
         self._cache_test_tasks(tasks)
 
         return tasks
-
-    @staticmethod
-    def _normalized_tasks(tasks):
-        # If we are missing one of these keys, discard the task.
-        required_keys = (
-            "id",
-            "label",
-            "result",
-        )
-
-        # Normalize and validate.
-        normalized_tasks = []
-        for task in tasks.values():
-            missing = [k for k in required_keys if k not in task]
-            taskstr = task.get("label", task["id"])
-
-            if missing:
-                logger.trace(
-                    f"Skipping task '{taskstr}' because it is missing "
-                    f"the following attributes: {', '.join(missing)}"
-                )
-                continue
-
-            if task.get("tags"):
-                task["tags"] = {t["name"]: t["value"] for t in task["tags"]}
-
-            if task.get("classification_note"):
-                if isinstance(task["classification_note"], list):
-                    task["classification_note"] = task["classification_note"][-1]
-
-            groups = task.pop("_result_group", None)
-            oks = task.pop("_result_ok", None)
-
-            if groups is not None:
-                if oks:
-                    task["_results"] = [
-                        GroupResult(group=group, ok=ok)
-                        for group, ok in zip(groups, oks)
-                    ]
-
-            normalized_tasks.append(task)
-
-        return [Task.create(**task) for task in normalized_tasks]
 
     def _cache_test_tasks(self, tasks: list) -> None:
         test_tasks = {}

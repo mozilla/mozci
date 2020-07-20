@@ -98,7 +98,7 @@ class CustomCacheManager(CacheManager):
 class Configuration(Mapping):
     DEFAULT_CONFIG_PATH = Path(user_config_dir("mozci")) / "config.toml"
     DEFAULTS = {
-        "data_sources": [],
+        "data_sources": ["adr"],
         "cache": {"retention": 1440},  # minutes
         "verbose": False,
     }

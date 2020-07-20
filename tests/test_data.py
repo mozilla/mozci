@@ -9,16 +9,19 @@ from mozci.data.contract import Contract
 FAKE_CONTRACTS = (
     Contract(
         name="foo",
+        description="test",
         validate_in=Schema({Required("label"): str}),
         validate_out=Schema({Required("count"): int}),
     ),
     Contract(
         name="bar",
+        description="test",
         validate_in=Schema({Required("desc"): str}),
         validate_out=Schema({Required("amount"): int}),
     ),
     Contract(
         name="baz",
+        description="test",
         validate_in=Schema({Required("id"): str}),
         validate_out=Schema({Required("sum"): int}),
     ),
@@ -27,7 +30,7 @@ FAKE_CONTRACTS = (
 
 class FakeSource(DataSource):
     name = "fake"
-    supported_contracts = ["foo", "bar"]
+    supported_contracts = ("foo", "bar")
 
     def run_foo(self, **context):
         return {"count": "1"}
@@ -38,7 +41,7 @@ class FakeSource(DataSource):
 
 class InvalidSource(DataSource):
     name = "invalid"
-    supported_contracts = ["foo"]
+    supported_contracts = ("foo",)
 
 
 def test_data_handler(monkeypatch):

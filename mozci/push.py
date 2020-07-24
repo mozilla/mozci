@@ -411,6 +411,20 @@ class Push:
         """
         return set(t.label for t in self.tasks)
 
+    @property
+    def is_manifest_level(self):
+        """Whether a non-default manifest loader was used for this push.
+
+        Returns:
+            bool: True if a non-default manifest loader was used.
+        """
+        return (
+            self.decision_task.get_artifact("public/parameters.yml")[
+                "test_manifest_loader"
+            ]
+            != "default"
+        )
+
     @memoized_property
     def target_task_labels(self):
         """The set of all task labels that could possibly run on this push.

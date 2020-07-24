@@ -854,7 +854,7 @@ class Push:
         return candidate_regressions
 
     @memoized_property
-    def bustage_fixed_by(self):
+    def bustage_fixed_by(self) -> Optional[str]:
         """The revision of the commit which 'bustage fixes' this one or None.
 
         We detect if a push was 'bustage fixed' with a simple heuristic:
@@ -881,22 +881,41 @@ class Push:
         if len(possible_bustage_fixes) == 0:
             return None
 
-        for other, candidate_regressions in self._iterate_failures("label", MAX_DEPTH):
-            if other == self or other not in possible_bustage_fixes:
-                continue
+        def find(runnable_type: str) -> Optional[str]:
+            # We can't match tasks from manifest-level pushes between pushes.
+            if runnable_type == "label" and self.is_manifest_level:
+                return None
 
-            if any(
-                name in other.label_summaries
-                and other.label_summaries[name].status == Status.PASS
-                for name in candidate_regressions
+            for other, candidate_regressions in self._iterate_failures(
+                runnable_type, MAX_DEPTH
             ):
-                return other.rev
+                if (
+                    other == self
+                    or other not in possible_bustage_fixes
+                    or other.is_manifest_level
+                ):
+                    continue
 
-            possible_bustage_fixes.remove(other)
-            if len(possible_bustage_fixes) == 0:
-                break
+                # We can't match tasks from manifest-level pushes between pushes.
+                if runnable_type == "label" and other.is_manifest_level:
+                    continue
 
-        return None
+                other_summaries = getattr(other, f"{runnable_type}_summaries")
+
+                if any(
+                    name in other_summaries
+                    and other_summaries[name].status == Status.PASS
+                    for name in candidate_regressions
+                ):
+                    return other.rev
+
+                possible_bustage_fixes.remove(other)
+                if len(possible_bustage_fixes) == 0:
+                    break
+
+            return None
+
+        return find("label") or find("config_group")
 
     @memoize
     def get_regressions(self, runnable_type: str) -> Dict[str, int]:

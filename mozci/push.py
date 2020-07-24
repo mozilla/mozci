@@ -511,17 +511,21 @@ class Push:
         return group_summaries
 
     @memoized_property
-    def label_summaries(self):
+    def label_summaries(self) -> Dict[str, LabelSummary]:
         """All label summaries combining retriggers.
 
         Returns:
             dict: A dictionary of the form {<label>: [<LabelSummary>]}.
         """
+        # We can't consider tasks from manifest-level pushes for finding label-level regressions
+        # because tasks with the same name on different pushes might contain totally different tasks.
+        if self.is_manifest_level:
+            return {}
+
         labels = defaultdict(list)
         for task in self.tasks:
             labels[task.label].append(task)
-        labels = {label: LabelSummary(label, tasks) for label, tasks in labels.items()}
-        return labels
+        return {label: LabelSummary(label, tasks) for label, tasks in labels.items()}
 
     @memoized_property
     def duration(self):
@@ -718,11 +722,6 @@ class Push:
                 if self != other and runnable_type == "label" and "test-verify" in name:
                     break
 
-                # We can't consider tasks from manifest-level pushes for finding label-level regressions
-                # because tasks with the same name on different pushes might contain totally different tasks.
-                if runnable_type == "label" and other.is_manifest_label:
-                    continue
-
                 if summary.status == Status.PASS:
                     ever_passing_runnables.add(name)
                     if name not in candidate_regressions:
@@ -845,7 +844,6 @@ class Push:
                         name in candidate_regressions
                         and summary.status != Status.PASS
                         and all(c != "intermittent" for c, n in summary.classifications)
-                        and not other.child.is_manifest_level
                     ):
                         del candidate_regressions[name]
 
@@ -882,10 +880,6 @@ class Push:
             return None
 
         def find(runnable_type: str) -> Optional[str]:
-            # We can't match tasks from manifest-level pushes between pushes.
-            if runnable_type == "label" and self.is_manifest_level:
-                return None
-
             for other, candidate_regressions in self._iterate_failures(
                 runnable_type, MAX_DEPTH
             ):
@@ -894,10 +888,6 @@ class Push:
                     or other not in possible_bustage_fixes
                     or other.is_manifest_level
                 ):
-                    continue
-
-                # We can't match tasks from manifest-level pushes between pushes.
-                if runnable_type == "label" and other.is_manifest_level:
                     continue
 
                 other_summaries = getattr(other, f"{runnable_type}_summaries")
@@ -952,16 +942,13 @@ class Push:
                 while count >= 0 and i < MAX_DEPTH:
                     runnable_summaries = getattr(other, f"{runnable_type}_summaries")
 
-                    # We can't consider tasks from manifest-level pushes for finding label-level regressions
-                    # because tasks with the same name on different pushes might contain totally different tasks.
-                    if runnable_type != "label" or not other.is_manifest_label:
-                        if name in runnable_summaries:
-                            summary = runnable_summaries[name]
-                            if summary.status != Status.PASS and all(
-                                c != "intermittent" for c, n in summary.classifications
-                            ):
-                                prior_regression = True
-                            break
+                    if name in runnable_summaries:
+                        summary = runnable_summaries[name]
+                        if summary.status != Status.PASS and all(
+                            c != "intermittent" for c, n in summary.classifications
+                        ):
+                            prior_regression = True
+                        break
 
                     other = other.parent
                     count += 1

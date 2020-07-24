@@ -518,7 +518,7 @@ class Push:
             dict: A dictionary of the form {<label>: [<LabelSummary>]}.
         """
         # We can't consider tasks from manifest-level pushes for finding label-level regressions
-        # because tasks with the same name on different pushes might contain totally different tasks.
+        # because tasks with the same name on different pushes might contain totally different tests.
         if self.is_manifest_level:
             return {}
 

@@ -5,7 +5,7 @@ import itertools
 import math
 from argparse import Namespace
 from collections import defaultdict
-from typing import Iterator, Set, Tuple, Union
+from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
 import adr
 from adr.errors import MissingDataError
@@ -698,7 +698,9 @@ class Push:
             if max_depth is not None and i == max_depth:
                 break
 
-    def _iterate_failures(self, runnable_type, max_depth=None):
+    def _iterate_failures(
+        self, runnable_type: str, max_depth: Optional[int] = None
+    ) -> Iterator[Tuple["Push", Dict[str, Tuple[float, str]]]]:
         failclass = ("not classified", "fixed by commit")
 
         ever_passing_runnables = set()
@@ -707,7 +709,7 @@ class Push:
 
         first_appareance = {}
 
-        classified_as_cause = defaultdict(list)
+        classified_as_cause: Dict[str, List[Optional[bool]]] = defaultdict(list)
 
         count = 0
         for other in self._iterate_children(max_depth):
@@ -715,6 +717,11 @@ class Push:
                 # test-verify is special, we don't want to look at children pushes.
                 if self != other and runnable_type == "label" and "test-verify" in name:
                     break
+
+                # We can't consider tasks from manifest-level pushes for finding label-level regressions
+                # because tasks with the same name on different pushes might contain totally different tasks.
+                if runnable_type == "label" and other.is_manifest_label:
+                    continue
 
                 if summary.status == Status.PASS:
                     ever_passing_runnables.add(name)
@@ -745,7 +752,7 @@ class Push:
                     # children, we don't want to increase the previous distance.
                     continue
 
-                candidate_regressions[name] = (count, summary.status)
+                candidate_regressions[name] = (float(count), summary.status)
 
             adjusted_candidate_regressions = copy.deepcopy(candidate_regressions)
 
@@ -804,7 +811,9 @@ class Push:
                 other = other.child
                 count += 1
 
-    def get_candidate_regressions(self, runnable_type):
+    def get_candidate_regressions(
+        self, runnable_type: str
+    ) -> Dict[str, Tuple[float, str]]:
         """Retrieve the set of "runnables" that are regression candidates for this push.
 
         A "runnable" can be any group of tests, e.g. a label, a manifest across platforms,
@@ -836,6 +845,7 @@ class Push:
                         name in candidate_regressions
                         and summary.status != Status.PASS
                         and all(c != "intermittent" for c, n in summary.classifications)
+                        and not other.child.is_manifest_level
                     ):
                         del candidate_regressions[name]
 
@@ -889,7 +899,7 @@ class Push:
         return None
 
     @memoize
-    def get_regressions(self, runnable_type):
+    def get_regressions(self, runnable_type: str) -> Dict[str, int]:
         """All regressions, both likely and definite.
 
         Each regression is associated with an integer, which is the number of
@@ -903,7 +913,7 @@ class Push:
         Returns:
             dict: A dict of the form {<str>: <int>}.
         """
-        regressions = {}
+        regressions: Dict[str, int] = {}
 
         # If the push was not backed-out and was not "bustage fixed", it can't
         # have caused regressions.
@@ -923,13 +933,16 @@ class Push:
                 while count >= 0 and i < MAX_DEPTH:
                     runnable_summaries = getattr(other, f"{runnable_type}_summaries")
 
-                    if name in runnable_summaries:
-                        summary = runnable_summaries[name]
-                        if summary.status != Status.PASS and all(
-                            c != "intermittent" for c, n in summary.classifications
-                        ):
-                            prior_regression = True
-                        break
+                    # We can't consider tasks from manifest-level pushes for finding label-level regressions
+                    # because tasks with the same name on different pushes might contain totally different tasks.
+                    if runnable_type != "label" or not other.is_manifest_label:
+                        if name in runnable_summaries:
+                            summary = runnable_summaries[name]
+                            if summary.status != Status.PASS and all(
+                                c != "intermittent" for c, n in summary.classifications
+                            ):
+                                prior_regression = True
+                            break
 
                     other = other.parent
                     count += 1
@@ -947,7 +960,7 @@ class Push:
                 count *= 2
 
             if not prior_regression and count <= MAX_DEPTH:
-                regressions[name] = count if count > 0 else 0
+                regressions[name] = int(count) if count > 0 else 0
 
         return regressions
 

@@ -5,7 +5,7 @@ import itertools
 import math
 from argparse import Namespace
 from collections import defaultdict
-from typing import Iterator, Set, Tuple, Union
+from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
 import adr
 from adr.errors import MissingDataError
@@ -412,6 +412,20 @@ class Push:
         return set(t.label for t in self.tasks)
 
     @memoized_property
+    def is_manifest_level(self):
+        """Whether a non-default manifest loader was used for this push.
+
+        Returns:
+            bool: True if a non-default manifest loader was used.
+        """
+        return (
+            self.decision_task.get_artifact("public/parameters.yml")[
+                "test_manifest_loader"
+            ]
+            != "default"
+        )
+
+    @memoized_property
     def target_task_labels(self):
         """The set of all task labels that could possibly run on this push.
 
@@ -497,17 +511,21 @@ class Push:
         return group_summaries
 
     @memoized_property
-    def label_summaries(self):
+    def label_summaries(self) -> Dict[str, LabelSummary]:
         """All label summaries combining retriggers.
 
         Returns:
             dict: A dictionary of the form {<label>: [<LabelSummary>]}.
         """
+        # We can't consider tasks from manifest-level pushes for finding label-level regressions
+        # because tasks with the same name on different pushes might contain totally different tests.
+        if self.is_manifest_level:
+            return {}
+
         labels = defaultdict(list)
         for task in self.tasks:
             labels[task.label].append(task)
-        labels = {label: LabelSummary(label, tasks) for label, tasks in labels.items()}
-        return labels
+        return {label: LabelSummary(label, tasks) for label, tasks in labels.items()}
 
     @memoized_property
     def duration(self):
@@ -684,7 +702,9 @@ class Push:
             if max_depth is not None and i == max_depth:
                 break
 
-    def _iterate_failures(self, runnable_type, max_depth=None):
+    def _iterate_failures(
+        self, runnable_type: str, max_depth: Optional[int] = None
+    ) -> Iterator[Tuple["Push", Dict[str, Tuple[float, str]]]]:
         failclass = ("not classified", "fixed by commit")
 
         ever_passing_runnables = set()
@@ -693,7 +713,7 @@ class Push:
 
         first_appareance = {}
 
-        classified_as_cause = defaultdict(list)
+        classified_as_cause: Dict[str, List[Optional[bool]]] = defaultdict(list)
 
         count = 0
         for other in self._iterate_children(max_depth):
@@ -731,7 +751,7 @@ class Push:
                     # children, we don't want to increase the previous distance.
                     continue
 
-                candidate_regressions[name] = (count, summary.status)
+                candidate_regressions[name] = (float(count), summary.status)
 
             adjusted_candidate_regressions = copy.deepcopy(candidate_regressions)
 
@@ -790,7 +810,9 @@ class Push:
                 other = other.child
                 count += 1
 
-    def get_candidate_regressions(self, runnable_type):
+    def get_candidate_regressions(
+        self, runnable_type: str
+    ) -> Dict[str, Tuple[float, str]]:
         """Retrieve the set of "runnables" that are regression candidates for this push.
 
         A "runnable" can be any group of tests, e.g. a label, a manifest across platforms,
@@ -830,7 +852,7 @@ class Push:
         return candidate_regressions
 
     @memoized_property
-    def bustage_fixed_by(self):
+    def bustage_fixed_by(self) -> Optional[str]:
         """The revision of the commit which 'bustage fixes' this one or None.
 
         We detect if a push was 'bustage fixed' with a simple heuristic:
@@ -857,25 +879,36 @@ class Push:
         if len(possible_bustage_fixes) == 0:
             return None
 
-        for other, candidate_regressions in self._iterate_failures("label", MAX_DEPTH):
-            if other == self or other not in possible_bustage_fixes:
-                continue
-
-            if any(
-                name in other.label_summaries
-                and other.label_summaries[name].status == Status.PASS
-                for name in candidate_regressions
+        def find(runnable_type: str) -> Optional[str]:
+            for other, candidate_regressions in self._iterate_failures(
+                runnable_type, MAX_DEPTH
             ):
-                return other.rev
+                if (
+                    other == self
+                    or other not in possible_bustage_fixes
+                    or other.is_manifest_level
+                ):
+                    continue
 
-            possible_bustage_fixes.remove(other)
-            if len(possible_bustage_fixes) == 0:
-                break
+                other_summaries = getattr(other, f"{runnable_type}_summaries")
 
-        return None
+                if any(
+                    name in other_summaries
+                    and other_summaries[name].status == Status.PASS
+                    for name in candidate_regressions
+                ):
+                    return other.rev
+
+                possible_bustage_fixes.remove(other)
+                if len(possible_bustage_fixes) == 0:
+                    break
+
+            return None
+
+        return find("label") or find("config_group")
 
     @memoize
-    def get_regressions(self, runnable_type):
+    def get_regressions(self, runnable_type: str) -> Dict[str, int]:
         """All regressions, both likely and definite.
 
         Each regression is associated with an integer, which is the number of
@@ -889,7 +922,7 @@ class Push:
         Returns:
             dict: A dict of the form {<str>: <int>}.
         """
-        regressions = {}
+        regressions: Dict[str, int] = {}
 
         # If the push was not backed-out and was not "bustage fixed", it can't
         # have caused regressions.
@@ -933,7 +966,7 @@ class Push:
                 count *= 2
 
             if not prior_regression and count <= MAX_DEPTH:
-                regressions[name] = count if count > 0 else 0
+                regressions[name] = int(count) if count > 0 else 0
 
         return regressions
 

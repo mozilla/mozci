@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mozci"
-version = "1.6.4"
+version = "1.6.5"
 description = ""
 authors = [
   "Andrew Halberstadt <ahal@mozilla.com>",

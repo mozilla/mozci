@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import re
 
 import pytest
 from responses import RequestsMock
@@ -78,6 +79,15 @@ def create_push(monkeypatch, responses):
             content_type="application/json",
         )
 
+        responses.add(
+            responses.GET,
+            re.compile(
+                "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/.*/artifacts"
+            ),
+            json={"artifacts": []},
+            status=200,
+        )
+
         push = Push(rev, branch)
         push._id = push_id
         push_rev_to_id[rev] = push_id
@@ -85,6 +95,7 @@ def create_push(monkeypatch, responses):
         push.bugs = {push_id}
         push.tasks = []
         push._revs = [push.rev]
+        push.is_manifest_level = False
 
         if prev_push:
             push.parent = prev_push

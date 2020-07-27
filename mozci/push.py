@@ -411,7 +411,7 @@ class Push:
         """
         return set(t.label for t in self.tasks)
 
-    @property
+    @memoized_property
     def is_manifest_level(self):
         """Whether a non-default manifest loader was used for this push.
 

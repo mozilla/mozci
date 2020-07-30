@@ -60,31 +60,38 @@ def test_missing_manifests():
     """
     Ensure all suites (except an ignorelist) are generating manifest information.
     """
-    IGNORELIST = (
-        "talos",
-        "jittest",
-        "geckoview-junit",
-        "cppunittest",
-        None,
-    )
-    ALLOWED_MISSING = 5
+    IGNORELIST = {
+        "talos": None,
+        "jittest": None,
+        "geckoview-junit": None,
+        "cppunittest": None,
+        None: None,
+        "default": 5,
+    }
 
     result = run_query("test_missing_manifests", Namespace())
 
     missing = []
 
     for suite, count in result["data"]:
-        if suite not in IGNORELIST:
-            if count > ALLOWED_MISSING:
-                missing.append((suite, count))
+        allowed_missing = IGNORELIST.get(suite, IGNORELIST["default"])
+        if allowed_missing is None:
+            continue
+
+        if count > allowed_missing:
+            missing.append((suite, count))
 
     assert missing == []
 
     # Ensure the ignorelist doesn't contain more than necessary.
     unignorable = []
     found_suites = {suite: count for suite, count in result["data"]}
-    for suite in IGNORELIST:
-        if suite not in found_suites or found_suites[suite] < ALLOWED_MISSING:
+    for suite, allowed_missing in IGNORELIST.items():
+        if suite == "default":
+            continue
+
+        allowed_missing = allowed_missing or IGNORELIST["default"]
+        if suite not in found_suites or found_suites[suite] < allowed_missing:
             unignorable.append(suite)
 
     assert unignorable == []

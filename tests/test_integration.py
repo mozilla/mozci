@@ -65,7 +65,7 @@ def test_missing_manifests():
         "jittest": None,
         "geckoview-junit": None,
         "cppunittest": None,
-        "test-verify-wpt": 20,
+        "test-verify-wpt": 10,
         "default": 5,
     }
 

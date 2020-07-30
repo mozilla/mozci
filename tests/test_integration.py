@@ -65,7 +65,7 @@ def test_missing_manifests():
         "jittest": None,
         "geckoview-junit": None,
         "cppunittest": None,
-        None: None,
+        "test-verify-wpt": 20,
         "default": 5,
     }
 
@@ -179,7 +179,7 @@ def test_caching_of_push(cache):
     # Once this push is older than a year update the revision
     # Once this push is older than 6 weeks the test will run slower because
     # all test tasks results will come from Taskcluster
-    REV = "2fd61eb5c69ce9ac806048a35c7a7a88bf4b9652"  # Push from Apr. 21, 2020.
+    REV = "08c29f9d87799463cdf99ab81f08f62339b49328"  # Push from Jul. 23, 2020.
     BRANCH = "mozilla-central"
     PUSH_UUID = "{}/{}".format(BRANCH, REV)
 
@@ -193,7 +193,7 @@ def test_caching_of_push(cache):
     tasks = push.tasks
     assert len(tasks) > 0
     push_task_map = cache.get(PUSH_UUID, {})
-    TOTAL_TEST_TASKS = 3126
+    TOTAL_TEST_TASKS = 3245
     # Testing that the tasks associated to a push have been cached
     assert len(push_task_map.keys()) == TOTAL_TEST_TASKS
 

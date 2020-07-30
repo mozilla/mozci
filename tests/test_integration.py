@@ -58,9 +58,9 @@ def test_create_pushes_and_get_regressions():
 
 def test_missing_manifests():
     """
-    Ensure all suites (except a blacklist) are generating manifest information.
+    Ensure all suites (except an ignorelist) are generating manifest information.
     """
-    BLACKLIST = (
+    IGNORELIST = (
         "talos",
         "jittest",
         "geckoview-junit",
@@ -74,28 +74,28 @@ def test_missing_manifests():
     missing = []
 
     for suite, count in result["data"]:
-        if suite not in BLACKLIST:
+        if suite not in IGNORELIST:
             if count > ALLOWED_MISSING:
                 missing.append((suite, count))
 
     assert missing == []
 
-    # Ensure the blacklist doesn't contain more than necessary.
-    unblacklistable = []
+    # Ensure the ignorelist doesn't contain more than necessary.
+    unignorable = []
     found_suites = {suite: count for suite, count in result["data"]}
-    for suite in BLACKLIST:
+    for suite in IGNORELIST:
         if suite not in found_suites or found_suites[suite] < ALLOWED_MISSING:
-            unblacklistable.append(suite)
+            unignorable.append(suite)
 
-    assert unblacklistable == []
+    assert unignorable == []
 
 
 def test_missing_result_manifests():
     """
-    Ensure unittest results from all manifest-based suites (except a blacklist)
+    Ensure unittest results from all manifest-based suites (except an ignorelist)
     have information on what manifest the result corresponds to.
     """
-    BLACKLIST = {
+    IGNORELIST = {
         "marionette",
     }
     ALLOWED_MISSING = 70
@@ -105,20 +105,20 @@ def test_missing_result_manifests():
     missing = []
 
     for suite, count in result["data"]:
-        if suite not in BLACKLIST:
+        if suite not in IGNORELIST:
             if count > ALLOWED_MISSING:
                 missing.append((suite, count))
 
     assert missing == []
 
-    # Ensure the blacklist doesn't contain more than necessary.
-    unblacklistable = []
+    # Ensure the ignorelist doesn't contain more than necessary.
+    unignorable = []
     found_suites = {suite: count for suite, count in result["data"]}
-    for suite in BLACKLIST:
+    for suite in IGNORELIST:
         if suite not in found_suites or found_suites[suite] < ALLOWED_MISSING:
-            unblacklistable.append(suite)
+            unignorable.append(suite)
 
-    assert unblacklistable == []
+    assert unignorable == []
 
 
 def test_good_manifests():

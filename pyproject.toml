@@ -10,7 +10,7 @@ authors = [
 [tool.poetry.dependencies]
 python = "^3.7"
 adr = "^0.19"
-taskcluster_urls = "^12.1"
+taskcluster_urls = ">=12.1,<14.0"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.6"

@@ -658,7 +658,7 @@ description = "Standardized url generator for taskcluster resources."
 name = "taskcluster-urls"
 optional = false
 python-versions = "*"
-version = "12.1.0"
+version = "13.0.1"
 
 [[package]]
 category = "main"
@@ -787,7 +787,7 @@ python-versions = "*"
 version = "0.14.0"
 
 [metadata]
-content-hash = "374703f4af06a65f931e355b66047cb1b42d3eb3a14c32c555f1d4f16e375f6a"
+content-hash = "90fa8f5bac35874a50453ecce1aaf3d57b09a65f2575933aec42a82905a544d1"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -1051,8 +1051,9 @@ taskcluster = [
     {file = "taskcluster-30.1.1.tar.gz", hash = "sha256:96295013ce891c8d86c59353ff24e7e0c0a1d7d2e2e517ab424281af4ff6a64c"},
 ]
 taskcluster-urls = [
-    {file = "taskcluster-urls-12.1.0.tar.gz", hash = "sha256:1dc740c32c7beb31e11ed7ccf9da2d47a504acdb3170c8900649433b0fd16fb2"},
-    {file = "taskcluster_urls-12.1.0-py2-none-any.whl", hash = "sha256:4a62c776aeba6d45044789a8845ec4d8521bc1bb6ebfc86d79ee759bcdd4f2f7"},
+    {file = "taskcluster-urls-13.0.1.tar.gz", hash = "sha256:b25e122ecec249c4299ac7b20b08db76e3e2025bdaeb699a9d444556de5fd367"},
+    {file = "taskcluster_urls-13.0.1-py2-none-any.whl", hash = "sha256:5e25e7e6818e8877178b175ff43d2e6548afad72694aa125f404a7329ece0973"},
+    {file = "taskcluster_urls-13.0.1-py3-none-any.whl", hash = "sha256:f66dcbd6572a6216ab65949f0fa0b91f2df647918028436c384e6af5cd12ae2b"},
 ]
 terminaltables = [
     {file = "terminaltables-3.1.0.tar.gz", hash = "sha256:f3eb0eb92e3833972ac36796293ca0906e998dc3be91fbe1f8615b331b853b81"},

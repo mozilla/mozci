@@ -370,20 +370,20 @@ def test_generate_all_shadow_scheduler_tasks(responses):
     )
 
     id = count(2)
-    for s in shadow_schedulers:
+    for ss in shadow_schedulers:
         s_id = next(id)
         responses.add(
             responses.GET,
-            get_index_url(push.index + f".source.shadow-scheduler-{s[0]}"),
+            get_index_url(f"{push.index}.source.shadow-scheduler-{ss[0]}"),
             json={"taskId": s_id},
             status=200,
         )
 
         responses.add(
             responses.GET,
-            get_artifact_url(s_id, "public/shadow-scheduler/optimized_tasks.list"),
+            get_artifact_url(s_id, "public/shadow-scheduler/optimized-tasks.json"),
             stream=True,
-            body="\n".join(s[1]),
+            json={next(id): {"label": task} for task in ss[1]},
             status=200,
         )
 
@@ -392,3 +392,42 @@ def test_generate_all_shadow_scheduler_tasks(responses):
         print(i, name, tasks)
         assert name == shadow_schedulers[i][0]
         assert tasks == set(shadow_schedulers[i][1])
+
+
+def test_get_shadow_scheduler_tasks_fallback(responses):
+    rev = "a" * 40
+    ss = ("foo", ["task-2", "task-4"])
+    ss_id = 1
+
+    push = Push(rev)
+    responses.add(
+        responses.GET,
+        get_index_url(f"{push.index}.source.shadow-scheduler-{ss[0]}"),
+        json={"taskId": ss_id},
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        get_artifact_url(ss_id, "public/shadow-scheduler/optimized-tasks.json"),
+        status=404,
+    )
+
+    # utility file will also try the old deployment
+    responses.add(
+        responses.GET,
+        get_artifact_url(
+            ss_id, "public/shadow-scheduler/optimized-tasks.json", old_deployment=True
+        ),
+        status=404,
+    )
+
+    responses.add(
+        responses.GET,
+        get_artifact_url(ss_id, "public/shadow-scheduler/optimized_tasks.list"),
+        stream=True,
+        body="\n".join(ss[1]),
+        status=200,
+    )
+
+    assert push.get_shadow_scheduler_tasks(ss[0]) == set(ss[1])

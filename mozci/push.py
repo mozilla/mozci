@@ -13,7 +13,12 @@ from adr.query import run_query
 from adr.util.memoize import memoize, memoized_property
 from loguru import logger
 
-from mozci.errors import ChildPushNotFound, ParentPushNotFound, PushNotFound
+from mozci.errors import (
+    ArtifactNotFound,
+    ChildPushNotFound,
+    ParentPushNotFound,
+    PushNotFound,
+)
 from mozci.task import GroupResult, GroupSummary, LabelSummary, Status, Task, TestTask
 from mozci.util.hgmo import HGMO
 
@@ -1014,8 +1019,16 @@ class Push:
         """
         index = self.index + ".source.shadow-scheduler-{}".format(name)
         task = Task.create(index=index)
-        labels = task.get_artifact("public/shadow-scheduler/optimized_tasks.list")
-        return set(labels.splitlines())
+
+        try:
+            optimized = task.get_artifact(
+                "public/shadow-scheduler/optimized-tasks.json"
+            )
+            return set(t["label"] for t in optimized.values())
+        except ArtifactNotFound:
+            # TODO Legacy artifact format, remove after Jan 1st 2021.
+            labels = task.get_artifact("public/shadow-scheduler/optimized_tasks.list")
+            return set(labels.splitlines())
 
     def generate_all_shadow_scheduler_tasks(
         self,

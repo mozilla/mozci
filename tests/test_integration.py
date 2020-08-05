@@ -65,7 +65,6 @@ def test_missing_manifests():
         "jittest": None,
         "geckoview-junit": None,
         "cppunittest": None,
-        "test-verify-wpt": 10,
         "default": 5,
     }
 
@@ -92,7 +91,7 @@ def test_missing_manifests():
 
         allowed_missing = allowed_missing or IGNORELIST["default"]
         if suite not in found_suites or found_suites[suite] < allowed_missing:
-            unignorable.append(suite)
+            unignorable.append((suite, found_suites.get(suite)))
 
     assert unignorable == []
 

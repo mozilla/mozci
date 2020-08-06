@@ -24,6 +24,8 @@ MAX_DEPTH = 14
 when the task did not run on the currently considered push.
 """
 
+FAILURE_CLASSES = ("not classified", "fixed by commit")
+
 
 class Push:
     """A representation of a single push.
@@ -705,8 +707,6 @@ class Push:
     def _iterate_failures(
         self, runnable_type: str, max_depth: Optional[int] = None
     ) -> Iterator[Tuple["Push", Dict[str, Tuple[float, str]]]]:
-        failclass = ("not classified", "fixed by commit")
-
         ever_passing_runnables = set()
         passing_runnables = set()
         candidate_regressions = {}
@@ -728,7 +728,7 @@ class Push:
                         passing_runnables.add(name)
                     continue
 
-                if all(c not in failclass for c, n in summary.classifications):
+                if all(c not in FAILURE_CLASSES for c, n in summary.classifications):
                     classified_as_cause[name].append(None)
                     if name not in candidate_regressions:
                         passing_runnables.add(name)
@@ -843,7 +843,9 @@ class Push:
                     if (
                         name in candidate_regressions
                         and summary.status != Status.PASS
-                        and all(c != "intermittent" for c, n in summary.classifications)
+                        and all(
+                            c in FAILURE_CLASSES for c, n in summary.classifications
+                        )
                     ):
                         del candidate_regressions[name]
 

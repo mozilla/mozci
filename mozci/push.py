@@ -301,6 +301,12 @@ class Push:
         except MissingDataError:
             pass
 
+        # Gather task tags from the task table.
+        try:
+            add(run_query("push_tasks_tags_from_task", args))
+        except MissingDataError:
+            pass
+
         # Let's gather error/results from cache or AD/Taskcluster
         test_tasks_results = adr.config.cache.get(self.push_uuid, {})
         was_cached = len(test_tasks_results.keys()) != 0
@@ -524,13 +530,13 @@ class Push:
         Returns:
             dict: A dictionary of the form {<label>: [<LabelSummary>]}.
         """
-        # We can't consider tasks from manifest-level pushes for finding label-level regressions
-        # because tasks with the same name on different pushes might contain totally different tests.
-        if self.is_manifest_level:
-            return {}
-
         labels = defaultdict(list)
         for task in self.tasks:
+            # We can't consider tasks that were chunked in the taskgraph for finding label-level regressions
+            # because tasks with the same name on different pushes might contain totally different tests.
+            if task.tags.get("tests_grouped") == "1":
+                continue
+
             labels[task.label].append(task)
         return {label: LabelSummary(label, tasks) for label, tasks in labels.items()}
 
@@ -890,11 +896,7 @@ class Push:
             for other, candidate_regressions in self._iterate_failures(
                 runnable_type, MAX_DEPTH
             ):
-                if (
-                    other == self
-                    or other not in possible_bustage_fixes
-                    or other.is_manifest_level
-                ):
+                if other == self or other not in possible_bustage_fixes:
                     continue
 
                 other_summaries = getattr(other, f"{runnable_type}_summaries")

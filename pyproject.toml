@@ -27,7 +27,7 @@ flake8 = "^3.8.3"
 pre-commit = "^2.6"
 pytest = "^6.0"
 tox = "^3.18"
-responses = "^0.10"
+responses = "^0.11"
 sphinx = "^3.1.2"
 
 [build-system]

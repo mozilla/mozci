@@ -98,10 +98,10 @@ class CustomCacheManager(CacheManager):
 class Configuration(Mapping):
     DEFAULT_CONFIG_PATH = Path(user_config_dir("mozci")) / "config.toml"
     DEFAULTS = {
-        "data_sources": ["adr"],
-        "cache": {"retention": 1440},  # minutes
-        "verbose": False,
+        "merge": {"cache": {"retention": 1440},},  # minutes
+        "replace": {"data_sources": ["adr"], "verbose": False,},
     }
+
     locked = False
 
     def __init__(self, path=None):
@@ -109,13 +109,16 @@ class Configuration(Mapping):
             path or os.environ.get("MOZCI_CONFIG_PATH") or self.DEFAULT_CONFIG_PATH
         )
 
-        self._config = copy.deepcopy(self.DEFAULTS)
+        self._config = copy.deepcopy(self.DEFAULTS["merge"])
         if self.path.is_file():
             with open(self.path, "r") as fh:
                 content = fh.read()
                 self.merge(parse(content)["mozci"])
         else:
             logger.warning(f"Configuration path {self.path} is not a file.")
+
+        for k, v in self.DEFAULTS["replace"].items():
+            self._config.setdefault(k, v)
 
         self.cache = CustomCacheManager(self._config["cache"])
         self.locked = True

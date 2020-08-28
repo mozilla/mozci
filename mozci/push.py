@@ -254,7 +254,9 @@ class Push:
 
         # Gather task tags from the task table.
         try:
-            tags_by_task = data.handler.get("push_tasks_tags", branch=self.branch, rev=self.rev)
+            tags_by_task = data.handler.get(
+                "push_tasks_tags", branch=self.branch, rev=self.rev
+            )
             for task in tasks:
                 tags = tags_by_task.get(task.id)
                 if tags:

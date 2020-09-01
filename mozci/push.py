@@ -394,6 +394,21 @@ class Push:
         """
         return self.task_labels - self.scheduled_task_labels
 
+    # Because of https://bugzilla.mozilla.org/show_bug.cgi?id=1640758, we can't trust
+    # test-verify when there are no reported failures.
+    # TODO: Drop this function a few months after the bug mentioned above is fixed.
+    def clean_test_verify_tasks(self, group, tasks):
+        # If the push is newer than the fix of bug 1640758, we don't need to filter.
+        if self.date >= 1591200732:
+            return tasks
+
+        return [
+            t
+            for t in tasks
+            if "test-verify" not in t.label
+            or any(result.group == group and not result.ok for result in t.results)
+        ]
+
     @memoized_property
     def config_group_summaries(self):
         """All group summaries, on given configurations, combining retriggers.
@@ -412,12 +427,14 @@ class Push:
 
         config_group_summaries = {}
         for config_group, tasks in config_groups.items():
-            group_summary = GroupSummary(config_group[1], tasks)
-            # TODO: We need this check because GroupSummary might ignore some test-verify
-            # tasks. A few months after https://bugzilla.mozilla.org/show_bug.cgi?id=1640758
-            # is fixed, we can remove it.
-            if len(group_summary.tasks) > 0:
-                config_group_summaries[config_group] = group_summary
+            # Because of https://bugzilla.mozilla.org/show_bug.cgi?id=1640758, we can't trust
+            # test-verify when there are no reported failures.
+            # TODO: Drop the clean call and the length check a few months after the bug mentioned above is fixed.
+            tasks = self.clean_test_verify_tasks(config_group[1], tasks)
+            if len(tasks) == 0:
+                continue
+
+            config_group_summaries[config_group] = GroupSummary(config_group[1], tasks)
 
         return config_group_summaries
 
@@ -439,12 +456,14 @@ class Push:
 
         group_summaries = {}
         for group, tasks in groups.items():
-            group_summary = GroupSummary(group, tasks)
-            # TODO: We need this check because GroupSummary might ignore some test-verify
-            # tasks. A few months after https://bugzilla.mozilla.org/show_bug.cgi?id=1640758
-            # is fixed, we can remove it.
-            if len(group_summary.tasks) > 0:
-                group_summaries[group] = group_summary
+            # Because of https://bugzilla.mozilla.org/show_bug.cgi?id=1640758, we can't trust
+            # test-verify when there are no reported failures.
+            # TODO: Drop the clean call and the length check a few months after the bug mentioned above is fixed.
+            tasks = self.clean_test_verify_tasks(group, tasks)
+            if len(tasks) == 0:
+                continue
+
+            group_summaries[group] = GroupSummary(group, tasks)
 
         return group_summaries
 

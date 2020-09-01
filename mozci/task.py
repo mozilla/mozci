@@ -275,9 +275,9 @@ class TestTask(Task):
         group_results = {}
 
         lines = [
-            json.loads(l)
+            json.loads(line)
             for path in paths
-            for l in self.get_artifact(path).splitlines()
+            for line in self.get_artifact(path).splitlines()
         ]
 
         has_group_result = any(line["action"] == "group_result" for line in lines)

@@ -88,7 +88,7 @@ def test_push_does_not_exist(responses):
     responses.add(
         responses.GET,
         HGMO.JSON_TEMPLATE.format(branch="integration/autoland", rev=rev),
-        json={f"error": "unknown revision '{rev}'"},
+        json={"error": f"unknown revision '{rev}'"},
         status=404,
     )
 
@@ -100,7 +100,7 @@ def test_push_does_not_exist(responses):
     responses.add(
         responses.GET,
         HGMO.JSON_TEMPLATE.format(branch="integration/autoland", rev=rev),
-        json={f"error": "unknown revision '{rev}'"},
+        json={"error": f"unknown revision '{rev}'"},
         status=404,
     )
     p = Push(rev)
@@ -232,7 +232,7 @@ def test_push_parent_on_try(responses, create_changesets):
     responses.add(
         responses.GET,
         HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
-        json={f"error": "unknown revision '{parent_rev}'"},
+        json={"error": f"unknown revision '{parent_rev}'"},
         status=404,
     )
 
@@ -330,10 +330,15 @@ def test_push_child_raises(responses):
     push = Push(rev, branch="integration/autoland")
     push._id = 100
     url = HGMO.JSON_PUSHES_TEMPLATE.format(
-        branch=push.branch, push_id_start=push.id, push_id_end=push.id + 1,
+        branch=push.branch,
+        push_id_start=push.id,
+        push_id_end=push.id + 1,
     )
     responses.add(
-        responses.GET, url, json={"lastpushid": push.id, "pushes": {}}, status=200,
+        responses.GET,
+        url,
+        json={"lastpushid": push.id, "pushes": {}},
+        status=200,
     )
 
     with pytest.raises(ChildPushNotFound):

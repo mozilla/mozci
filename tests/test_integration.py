@@ -45,7 +45,9 @@ def test_create_pushes_and_get_regressions():
     An integration test mimicking the mozci usage done by bugbug.
     """
     pushes = make_push_objects(
-        from_date="today-7day", to_date="today-6day", branch="autoland",
+        from_date="today-7day",
+        to_date="today-6day",
+        branch="autoland",
     )
 
     assert len(pushes) > 0

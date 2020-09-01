@@ -155,8 +155,7 @@ def get_s3_credentials(bucket, prefix):
 
 class S3Store(Store):
     def __init__(self, config):
-        """A Store instance that stores items in S3.
-        """
+        """A Store instance that stores items in S3."""
         self._bucket = config["bucket"]
         self._prefix = config["prefix"]
         self._create_client()

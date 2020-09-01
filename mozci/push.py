@@ -254,7 +254,9 @@ class Push:
 
         # Gather task tags from the task table.
         try:
-            tags_by_task = data.handler.get("push_tasks_tags", branch=self.branch, rev=self.rev)
+            tags_by_task = data.handler.get(
+                "push_tasks_tags", branch=self.branch, rev=self.rev
+            )
             for task in tasks:
                 tags = tags_by_task.get(task.id)
                 if tags:
@@ -333,7 +335,9 @@ class Push:
         # We *only* cache errors and results
         # cachy's put() overwrites the value in the cache; add() would only add if its empty
         config.cache.put(
-            self.push_uuid, test_tasks, config["cache"]["retention"],
+            self.push_uuid,
+            test_tasks,
+            config["cache"]["retention"],
         )
 
     @property

@@ -1,10 +1,10 @@
 repos:
 -   repo: https://github.com/asottile/seed-isort-config
-    rev: v2.1.0
+    rev: v2.2.0
     hooks:
     -   id: seed-isort-config
 -   repo: https://github.com/timothycrosley/isort
-    rev: 4.3.21
+    rev: 5.4.2
     hooks:
     - id: isort
       entry: bash -c 'isort "$@"; git add -u' --
@@ -14,12 +14,12 @@ repos:
     - id: black
       entry: bash -c 'black "$@"; git add -u' --
 -   repo: https://gitlab.com/pycqa/flake8
-    rev: 3.7.9
+    rev: 3.8.3
     hooks:
     -   id: flake8
         additional_dependencies: ['flake8-coding==1.3.1', 'flake8-copyright==0.2.2', 'flake8-debugger==3.1.0', 'flake8-mypy==17.8.0']
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.5.0
+    rev: v3.2.0
     hooks:
     -   id: check-ast
     -   id: check-executables-have-shebangs
@@ -34,20 +34,20 @@ repos:
     -   id: check-json
     -   id: requirements-txt-fixer
 -   repo: https://github.com/codespell-project/codespell
-    rev: v1.16.0
+    rev: v1.17.1
     hooks:
     -   id: codespell
         exclude_types: [json]
 -   repo: https://github.com/marco-c/taskcluster_yml_validator
-    rev: v0.0.4
+    rev: v0.0.7
     hooks:
     -   id: taskcluster_yml
 -   repo: https://github.com/asottile/yesqa
-    rev: v1.1.0
+    rev: v1.2.1
     hooks:
     -   id: yesqa
 -   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.770
+    rev: v0.782
     hooks:
     -   id: mypy
 -   repo: meta

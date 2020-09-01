@@ -28,7 +28,9 @@ def test_missing_artifacts(responses, create_task):
 
     # First we'll check the new deployment.
     responses.add(
-        responses.GET, get_artifact_url(task.id, artifact), status=404,
+        responses.GET,
+        get_artifact_url(task.id, artifact),
+        status=404,
     )
 
     # Then we'll check the old deployment.
@@ -54,7 +56,10 @@ def test_create(responses):
     # Can also specify an index.
     index = "index.path"
     responses.add(
-        responses.GET, get_index_url(index), json={"taskId": 1}, status=200,
+        responses.GET,
+        get_index_url(index),
+        json={"taskId": 1},
+        status=200,
     )
     assert Task.create(index=index, label="foobar").label == "foobar"
     assert Task.create(index=index).label is None

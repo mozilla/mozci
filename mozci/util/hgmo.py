@@ -69,7 +69,9 @@ class HGMO:
     @memoize
     def json_pushes(self, push_id_start, push_id_end):
         url = self.JSON_PUSHES_TEMPLATE.format(
-            push_id_start=push_id_start, push_id_end=push_id_end, **self.context,
+            push_id_start=push_id_start,
+            push_id_end=push_id_end,
+            **self.context,
         )
         return self._get_resource(url)["pushes"]
 

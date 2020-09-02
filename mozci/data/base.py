@@ -72,8 +72,9 @@ class DataHandler:
 
 
 def register_sources():
-    from mozci.data.sources import activedata
+    from mozci.data.sources import activedata, treeherder
 
     DataHandler.ALL_SOURCES = {
+        "treeherder": treeherder.TreeherderSource(),
         "adr": activedata.ActiveDataSource(),
     }

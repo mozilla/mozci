@@ -248,7 +248,6 @@ class Push:
         tasks = []
         try:
             tasks = data.handler.get("push_tasks", branch=self.branch, rev=self.rev)
-            tasks = [Task.create(**task) for task in tasks]
         except MissingDataError:
             pass
 
@@ -258,9 +257,11 @@ class Push:
                 "push_tasks_tags", branch=self.branch, rev=self.rev
             )
             for task in tasks:
-                tags = tags_by_task.get(task.id)
+                tags = tags_by_task.get(task["id"])
                 if tags:
-                    task.tags.update(tags)
+                    if "tags" not in task:
+                        task["tags"] = {}
+                    task["tags"].update(tags)
         except MissingDataError:
             pass
 
@@ -277,15 +278,17 @@ class Push:
                     "push_test_groups", branch=self.branch, rev=self.rev
                 )
                 for task in tasks:
-                    results = groups.get(task.id)
+                    results = groups.get(task["id"])
                     if results is not None:
-                        task._results = [
+                        task["_results"] = [
                             GroupResult(group=group, ok=ok)
                             for group, ok in results.items()
                         ]
 
             except MissingDataError:
                 pass
+
+        tasks = [Task.create(**task) for task in tasks]
 
         # Add any data available in the cache
         if was_cached:

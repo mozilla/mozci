@@ -403,16 +403,6 @@ class GroupSummary(RunnableSummary):
             self.name = wpt_workaround(self.name)
         assert all(self.name in t.groups for t in self.tasks)
 
-        # Because of https://bugzilla.mozilla.org/show_bug.cgi?id=1640758, we can't trust
-        # test-verify when there are no reported failures.
-        # TODO: Drop this filtering a few months after the bug mentioned above is fixed.
-        self.tasks = [
-            t
-            for t in self.tasks
-            if "test-verify" not in t.label
-            or any(result.group == self.name and not result.ok for result in t.results)
-        ]
-
     @property
     def classifications(self):
         return [

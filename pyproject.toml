@@ -26,7 +26,7 @@ flake8 = "^3.8.3"
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.7"
 pytest = "^6.0"
-tox = "^3.18"
+tox = "^3.20"
 responses = "^0.12"
 sphinx = "^3.1.2"
 

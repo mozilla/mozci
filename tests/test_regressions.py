@@ -2078,3 +2078,275 @@ def test_try(
 
     assert p[i].get_regressions("label") == {"test-preexisting": 0}
     assert try_p.get_regressions("label") == {"test-new": 1}
+
+
+def test_intermittent_failure_in_parent(create_pushes):
+    """
+    Tests the scenario where a task failed intermittently in a push and in its
+    parent.
+    """
+    p = create_pushes(3)
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        ),
+        Task.create(
+            id="2",
+            label="test-prova",
+            result="success",
+        ),
+    ]
+    p[i].tasks = [
+        Task.create(
+            id="3",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        ),
+        Task.create(
+            id="4",
+            label="test-prova",
+            result="success",
+        ),
+    ]
+    p[i].backedoutby = p[i + 1].rev
+
+    assert p[i].get_regressions("label") == {}
+
+
+def test_intermittent_failure_and_consistent_in_parent(create_pushes):
+    """
+    Tests the scenario where a task failed intermittently in a push, and failed
+    consistently in its parent.
+    """
+    p = create_pushes(3)
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        ),
+    ]
+    p[i].tasks = [
+        Task.create(
+            id="2",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        ),
+        Task.create(
+            id="3",
+            label="test-prova",
+            result="success",
+        ),
+    ]
+    p[i].backedoutby = p[i + 1].rev
+
+    assert p[i].get_regressions("label") == {"test-prova": 0}
+
+
+def test_intermittent_failure_and_passes_in_parent(create_pushes):
+    """
+    Tests the scenario where a task failed intermittently in a push and passed in
+    its parent.
+    """
+    p = create_pushes(3)
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [
+        Task.create(
+            id="1",
+            label="test-prova",
+            result="success",
+        ),
+    ]
+    p[i].tasks = [
+        Task.create(
+            id="2",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        ),
+        Task.create(
+            id="3",
+            label="test-prova",
+            result="success",
+        ),
+    ]
+    p[i].backedoutby = p[i + 1].rev
+
+    assert p[i].get_regressions("label") == {"test-prova": 0}
+
+
+def test_intermittent_failure_in_parent_after_failures(create_pushes):
+    """
+    Tests the scenario where a task failed intermittently in a push, consistently
+    in its parent, and intermittently again in its parent's parent.
+    """
+    p = create_pushes(4)
+    i = 2  # the index of the push we are mainly interested in
+
+    p[i - 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        ),
+        Task.create(
+            id="2",
+            label="test-prova",
+            result="success",
+        ),
+    ]
+    p[i - 1].tasks = [
+        Task.create(
+            id="3",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        ),
+    ]
+    p[i].tasks = [
+        Task.create(
+            id="4",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        ),
+        Task.create(
+            id="5",
+            label="test-prova",
+            result="success",
+        ),
+    ]
+    p[i].backedoutby = p[i + 1].rev
+
+    assert p[i].get_regressions("label") == {}
+
+
+def test_intermittent_failure_in_parent_after_passes(create_pushes):
+    """
+    Tests the scenario where a task failed intermittently in a push, passed in
+    its parent, and failed intermittently again in its parent's parent.
+    """
+    p = create_pushes(4)
+    i = 2  # the index of the push we are mainly interested in
+
+    p[i - 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        ),
+        Task.create(
+            id="2",
+            label="test-prova",
+            result="success",
+        ),
+    ]
+    p[i - 1].tasks = [
+        Task.create(
+            id="3",
+            label="test-prova",
+            result="success",
+        ),
+    ]
+    p[i].tasks = [
+        Task.create(
+            id="4",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        ),
+        Task.create(
+            id="5",
+            label="test-prova",
+            result="success",
+        ),
+    ]
+    p[i].backedoutby = p[i + 1].rev
+
+    assert p[i].get_regressions("label") == {}
+
+
+def test_classified_intermittent_failure_in_parent_after_passes(create_pushes):
+    """
+    Tests the scenario where a task was marked as intermittently failing in a
+    push, passed in its parent, and was marked as intermittently failing again
+    in its parent's parent.
+    """
+    p = create_pushes(4)
+    i = 2  # the index of the push we are mainly interested in
+
+    p[i - 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-prova",
+            result="testfailed",
+            classification="intermittent",
+        ),
+    ]
+    p[i - 1].tasks = [
+        Task.create(
+            id="2",
+            label="test-prova",
+            result="success",
+        ),
+    ]
+    p[i].tasks = [
+        Task.create(
+            id="3",
+            label="test-prova",
+            result="testfailed",
+            classification="intermittent",
+        ),
+    ]
+    p[i].backedoutby = p[i + 1].rev
+
+    assert p[i].get_regressions("label") == {}
+
+
+def test_failure_after_pass(create_pushes):
+    """
+    Tests the scenario where a task failed in a push, passed in its parent and failed
+    in its parent's parent.
+    """
+    p = create_pushes(4)
+    i = 2  # the index of the push we are mainly interested in
+
+    p[i - 2].tasks = [
+        Task.create(
+            id="1",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        ),
+    ]
+    p[i - 1].tasks = [
+        Task.create(
+            id="2",
+            label="test-prova",
+            result="success",
+        ),
+    ]
+    p[i].tasks = [
+        Task.create(
+            id="3",
+            label="test-prova",
+            result="testfailed",
+            classification="not classified",
+        ),
+    ]
+    p[i].backedoutby = p[i + 1].rev
+
+    assert p[i].get_regressions("label") == {"test-prova": 0}

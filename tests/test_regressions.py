@@ -692,7 +692,7 @@ def test_child_failed_and_bustage_fixed(create_pushes):
     p[len(p) - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
     p[len(p) - 1].bugs = {123}
 
-    assert p[i].get_regressions("label") == {"test-prova": 6}
+    assert p[i].get_regressions("label") == {"test-prova": 10}
 
 
 def test_child_failed_and_not_backedout(create_pushes):
@@ -1802,7 +1802,7 @@ def test_fixed_by_commit_multiple_backout(monkeypatch, create_pushes):
             return int(p[i]._id)
         elif cls.context["rev"] == "rev3":
             return int(3)
-        elif cls.context["rev"] == "rev18":
+        elif cls.context["rev"] == "rev24":
             return int(18)
         else:
             raise Exception(cls.context["rev"])

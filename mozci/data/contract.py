@@ -31,9 +31,12 @@ _contracts: Tuple[Contract, ...] = (
                     Required("label"): str,
                     Required("result"): str,
                     Required("classification"): Any(
-                        "not classified",
+                        "autoclassified intermittent",
+                        "infra",
                         "intermittent",
+                        "expected fail",
                         "fixed by commit",
+                        "not classified",
                     ),
                     Optional("classification_note"): str,
                     Optional("duration"): int,

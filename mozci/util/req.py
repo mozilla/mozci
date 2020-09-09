@@ -11,7 +11,7 @@ DEFAULT_STATUS_FORCELIST = [500, 502, 503, 504]
 
 
 @lru_cache(maxsize=None)
-def get_session(name, concurrency=50):
+def get_session(concurrency=50):
     session = requests.Session()
 
     retry = Retry(

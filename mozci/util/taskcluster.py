@@ -15,7 +15,7 @@ PRODUCTION_TASKCLUSTER_ROOT_URL = "https://firefox-ci-tc.services.mozilla.com"
 
 
 def _do_request(url, force_get=False, **kwargs):
-    session = get_session("taskcluster")
+    session = get_session()
     if kwargs and not force_get:
         response = session.post(url, **kwargs)
     else:

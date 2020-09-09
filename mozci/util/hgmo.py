@@ -40,7 +40,7 @@ class HGMO:
 
     def _get_resource(self, url):
         try:
-            r = get_session("hgmo").get(url)
+            r = get_session().get(url)
         except requests.exceptions.RetryError as e:
             raise PushNotFound(f"{e} error when getting {url}", **self.context)
 

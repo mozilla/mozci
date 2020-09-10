@@ -19,7 +19,15 @@ from mozci.errors import (
     ParentPushNotFound,
     PushNotFound,
 )
-from mozci.task import GroupResult, GroupSummary, LabelSummary, Status, Task, TestTask
+from mozci.task import (
+    GroupResult,
+    GroupSummary,
+    LabelSummary,
+    RunnableSummary,
+    Status,
+    Task,
+    TestTask,
+)
 from mozci.util.hgmo import HGMO
 
 BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
@@ -664,7 +672,7 @@ class Push:
 
     def _iterate_failures(
         self, runnable_type: str, max_depth: Optional[int] = None
-    ) -> Iterator[Tuple["Push", Dict[str, Tuple[float, str]]]]:
+    ) -> Iterator[Tuple["Push", Dict[str, Tuple[float, RunnableSummary]]]]:
         ever_passing_runnables = set()
         passing_runnables = set()
         candidate_regressions = {}
@@ -709,7 +717,7 @@ class Push:
                     # children, we don't want to increase the previous distance.
                     continue
 
-                candidate_regressions[name] = (float(count), summary.status)
+                candidate_regressions[name] = (float(count), summary)
 
             adjusted_candidate_regressions = copy.deepcopy(candidate_regressions)
 
@@ -770,7 +778,7 @@ class Push:
 
     def get_candidate_regressions(
         self, runnable_type: str
-    ) -> Dict[str, Tuple[float, str]]:
+    ) -> Dict[str, Tuple[float, RunnableSummary]]:
         """Retrieve the set of "runnables" that are regression candidates for this push.
 
         A "runnable" can be any group of tests, e.g. a label, a manifest across platforms,
@@ -885,7 +893,7 @@ class Push:
         if self.branch != "try" and not self.backedout and not self.bustage_fixed_by:
             return regressions
 
-        for name, (count, status) in self.get_candidate_regressions(
+        for name, (count, failure_summary) in self.get_candidate_regressions(
             runnable_type
         ).items():
             other = self.parent
@@ -894,20 +902,40 @@ class Push:
             # test-verify is special, we can assume the test-verify task is not the same as the one
             # in the parent pushes.
             if runnable_type != "label" or "test-verify" not in name:
+                found_in_parent = False
                 i = 0
                 while count >= 0 and i < MAX_DEPTH:
                     runnable_summaries = getattr(other, f"{runnable_type}_summaries")
 
                     if name in runnable_summaries:
+                        found_in_parent = True
                         summary = runnable_summaries[name]
-                        if summary.status != Status.PASS and all(
-                            c != "intermittent" for c, n in summary.classifications
-                        ):
+
+                        # If the failure is not intermittent...
+                        if not failure_summary.is_intermittent:
+                            # ...and it failed permanently in the first parent where it ran, it is a
+                            # prior regression.
+                            # Otherwise, if it passed or was intermittent, it is likely not a prior
+                            # regression.
+                            if (
+                                summary.status != Status.PASS
+                                and not summary.is_intermittent
+                            ):
+                                prior_regression = True
+
+                            break
+
+                        # If the failure is intermittent and it failed intermittently in a close
+                        # parent too, it is likely a prior regression.
+                        # We need to explore the parent's parents instead if it passed or failed
+                        # consistently in the parent.
+                        elif summary.is_intermittent:
                             prior_regression = True
-                        break
+                            break
 
                     other = other.parent
-                    count += 1
+                    if not found_in_parent:
+                        count += 1
                     i += 1
 
             # Given that our "bustage fix" detection is a heuristic which might fail, we
@@ -918,7 +946,7 @@ class Push:
                 count *= 2
 
             # Also penalize cases where the status was intermittent.
-            if status == Status.INTERMITTENT:
+            if failure_summary.is_intermittent:
                 count *= 2
 
             if not prior_regression and count <= MAX_DEPTH:

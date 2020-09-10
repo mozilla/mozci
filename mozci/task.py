@@ -363,6 +363,12 @@ class TestTask(Task):
 @dataclass  # type: ignore
 class RunnableSummary(ABC):
     @property
+    def is_intermittent(self):
+        return self.status == Status.INTERMITTENT or any(
+            c == "intermittent" for c, n in self.classifications
+        )
+
+    @property
     @abstractmethod
     def classifications(self):
         ...

@@ -20,7 +20,7 @@ attributes and calling the functions to retrieve the desired data of this push. 
 The above snippet prints the failed tasks for a given push. Mozci uses data from a variety of
 sources, including `Active Data`_, `hg.mozilla.org`_ and `decision task`_ artifacts.
 
-See the :doc:`API docs <api/index>` for more details.
+See the :doc:`API docs <api/mozci>` for more details.
 
 .. _Active Data: https://wiki.mozilla.org/EngineeringProductivity/Projects/ActiveData
 .. _hg.mozilla.org: https://hg.mozilla.org/
@@ -32,9 +32,9 @@ See the :doc:`API docs <api/index>` for more details.
    :caption: Contents:
 
    usage
+   configuration
    regressions
-   api/index
-
+   API <api/modules>
 
 
 Indices and tables

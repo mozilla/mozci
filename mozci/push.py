@@ -32,7 +32,7 @@ from mozci.util.hgmo import HGMO
 
 BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
 
-MAX_DEPTH = 14
+MAX_DEPTH = config.get("maxdepth", 20)
 """The maximum number of parents or children to look for previous/next task runs,
 when the task did not run on the currently considered push.
 """

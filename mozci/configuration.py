@@ -98,8 +98,13 @@ class CustomCacheManager(CacheManager):
 class Configuration(Mapping):
     DEFAULT_CONFIG_PATH = Path(user_config_dir("mozci")) / "config.toml"
     DEFAULTS = {
-        "merge": {"cache": {"retention": 1440},},  # minutes
-        "replace": {"data_sources": ["adr"], "verbose": False,},
+        "merge": {
+            "cache": {"retention": 1440},
+        },  # minutes
+        "replace": {
+            "data_sources": ["adr"],
+            "verbose": False,
+        },
     }
 
     locked = False

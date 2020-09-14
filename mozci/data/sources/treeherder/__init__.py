@@ -84,6 +84,8 @@ class TreeherderSource(DataSource):
                 tasks.append(task)
             return tasks
 
-        logger.trace("Unable to reach Treeherder as a datasource because the Job model "
-                     "was not available to import.")
+        logger.trace(
+            "Unable to reach Treeherder as a datasource because the Job model "
+            "was not available to import."
+        )
         return []

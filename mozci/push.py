@@ -1132,10 +1132,15 @@ def __make_group_summary_objects(pushes):
     """
     # Obtain all the task.id values contained in the pushes. It will be used in
     # the `where` query against ActiveData.
-    task_ids = [task.id for push in pushes for task in push.tasks]
-
-    # Extract the results of the above query.
-    results = run_query("group_durations", Namespace(task_id=task_ids))["data"]
+    # task_ids = [task.id for push in pushes for task in push.tasks]
+    results = []
+    revs = [p.rev for p in pushes]
+    for rev in revs:
+        try:
+            result = run_query("group_durations", Namespace(push_ids=rev))["data"]
+            results.extend(result)
+        except MissingDataError:
+            pass
 
     # Sort by the result.group attribute.
     results = sorted(results, key=lambda x: x[1])
@@ -1146,11 +1151,16 @@ def __make_group_summary_objects(pushes):
 
     for task_id, result_group, result_duration in results:
         # Obtain TestTask object that matches the task_id.
-        task = [t for push in pushes for t in push.tasks if t.id == task_id].pop()
+        tasks = [t for push in pushes for t in push.tasks if t.id == task_id]
+        if len(tasks) == 0:
+            continue
+        task = tasks.pop()
 
+        parts = task.label.split('/')
+        key = "%s-%s:%s" % (parts[0], parts[1].split('-')[0], result_group)
         # Build the mapping of group to the group durations and TestTask objects.
-        mapping[result_group]["tasks"].append(task)
-        mapping[result_group]["durations"].append(result_duration)
+        mapping[key]["tasks"].append(task)
+        mapping[key]["durations"].append(result_duration)
 
     return [
         GroupSummary(key, value["tasks"], value["durations"])

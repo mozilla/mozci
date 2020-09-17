@@ -106,7 +106,6 @@ def wpt_workaround(group: str) -> str:
     if not group.strip():
         return group
 
-    os.path.sep = '/'
     assert group.startswith("/"), f"Group {group} doesn't start with /"
     if group.startswith("/_mozilla/"):
       return '/'.join(

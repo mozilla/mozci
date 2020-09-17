@@ -1094,7 +1094,8 @@ def make_summary_objects(from_date, to_date, branch, type):
     summaries = globals()[func](pushes)
 
     # Sort by either the label (LabelSummary) or name (GroupSummary).
-    summaries.sort(key=lambda x: (getattr(x, "label", "name")))
+    for summary in summaries:
+        summaries[summary].sort(key=lambda x: (getattr(x, "label", "name")))
     return summaries
 
 
@@ -1112,13 +1113,22 @@ def __make_label_summary_objects(pushes):
         [task for push in pushes for task in push.tasks], key=lambda x: x.label
     )
 
-    mapping = defaultdict(lambda: defaultdict(list))
-
     # Make a mapping keyed by task.label containing list of Task objects.
+    configs = {}
     for task in tasks:
-        mapping[task.label]["tasks"].append(task)
+        if task.configuration not in configs.keys():
+            # Dictionary to hold the mapping keyed by result.group mapped to list of
+            # task.id and list of and result.duration.
+            configs[task.configuration] = defaultdict(lambda: defaultdict(list))
+        configs[task.configuration][task.label]["tasks"].append(task)
 
-    return [LabelSummary(key, value["tasks"]) for key, value in mapping.items()]
+    retVal = {}
+    for config in configs:
+        retVal[config] = [
+            LabelSummary(key, value["tasks"])
+            for key, value in configs[config].items()
+        ]
+    return retVal
 
 
 def __make_group_summary_objects(pushes):
@@ -1143,10 +1153,7 @@ def __make_group_summary_objects(pushes):
     # Sort by the result.group attribute.
     results = sorted(results, key=lambda x: x[1])
 
-    # Dictionary to hold the mapping keyed by result.group mapped to list of
-    # task.id and list of and result.duration.
-    mapping = defaultdict(lambda: defaultdict(list))
-
+    configs = {}
     for task_id, result_group, result_duration in results:
         # Obtain TestTask object that matches the task_id.
         tasks = [t for push in pushes for t in push.tasks if t.id == task_id]
@@ -1154,12 +1161,19 @@ def __make_group_summary_objects(pushes):
             continue
         task = tasks.pop()
 
-        key = "%s:%s" % (task.configuration, result_group)
-        # Build the mapping of group to the group durations and TestTask objects.
-        mapping[key]["tasks"].append(task)
-        mapping[key]["durations"].append(result_duration)
+        if task.configuration not in configs.keys():
+            # Dictionary to hold the mapping keyed by result.group mapped to list of
+            # task.id and list of and result.duration.
+            configs[task.configuration] = defaultdict(lambda: defaultdict(list))
 
-    return [
-        GroupSummary(key, value["tasks"], value["durations"])
-        for key, value in mapping.items()
-    ]
+        # Build the mapping of group to the group durations and TestTask objects.
+        configs[task.configuration][result_group]["tasks"].append(task)
+        configs[task.configuration][result_group]["durations"].append(result_duration)
+
+    retVal = {}
+    for config in configs:
+        retVal[config] = [
+            GroupSummary(key, value["tasks"], value["durations"])
+            for key, value in configs[config].items()
+        ]
+    return retVal

@@ -106,7 +106,6 @@ def wpt_workaround(group: str) -> str:
     if not group.strip():
         return group
 
-    os.path.sep = '/'
     assert group.startswith("/"), f"Group {group} doesn't start with /"
     if group.startswith("/_mozilla/"):
       return '/'.join(
@@ -405,17 +404,10 @@ class GroupSummary(RunnableSummary):
     def __post_init__(self):
         # WPT names are not normalized relative to topsrcdir, so subsequent check
         # will fail unless normalized.
-        label = ''
-        if len(self.name.split(':')) > 1:
-            parts = self.name.split(':')
-            label = parts[0]
-            self.name = ':'.join(parts[1:])
         if self.name.startswith("/"):
             self.name = wpt_workaround(self.name)
         self.name = self.name.replace('\\', '/')
         assert all(self.name in t.groups for t in self.tasks)
-        if label:
-            self.name = "%s:%s" % (label, self.name)
 
     @property
     def classifications(self):

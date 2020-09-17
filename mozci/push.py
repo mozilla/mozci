@@ -1154,7 +1154,12 @@ def __make_group_summary_objects(pushes):
             continue
         task = tasks.pop()
 
+<<<<<<< HEAD
         key = "%s:%s" % (task.configuration, result_group)
+=======
+        parts = task.label.split('/')
+        key = "%s-%s:%s" % (parts[0], parts[1].split('-')[0], result_group)
+>>>>>>> Adjust group summarization to work on windows, accept labels+manifest, and increase performance
         # Build the mapping of group to the group durations and TestTask objects.
         mapping[key]["tasks"].append(task)
         mapping[key]["durations"].append(result_duration)

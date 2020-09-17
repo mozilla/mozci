@@ -8,6 +8,6 @@ limit: 100000
 where:
     and:
         - ne: {result.status: "SKIP"}
-        - in: {task.id: {$eval: task_id}}
+        - in: {repo.changeset.id: {$eval: push_ids}}
         - ne: {result.duration: 0}
         - exists: result.group

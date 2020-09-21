@@ -33,6 +33,7 @@ SUITES = (
     "web-platform-tests-crashtest",
     "web-platform-tests-reftest",
     "web-platform-tests-wdspec",
+    "web-platform-tests-print-reftest",
     "web-platform-tests",
     "mochitest-media",
     "mochitest-webgpu",
@@ -57,6 +58,7 @@ SUITES = (
     "reftest",
     "junit",
     "test-verify",
+    "jittest",
 )
 
 

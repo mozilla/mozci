@@ -16,7 +16,10 @@ class TreeherderSource(DataSource):
     """Uses ORM to query Treeherder."""
 
     name = "treeherder"
-    supported_contracts = ("push_tasks",)
+    supported_contracts = (
+        "push_tasks",
+        "push_tasks_tags",
+    )
 
     @classmethod
     def normalize(cls, jobs):
@@ -89,3 +92,7 @@ class TreeherderSource(DataSource):
             "was not available to import."
         )
         return []
+
+    def run_push_tasks_tags(self, **kwargs):
+        # These are not needed for Push Health
+        return {}

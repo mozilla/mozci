@@ -408,7 +408,6 @@ class GroupSummary(RunnableSummary):
         # will fail unless normalized.
         if self.name.startswith("/"):
             self.name = wpt_workaround(self.name)
-        self.name = self.name.replace('\\', '/')
         assert all(self.name in t.groups for t in self.tasks)
 
     @property

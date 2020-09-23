@@ -110,11 +110,11 @@ def wpt_workaround(group: str) -> str:
 
     assert group.startswith("/"), f"Group {group} doesn't start with /"
     if group.startswith("/_mozilla/"):
-        return '/'.join(
+        return "/".join(
             ["testing/web-platform/mozilla/tests", group[len("/_mozilla/") :]]
         )
     else:
-        return '/'.join(["testing/web-platform/tests", group[1:]])
+        return "/".join(["testing/web-platform/tests", group[1:]])
 
 
 @dataclass

@@ -5,9 +5,12 @@ groupby:
 select:
     - {name: result_duration, value: result.duration, aggregate: sum}
 limit: 100000
+destination: url
 where:
     and:
+        - ne: {treeherder.tier: 3}
         - ne: {result.status: "SKIP"}
+        - in: {repo.branch.name: {$eval: branch}}
         - in: {repo.changeset.id: {$eval: push_ids}}
         - ne: {result.duration: 0}
         - exists: result.group

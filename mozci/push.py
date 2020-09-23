@@ -1091,15 +1091,14 @@ def make_summary_objects(from_date, to_date, branch, type):
     # Obtain list of all pushes for the specified branch, from_date and to_date.
     pushes = make_push_objects(from_date=from_date, to_date=to_date, branch=branch)
 
-    summaries = globals()[func](pushes)
+    summaries = globals()[func](pushes, branch)
 
     # Sort by either the label (LabelSummary) or name (GroupSummary).
-    for summary in summaries:
-        summaries[summary].sort(key=lambda x: (getattr(x, "label", "name")))
+    summaries.sort(key=lambda x: (getattr(x, "label", "name")))
     return summaries
 
 
-def __make_label_summary_objects(pushes):
+def __make_label_summary_objects(pushes, branch):
     """Generates a list of LabelSummary objects from a list of pushes.
 
     Args:
@@ -1114,24 +1113,14 @@ def __make_label_summary_objects(pushes):
     )
 
     # Make a mapping keyed by task.label containing list of Task objects.
-    configs = {}
+    tasks_by_config = defaultdict(lambda: defaultdict(list))
     for task in tasks:
-        if task.configuration not in configs.keys():
-            # Dictionary to hold the mapping keyed by result.group mapped to list of
-            # task.id and list of and result.duration.
-            configs[task.configuration] = defaultdict(lambda: defaultdict(list))
-        configs[task.configuration][task.label]["tasks"].append(task)
+        tasks_by_config[task.configuration][task.label]["tasks"].append(task)
 
-    retVal = {}
-    for config in configs:
-        retVal[config] = [
-            LabelSummary(key, value["tasks"])
-            for key, value in configs[config].items()
-        ]
-    return retVal
+    return [LabelSummary(label, tasks) for config in tasks_by_config.keys() for label, tasks in tasks_by_config[config].items()]
 
 
-def __make_group_summary_objects(pushes):
+def __make_group_summary_objects(pushes, branch):
     """Generates a list of GroupSummary objects from a list of pushes.
 
     Args:
@@ -1144,36 +1133,44 @@ def __make_group_summary_objects(pushes):
     # the `where` query against ActiveData.
     results = []
     revs = [p.rev for p in pushes]
+    start = 0
+    revcount = 0
     try:
-        result = run_query("group_durations", Namespace(push_ids=revs))["data"]
-        results.extend(result)
+        # if we have too many revsisions, activedata returns an error
+        while revcount < len(revs):
+            revcount += 30
+            if revcount > len(revs):
+                revcount = len(revs)
+            results += run_query("group_durations", Namespace(push_ids=revs[start:revcount], branch=branch))["data"]
+            start = revcount
     except MissingDataError:
         pass
 
     # Sort by the result.group attribute.
     results = sorted(results, key=lambda x: x[1])
 
-    configs = {}
-    for task_id, result_group, result_duration in results:
-        # Obtain TestTask object that matches the task_id.
-        tasks = [t for push in pushes for t in push.tasks if t.id == task_id]
-        if len(tasks) == 0:
-            continue
-        task = tasks.pop()
+    tasks_by_config = {}
+    task_id_to_task = {}
+    for push in pushes:
+        for t in push.tasks:
+            task_id_to_task[t.id] = t
 
-        if task.configuration not in configs.keys():
+    for task_id, result_group, result_duration in results:
+        # there are a few tasks where we do not find them, it is unclear why
+        if task_id not in task_id_to_task:
+            continue
+        task = task_id_to_task[task_id]
+        if task.configuration not in tasks_by_config.keys():
             # Dictionary to hold the mapping keyed by result.group mapped to list of
             # task.id and list of and result.duration.
-            configs[task.configuration] = defaultdict(lambda: defaultdict(list))
+            tasks_by_config[task.configuration] = defaultdict(lambda: defaultdict(list))
 
         # Build the mapping of group to the group durations and TestTask objects.
-        configs[task.configuration][result_group]["tasks"].append(task)
-        configs[task.configuration][result_group]["durations"].append(result_duration)
+        tasks_by_config[task.configuration][result_group]["tasks"].append(task)
+        tasks_by_config[task.configuration][result_group]["durations"].append(result_duration)
 
-    retVal = {}
-    for config in configs:
-        retVal[config] = [
-            GroupSummary(key, value["tasks"], value["durations"])
-            for key, value in configs[config].items()
+    return [
+        GroupSummary(key, value["tasks"], value["durations"])
+        for config in tasks_by_config.keys()
+        for key, value in tasks_by_config[config].items()
         ]
-    return retVal

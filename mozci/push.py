@@ -1123,10 +1123,9 @@ def __make_label_summary_objects(pushes):
         configs[task.configuration][task.label]["tasks"].append(task)
 
     retVal = {}
-    for config in configs:
-        retVal[config] = [
-            LabelSummary(key, value["tasks"])
-            for key, value in configs[config].items()
+    for c in configs:
+        retVal[c] = [
+            LabelSummary(key, value["tasks"]) for key, value in configs[c].items()
         ]
     return retVal
 
@@ -1171,9 +1170,9 @@ def __make_group_summary_objects(pushes):
         configs[task.configuration][result_group]["durations"].append(result_duration)
 
     retVal = {}
-    for config in configs:
-        retVal[config] = [
+    for c in configs:
+        retVal[c] = [
             GroupSummary(key, value["tasks"], value["durations"])
-            for key, value in configs[config].items()
+            for key, value in configs[c].items()
         ]
     return retVal

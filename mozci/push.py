@@ -1094,7 +1094,8 @@ def make_summary_objects(from_date, to_date, branch, type):
     summaries = globals()[func](pushes)
 
     # Sort by either the label (LabelSummary) or name (GroupSummary).
-    summaries.sort(key=lambda x: (getattr(x, "label", "name")))
+    for summary in summaries:
+        summaries[summary].sort(key=lambda x: (getattr(x, "label", "name")))
     return summaries
 
 
@@ -1112,13 +1113,22 @@ def __make_label_summary_objects(pushes):
         [task for push in pushes for task in push.tasks], key=lambda x: x.label
     )
 
-    mapping = defaultdict(lambda: defaultdict(list))
-
     # Make a mapping keyed by task.label containing list of Task objects.
+    configs = {}
     for task in tasks:
-        mapping[task.label]["tasks"].append(task)
+        if task.configuration not in configs.keys():
+            # Dictionary to hold the mapping keyed by result.group mapped to list of
+            # task.id and list of and result.duration.
+            configs[task.configuration] = defaultdict(lambda: defaultdict(list))
+        configs[task.configuration][task.label]["tasks"].append(task)
 
-    return [LabelSummary(key, value["tasks"]) for key, value in mapping.items()]
+    retVal = {}
+    for config in configs:
+        retVal[config] = [
+            LabelSummary(key, value["tasks"])
+            for key, value in configs[config].items()
+        ]
+    return retVal
 
 
 def __make_group_summary_objects(pushes):
@@ -1132,27 +1142,38 @@ def __make_group_summary_objects(pushes):
     """
     # Obtain all the task.id values contained in the pushes. It will be used in
     # the `where` query against ActiveData.
-    task_ids = [task.id for push in pushes for task in push.tasks]
-
-    # Extract the results of the above query.
-    results = run_query("group_durations", Namespace(task_id=task_ids))["data"]
+    results = []
+    revs = [p.rev for p in pushes]
+    try:
+        result = run_query("group_durations", Namespace(push_ids=revs))["data"]
+        results.extend(result)
+    except MissingDataError:
+        pass
 
     # Sort by the result.group attribute.
     results = sorted(results, key=lambda x: x[1])
 
-    # Dictionary to hold the mapping keyed by result.group mapped to list of
-    # task.id and list of and result.duration.
-    mapping = defaultdict(lambda: defaultdict(list))
-
+    configs = {}
     for task_id, result_group, result_duration in results:
         # Obtain TestTask object that matches the task_id.
-        task = [t for push in pushes for t in push.tasks if t.id == task_id].pop()
+        tasks = [t for push in pushes for t in push.tasks if t.id == task_id]
+        if len(tasks) == 0:
+            continue
+        task = tasks.pop()
+
+        if task.configuration not in configs.keys():
+            # Dictionary to hold the mapping keyed by result.group mapped to list of
+            # task.id and list of and result.duration.
+            configs[task.configuration] = defaultdict(lambda: defaultdict(list))
 
         # Build the mapping of group to the group durations and TestTask objects.
-        mapping[result_group]["tasks"].append(task)
-        mapping[result_group]["durations"].append(result_duration)
+        configs[task.configuration][result_group]["tasks"].append(task)
+        configs[task.configuration][result_group]["durations"].append(result_duration)
 
-    return [
-        GroupSummary(key, value["tasks"], value["durations"])
-        for key, value in mapping.items()
-    ]
+    retVal = {}
+    for config in configs:
+        retVal[config] = [
+            GroupSummary(key, value["tasks"], value["durations"])
+            for key, value in configs[config].items()
+        ]
+    return retVal

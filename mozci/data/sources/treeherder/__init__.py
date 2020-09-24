@@ -99,5 +99,30 @@ class TreeherderSource(DataSource):
         return {}
 
     def run_push_test_groups(self, **kwargs):
-        # These are not needed for Push Health
+        if Job:
+            task_ids = (
+                Job.objects.filter(
+                    push__revision=kwargs["rev"], repository__name=kwargs["branch"]
+                )
+                .exclude(
+                    tier=3,
+                    result="retry",
+                )
+                .select_related(
+                    "push",
+                    "job_type",
+                    "taskcluster_metadata",
+                    "repository",
+                    "repository__repository_group",
+                )
+            ).values_list('taskcluster_metadata__task_id', flat=True)
+            task_id_dict = {id: {} for id in list(task_ids)}
+            # doing this so the dict is not completely empty if no jobs found
+            task_id_dict['fakeTaskId'] = {}
+            return task_id_dict
+
+        logger.trace(
+            "Unable to reach Treeherder as a datasource because the Job model "
+            "was not available to import."
+        )
         return {}

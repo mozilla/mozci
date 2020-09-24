@@ -19,6 +19,7 @@ class TreeherderSource(DataSource):
     supported_contracts = (
         "push_tasks",
         "push_tasks_tags",
+        "push_test_groups",
     )
 
     @classmethod
@@ -94,5 +95,9 @@ class TreeherderSource(DataSource):
         return []
 
     def run_push_tasks_tags(self, **kwargs):
+        # These are not needed for Push Health
+        return {}
+
+    def run_push_test_groups(self, **kwargs):
         # These are not needed for Push Health
         return {}

@@ -141,7 +141,7 @@ class Push:
             )
 
         result = result[str(push_id)]
-        push = Push(result["changesets"][::-1])
+        push = Push(result["changesets"][::-1], branch=self.branch)
         # avoids the need to query hgmo to find this info
         push._id = push_id
         push._date = result["date"]

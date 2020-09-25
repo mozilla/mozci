@@ -43,43 +43,56 @@ def create_changesets():
 
 
 def test_create_push(responses):
+    def setup_responses(ctx):
+        responses.reset()
+        responses.add(
+            responses.GET,
+            HGMO.JSON_PUSHES_TEMPLATE.format(**ctx),
+            json={
+                "pushes": {
+                    "123": {
+                        "changesets": ["123456"],
+                        "date": 1213174092,
+                        "user": "user@example.org",
+                    },
+                },
+            },
+            status=200,
+        )
+        responses.add(
+            responses.GET,
+            HGMO.JSON_TEMPLATE.format(branch=ctx["branch"], rev="abcdef"),
+            json={"node": "abcdef"},
+            status=200,
+        )
+        responses.add(
+            responses.GET,
+            HGMO.JSON_TEMPLATE.format(branch=ctx["branch"], rev="123456"),
+            json={"node": "123456"},
+            status=200,
+        )
+
     ctx = {
         "branch": "integration/autoland",
         "push_id_start": "122",
         "push_id_end": "123",
     }
-    responses.add(
-        responses.GET,
-        HGMO.JSON_PUSHES_TEMPLATE.format(**ctx),
-        json={
-            "pushes": {
-                "123": {
-                    "changesets": ["123456"],
-                    "date": 1213174092,
-                    "user": "user@example.org",
-                },
-            },
-        },
-        status=200,
-    )
-    responses.add(
-        responses.GET,
-        HGMO.JSON_TEMPLATE.format(branch="integration/autoland", rev="abcdef"),
-        json={"node": "abcdef"},
-        status=200,
-    )
-    responses.add(
-        responses.GET,
-        HGMO.JSON_TEMPLATE.format(branch="integration/autoland", rev="123456"),
-        json={"node": "123456"},
-        status=200,
-    )
-
+    setup_responses(ctx)
     p1 = Push("abcdef")
     p2 = p1.create_push(123)
     assert p2.rev == "123456"
     assert p2.id == 123
     assert p2.date == 1213174092
+    assert p2.branch in ctx["branch"]
+
+    ctx["branch"] = "mozilla-central"
+    setup_responses(ctx)
+    p1 = Push("abcdef", branch=ctx["branch"])
+    p2 = p1.create_push(123)
+    assert p2.rev == "123456"
+    assert p2.id == 123
+    assert p2.date == 1213174092
+    assert p2.branch in ctx["branch"]
 
 
 def test_push_does_not_exist(responses):

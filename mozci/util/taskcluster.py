@@ -5,7 +5,6 @@
 
 import functools
 
-import requests
 import taskcluster_urls as liburls
 
 from mozci.util import yaml

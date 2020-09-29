@@ -33,13 +33,6 @@ def test_missing_artifacts(responses, create_task):
         status=404,
     )
 
-    # Then we'll check the old deployment.
-    responses.add(
-        responses.GET,
-        get_artifact_url(task.id, artifact, old_deployment=True),
-        status=404,
-    )
-
     with pytest.raises(ArtifactNotFound):
         task.get_artifact(artifact)
 

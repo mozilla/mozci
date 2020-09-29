@@ -431,15 +431,6 @@ def test_get_shadow_scheduler_tasks_fallback(responses):
         status=404,
     )
 
-    # utility file will also try the old deployment
-    responses.add(
-        responses.GET,
-        get_artifact_url(
-            ss_id, "public/shadow-scheduler/optimized-tasks.json", old_deployment=True
-        ),
-        status=404,
-    )
-
     responses.add(
         responses.GET,
         get_artifact_url(ss_id, "public/shadow-scheduler/optimized_tasks.list"),

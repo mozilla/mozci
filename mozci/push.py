@@ -1036,7 +1036,10 @@ class Push:
 
 
 def make_push_objects(**kwargs):
-    result = run_query("push_revisions", Namespace(**kwargs))
+    try:
+        result = run_query("push_revisions", Namespace(**kwargs))
+    except MissingDataError:
+        return []
 
     pushes = []
 
@@ -1091,14 +1094,14 @@ def make_summary_objects(from_date, to_date, branch, type):
     # Obtain list of all pushes for the specified branch, from_date and to_date.
     pushes = make_push_objects(from_date=from_date, to_date=to_date, branch=branch)
 
-    summaries = globals()[func](pushes)
+    summaries = globals()[func](pushes, branch)
 
     # Sort by either the label (LabelSummary) or name (GroupSummary).
     summaries.sort(key=lambda x: (getattr(x, "label", "name")))
     return summaries
 
 
-def __make_label_summary_objects(pushes):
+def __make_label_summary_objects(pushes, branch):
     """Generates a list of LabelSummary objects from a list of pushes.
 
     Args:
@@ -1112,16 +1115,19 @@ def __make_label_summary_objects(pushes):
         [task for push in pushes for task in push.tasks], key=lambda x: x.label
     )
 
-    mapping = defaultdict(lambda: defaultdict(list))
-
     # Make a mapping keyed by task.label containing list of Task objects.
+    tasks_by_config = defaultdict(lambda: defaultdict(list))
     for task in tasks:
-        mapping[task.label]["tasks"].append(task)
+        tasks_by_config[task.configuration][task.label]["tasks"].append(task)
 
-    return [LabelSummary(key, value["tasks"]) for key, value in mapping.items()]
+    return [
+        LabelSummary(label, tasks)
+        for config in tasks_by_config.keys()
+        for label, tasks in tasks_by_config[config].items()
+    ]
 
 
-def __make_group_summary_objects(pushes):
+def __make_group_summary_objects(pushes, branch):
     """Generates a list of GroupSummary objects from a list of pushes.
 
     Args:
@@ -1132,27 +1138,47 @@ def __make_group_summary_objects(pushes):
     """
     # Obtain all the task.id values contained in the pushes. It will be used in
     # the `where` query against ActiveData.
-    task_ids = [task.id for push in pushes for task in push.tasks]
-
-    # Extract the results of the above query.
-    results = run_query("group_durations", Namespace(task_id=task_ids))["data"]
+    results = []
+    revs = [p.rev for p in pushes]
+    # if we have too many revisions, ActiveData returns an error
+    for i in range(0, len(revs), 30):
+        for revs_chunk in revs[i : i + 30]:
+            try:
+                results += run_query(
+                    "group_durations", Namespace(push_ids=revs_chunk, branch=branch)
+                )["data"]
+            except MissingDataError:
+                pass
 
     # Sort by the result.group attribute.
     results = sorted(results, key=lambda x: x[1])
 
-    # Dictionary to hold the mapping keyed by result.group mapped to list of
-    # task.id and list of and result.duration.
-    mapping = defaultdict(lambda: defaultdict(list))
+    tasks_by_config = {}
+    task_id_to_task = {t.id: t for push in pushes for t in push.tasks}
 
     for task_id, result_group, result_duration in results:
-        # Obtain TestTask object that matches the task_id.
-        task = [t for push in pushes for t in push.tasks if t.id == task_id].pop()
+        # TODO: remove this when https://github.com/mozilla/mozci/issues/297 is fixed
+        if task_id not in task_id_to_task:
+            continue
+
+        # tasks that had exception or failed by timeout have no duration for a group
+        if result_duration is None:
+            continue
+
+        task = task_id_to_task[task_id]
+        if task.configuration not in tasks_by_config:
+            # Dictionary to hold the mapping keyed by result.group mapped to list of
+            # task.id and list of and result.duration.
+            tasks_by_config[task.configuration] = defaultdict(lambda: defaultdict(list))
 
         # Build the mapping of group to the group durations and TestTask objects.
-        mapping[result_group]["tasks"].append(task)
-        mapping[result_group]["durations"].append(result_duration)
+        tasks_by_config[task.configuration][result_group]["tasks"].append(task)
+        tasks_by_config[task.configuration][result_group]["durations"].append(
+            result_duration
+        )
 
     return [
         GroupSummary(key, value["tasks"], value["durations"])
-        for key, value in mapping.items()
+        for config in tasks_by_config.keys()
+        for key, value in tasks_by_config[config].items()
     ]

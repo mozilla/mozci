@@ -15,9 +15,12 @@ class HGMO:
     BASE_URL = "https://hg.mozilla.org/"
     AUTOMATION_RELEVANCE_TEMPLATE = BASE_URL + "{branch}/json-automationrelevance/{rev}"
     JSON_TEMPLATE = BASE_URL + "{branch}/rev/{rev}?style=json"
+    JSON_PUSHES_TEMPLATE_BASE = BASE_URL + "{branch}/json-pushes?version=2"
     JSON_PUSHES_TEMPLATE = (
-        BASE_URL
-        + "{branch}/json-pushes?version=2&startID={push_id_start}&endID={push_id_end}"
+        JSON_PUSHES_TEMPLATE_BASE + "&startID={push_id_start}&endID={push_id_end}"
+    )
+    JSON_PUSHES_BETWEEN_DATES_TEMPLATE = (
+        JSON_PUSHES_TEMPLATE_BASE + "&startdate={from_date}&enddate={to_date}"
     )
 
     # instance cache
@@ -71,6 +74,14 @@ class HGMO:
         url = self.JSON_PUSHES_TEMPLATE.format(
             push_id_start=push_id_start,
             push_id_end=push_id_end,
+            **self.context,
+        )
+        return self._get_resource(url)["pushes"]
+
+    def json_pushes_between_dates(self, from_date, to_date):
+        url = self.JSON_PUSHES_BETWEEN_DATES_TEMPLATE.format(
+            from_date=from_date,
+            to_date=to_date,
             **self.context,
         )
         return self._get_resource(url)["pushes"]

@@ -82,6 +82,26 @@ _contracts: Tuple[Contract, ...] = (
             }
         ),
     ),
+    Contract(
+        name="push_revisions",
+        description="Data from the VCS about a given push.",
+        validate_in=Schema(
+            {
+                Required("from_date"): str,
+                Required("to_date"): str,
+                Required("branch"): str,
+            }
+        ),
+        validate_out=Schema(
+            [
+                {
+                    Required("pushid"): int,
+                    Required("date"): int,
+                    Required("revs"): [str],
+                }
+            ]
+        ),
+    ),
 )
 
 

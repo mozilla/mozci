@@ -828,8 +828,7 @@ python-versions = "*"
 version = "0.14.0"
 
 [metadata]
-content-hash = "7a90a275d22e4b28b1920086f07d5cfaebeec4fa975b824a92e5e2ee3c6c9301"
-lock-version = "1.0"
+content-hash = "763bc5368b2ad9426a95bb20ebdda636af84a6844b5b802410f156a8ee0b57a3"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -986,7 +985,6 @@ mohawk = [
 ]
 nodeenv = [
     {file = "nodeenv-1.4.0-py2.py3-none-any.whl", hash = "sha256:4b0b77afa3ba9b54f4b6396e60b0c83f59eaeb2d63dc3cc7a70f7f4af96c82bc"},
-    {file = "nodeenv-1.4.0.tar.gz", hash = "sha256:26941644654d8dd5378720e38f62a3bac5f9240811fb3b8913d2663a17baa91c"},
 ]
 packaging = [
     {file = "packaging-20.4-py2.py3-none-any.whl", hash = "sha256:998416ba6962ae7fbd6596850b80e17859a5753ba17c32284f67bfff33784181"},

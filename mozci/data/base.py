@@ -72,9 +72,10 @@ class DataHandler:
 
 
 def register_sources():
-    from mozci.data.sources import activedata, treeherder
+    from mozci.data.sources import activedata, hgmo, treeherder
 
     DataHandler.ALL_SOURCES = {
         "treeherder": treeherder.TreeherderSource(),
+        "hgmo": hgmo.HGMOSource(),
         "adr": activedata.ActiveDataSource(),
     }

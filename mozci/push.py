@@ -1037,20 +1037,18 @@ class Push:
 
 def make_push_objects(**kwargs):
     try:
-        result = run_query("push_revisions", Namespace(**kwargs))
+        pushes_data = data.handler.get("push_revisions", **kwargs)
     except MissingDataError:
         return []
 
     pushes = []
 
-    for pushid, date, revs, parents in result["data"]:
-        topmost = list(set(revs) - set(parents))[0]
-
-        cur = Push([topmost] + [r for r in revs if r != topmost])
+    for push_data in pushes_data:
+        cur = Push(push_data["revs"])
 
         # avoids the need to query hgmo to find this info
-        cur._id = pushid
-        cur._date = date
+        cur._id = push_data["pushid"]
+        cur._date = push_data["date"]
 
         pushes.append(cur)
 

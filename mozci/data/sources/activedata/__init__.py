@@ -21,6 +21,7 @@ class ActiveDataSource(DataSource):
         "push_tasks",
         "push_tasks_tags",
         "push_test_groups",
+        "push_revisions",
     )
 
     @classmethod
@@ -119,3 +120,21 @@ class ActiveDataSource(DataSource):
             groups[item["id"]][item["result_group"]] = bool(item["result_ok"])
 
         return groups
+
+    def run_push_revisions(self, **kwargs):
+        result = adr.query.run_query("push_revisions", Namespace(**kwargs))
+
+        pushes = []
+
+        for push_id, date, revs, parents in result["data"]:
+            topmost = list(set(revs) - set(parents))[0]
+
+            pushes.append(
+                {
+                    "pushid": push_id,
+                    "date": date,
+                    "revs": [topmost] + [r for r in revs if r != topmost],
+                }
+            )
+
+        return pushes

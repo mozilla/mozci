@@ -73,3 +73,14 @@ def get_index_url(index_path):
 def find_task_id(index_path, use_proxy=False):
     response = _do_request(get_index_url(index_path))
     return response.json()["taskId"]
+
+
+def get_task_url(task_id):
+    return liburls.api(
+        PRODUCTION_TASKCLUSTER_ROOT_URL, "queue", "v1", f"task/{task_id}"
+    )
+
+
+def get_task(task_id, use_proxy=False):
+    response = _do_request(get_task_url(task_id))
+    return response.json()

@@ -252,26 +252,25 @@ class Push:
         Returns:
             list: A list of `Task` objects.
         """
-        # Gather information from the treeherder table.
-        tasks = []
+        # Gather data about tasks that ran on a given push.
         try:
             tasks = data.handler.get("push_tasks", branch=self.branch, rev=self.rev)
         except MissingDataError:
-            pass
+            return []
 
-        # Gather task tags from the task table.
+        # Gather data about results of tasks that ran on a given push.
         try:
-            tags_by_task = data.handler.get(
-                "push_tasks_tags", branch=self.branch, rev=self.rev
+            tasks_results = data.handler.get(
+                "push_tasks_results", branch=self.branch, rev=self.rev
             )
+
             for task in tasks:
-                tags = tags_by_task.get(task["id"])
-                if tags:
-                    if "tags" not in task:
-                        task["tags"] = {}
-                    task["tags"].update(tags)
+                if task["id"] in tasks_results:
+                    task.update(tasks_results[task["id"]])
         except MissingDataError:
             pass
+
+        # TODO: Skip tasks with `retry` as result
 
         # Let's gather error/results from cache or AD/Taskcluster
         test_tasks_results = config.cache.get(self.push_uuid, {})

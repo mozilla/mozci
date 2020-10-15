@@ -2,6 +2,7 @@
 
 from argparse import Namespace
 from collections import defaultdict
+from functools import lru_cache
 from pathlib import Path
 
 import adr
@@ -19,7 +20,7 @@ class ActiveDataSource(DataSource):
     name = "adr"
     supported_contracts = (
         "push_tasks",
-        "push_tasks_tags",
+        "push_tasks_results",
         "push_test_groups",
         "push_revisions",
     )
@@ -60,9 +61,12 @@ class ActiveDataSource(DataSource):
             items.append(item)
         return items
 
-    def run_push_tasks(self, **kwargs):
-        result = adr.query.run_query("push_tasks_from_treeherder", Namespace(**kwargs))
-        tasks = []
+    @lru_cache(maxsize=1)
+    def _get_tasks(self, branch, rev):
+        result = adr.query.run_query(
+            "push_tasks_from_treeherder", Namespace(branch=branch, rev=rev)
+        )
+        tasks = {}
 
         # If we are missing one of these keys, discard the task.
         required_keys = (
@@ -84,6 +88,8 @@ class ActiveDataSource(DataSource):
 
             if task.get("tags"):
                 task["tags"] = {t["name"]: t["value"] for t in task["tags"]}
+            else:
+                task["tags"] = {}
 
             if task.get("classification_note"):
                 if isinstance(task["classification_note"], list):
@@ -91,12 +97,11 @@ class ActiveDataSource(DataSource):
                     if task["classification_note"] is None:
                         del task["classification_note"]
 
-            tasks.append(task)
-        return tasks
+            tasks[task["id"]] = task
 
-    def run_push_tasks_tags(self, **kwargs):
-        result = adr.query.run_query("push_tasks_tags_from_task", Namespace(**kwargs))
-        tags = defaultdict(dict)
+        result = adr.query.run_query(
+            "push_tasks_tags_from_task", Namespace(branch=branch, rev=rev)
+        )
         for item in self.normalize(result):
             if "tags" not in item:
                 continue
@@ -104,8 +109,43 @@ class ActiveDataSource(DataSource):
             for tag in item["tags"]:
                 if any(k not in tag for k in ("name", "value")):
                     continue
-                tags[item["id"]][tag["name"]] = tag["value"]
-        return tags
+
+                # TODO: Figure out why we have some results from the `push_tasks_tags_from_task` query
+                # that we don't have from `push_tasks_from_treeherder`.
+                if item["id"] in tasks:
+                    tasks[item["id"]]["tags"][tag["name"]] = tag["value"]
+
+        return tasks
+
+    def run_push_tasks(self, branch, rev):
+        tasks = self._get_tasks(branch, rev)
+
+        return [
+            {
+                "id": task_data["id"],
+                "label": task_data["label"],
+                "tags": task_data["tags"],
+            }
+            for task_id, task_data in tasks.items()
+        ]
+
+    def run_push_tasks_results(self, branch, rev):
+        tasks = self._get_tasks(branch, rev)
+
+        result = {}
+        for task_id, task_data in tasks.items():
+            result[task_id] = {
+                "result": task_data["result"],
+                "classification": task_data["classification"],
+                "duration": task_data["duration"],
+            }
+
+            if task_data.get("classification_note"):
+                result[task_id]["classification_note"] = task_data[
+                    "classification_note"
+                ]
+
+        return result
 
     def run_push_test_groups(self, **kwargs):
         result = adr.query.run_query(

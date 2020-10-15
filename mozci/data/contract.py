@@ -29,6 +29,27 @@ _contracts: Tuple[Contract, ...] = (
                 {
                     Required("id"): str,
                     Required("label"): str,
+                    Required("tags"): {
+                        Marker(str, description="tag name"): Marker(
+                            str, description="tag value"
+                        )
+                    },
+                }
+            ]
+        ),
+    ),
+    Contract(
+        name="push_tasks_results",
+        description="Data about the results of the tasks that ran on a given push.",
+        validate_in=Schema(
+            {
+                Required("branch"): str,
+                Required("rev"): str,
+            }
+        ),
+        validate_out=Schema(
+            {
+                Marker(str, description="task id"): {
                     Required("result"): str,
                     Required("classification"): Any(
                         "autoclassified intermittent",
@@ -40,25 +61,6 @@ _contracts: Tuple[Contract, ...] = (
                     ),
                     Optional("classification_note"): str,
                     Optional("duration"): int,
-                }
-            ]
-        ),
-    ),
-    Contract(
-        name="push_tasks_tags",
-        description="Data about the tags associated with tasks on a given push.",
-        validate_in=Schema(
-            {
-                Required("branch"): str,
-                Required("rev"): str,
-            }
-        ),
-        validate_out=Schema(
-            {
-                Marker(str, description="task id"): {
-                    Marker(str, description="tag name"): Marker(
-                        str, description="tag value"
-                    )
                 }
             }
         ),

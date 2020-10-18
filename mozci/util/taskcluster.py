@@ -56,14 +56,16 @@ def get_artifact(task_id, path):
     dict) is returned.
     For other types of content, a file-like object is returned.
     """
-    response = _do_request(get_artifact_url(task_id, path))
+    queue = taskcluster_config.get_service("queue")
+    response = queue.getArtifact(task_id, path)
 
     return _handle_artifact(path, response)
 
 
 def list_artifacts(task_id):
-    response = _do_request(get_artifact_url(task_id, "").rstrip("/"))
-    return response.json()["artifacts"]
+    queue = taskcluster_config.get_service("queue")
+
+    return queue.listLatestArtifacts(task_id)["artifacts"]
 
 
 def get_index_url(index_path):
@@ -73,8 +75,10 @@ def get_index_url(index_path):
 
 
 def find_task_id(index_path, use_proxy=False):
-    response = _do_request(get_index_url(index_path))
-    return response.json()["taskId"]
+    route = get_index_url(index_path)
+    index = taskcluster_config.get_services("index")
+
+    return index.findTask(route)["taskId"]
 
 
 def get_task_url(task_id):
@@ -84,8 +88,9 @@ def get_task_url(task_id):
 
 
 def get_task(task_id, use_proxy=False):
-    response = _do_request(get_task_url(task_id))
-    return response.json()
+    queue = taskcluster_config.get_service("queue")
+
+    return queue.task(task_id)
 
 
 def get_tasks_in_group(group_id):

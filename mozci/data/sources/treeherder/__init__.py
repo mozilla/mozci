@@ -81,8 +81,8 @@ class TreeherderSource(DataSource):
             tasks = {}
 
             for task in self.normalize(jobs):
-                if task.get("tags"):
-                    task["tags"] = {t["name"]: t["value"] for t in task["tags"]}
+                # TODO: Add support for tags.
+                task["tags"] = {}
 
                 tasks[task["id"]] = task
             return tasks

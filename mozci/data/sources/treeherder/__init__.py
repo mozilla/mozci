@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from collections import defaultdict
+from functools import lru_cache
 
 from loguru import logger
 
@@ -18,7 +19,7 @@ class TreeherderSource(DataSource):
     name = "treeherder"
     supported_contracts = (
         "push_tasks",
-        "push_tasks_tags",
+        "push_tasks_results",
     )
 
     @classmethod
@@ -55,12 +56,11 @@ class TreeherderSource(DataSource):
             items.append(result)
         return items
 
-    def run_push_tasks(self, **kwargs):
+    @lru_cache(maxsize=1)
+    def _get_tasks(self, branch, rev):
         if Job:
             jobs = (
-                Job.objects.filter(
-                    push__revision=kwargs["rev"], repository__name=kwargs["branch"]
-                )
+                Job.objects.filter(push__revision=rev, repository__name=branch)
                 .exclude(
                     tier=3,
                     result="retry",
@@ -78,21 +78,47 @@ class TreeherderSource(DataSource):
                 .prefetch_related("jobnote_set")
             )
 
-            tasks = []
+            tasks = {}
 
             for task in self.normalize(jobs):
-                if task.get("tags"):
-                    task["tags"] = {t["name"]: t["value"] for t in task["tags"]}
+                # TODO: Add support for tags.
+                task["tags"] = {}
 
-                tasks.append(task)
+                tasks[task["id"]] = task
             return tasks
 
         logger.trace(
             "Unable to reach Treeherder as a datasource because the Job model "
             "was not available to import."
         )
-        return []
-
-    def run_push_tasks_tags(self, **kwargs):
-        # These are not needed for Push Health
         return {}
+
+    def run_push_tasks(self, branch, rev):
+        tasks = self._get_tasks(branch, rev)
+
+        return [
+            {
+                "id": task_data["id"],
+                "label": task_data["label"],
+                "tags": task_data["tags"],
+            }
+            for task_id, task_data in tasks.items()
+        ]
+
+    def run_push_tasks_results(self, branch, rev):
+        tasks = self._get_tasks(branch, rev)
+
+        result = {}
+        for task_id, task_data in tasks.items():
+            result[task_id] = {
+                "result": task_data["result"],
+                "classification": task_data["classification"],
+                "duration": task_data["duration"],
+            }
+
+            if task_data.get("classification_note"):
+                result[task_id]["classification_note"] = task_data[
+                    "classification_note"
+                ]
+
+        return result

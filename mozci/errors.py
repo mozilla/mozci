@@ -60,3 +60,45 @@ class TaskNotFound(BaseTaskException):
     def __init__(self, *args, **kwargs):
         kwargs["msg"] = "task not found!"
         super(TaskNotFound, self).__init__(*args, **kwargs)
+
+
+# data exceptions
+
+
+class BaseDataException(Exception):
+    pass
+
+
+class ContractNotFilled(BaseDataException):
+    """Raised when a source was unable to fulfill a contract."""
+
+    def __init__(self, source, contract, reason):
+        self.source = source
+        self.contract = contract
+        self.reason = reason
+        self.msg = f"Unable to fulfill '{contract}' with '{source}' source: {reason}"
+
+
+class ContractNotFound(BaseDataException):
+    """Raised when a requested contract does not exist."""
+
+    def __init__(self, contract):
+        self.contract = contract
+        self.msg = f"Contract '{contract}' is not defined!"
+
+
+class SourcesNotFound(BaseDataException):
+    """Raised when no sources were able to fulfill a contract."""
+
+    def __init__(self, contract):
+        self.contract = contract
+        self.msg = f"No registered sources were able to fulfill '{contract}'!"
+
+
+class InvalidSource(BaseDataException):
+    """Raised when a source is malformed."""
+
+    def __init__(self, source, reason):
+        self.source = source
+        self.reason = reason
+        self.msg = f"'{source}' source is malformed: {reason}"

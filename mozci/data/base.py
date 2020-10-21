@@ -3,7 +3,15 @@
 from abc import ABC, abstractproperty
 from typing import Any, Dict, Tuple
 
+from loguru import logger
+
 from mozci.data.contract import all_contracts
+from mozci.errors import (
+    ContractNotFilled,
+    ContractNotFound,
+    InvalidSource,
+    SourcesNotFound,
+)
 
 
 class DataSource(ABC):
@@ -15,8 +23,9 @@ class DataSource(ABC):
         ]
         if missing:
             missing_str = "  \n".join(missing)
-            raise Exception(
-                f"{self.__class__.__name__} must define the following methods:\n{missing_str}"
+            raise InvalidSource(
+                self.name.__class__.__name__,
+                f"must define the following methods:\n{missing_str}",
             )
 
     @abstractproperty
@@ -50,21 +59,22 @@ class DataHandler:
             dict: The output of the contract as defined by `Contract.schema_out`.
         """
         if name not in all_contracts:
-            raise Exception(f"Contract {name} does not exist!")
+            raise ContractNotFound(name)
 
         # Validate input.
         contract = all_contracts[name]
         contract.validate_in(context)
 
-        source = None
         for src in self.sources:
             if name in src.supported_contracts:
-                source = src
+                try:
+                    result = src.get(name, **context)
+                except ContractNotFilled as e:
+                    logger.debug(f"{e.msg}.. trying next source.")
+                    continue
                 break
         else:
-            raise Exception(f"No registered sources support {name}!")
-
-        result = source.get(name, **context)
+            raise SourcesNotFound(name)
 
         # Validate output.
         contract.validate_out(result)

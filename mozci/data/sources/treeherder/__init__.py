@@ -6,6 +6,7 @@ from functools import lru_cache
 from loguru import logger
 
 from mozci.data.base import DataSource
+from mozci.errors import ContractNotFilled
 
 try:
     from treeherder.model.models import Job
@@ -58,42 +59,40 @@ class TreeherderSource(DataSource):
 
     @lru_cache(maxsize=1)
     def _get_tasks(self, branch, rev):
-        if Job:
-            jobs = (
-                Job.objects.filter(push__revision=rev, repository__name=branch)
-                .exclude(
-                    tier=3,
-                    result="retry",
-                    job_type__name="Gecko Decision Task",
-                    job_type__name__startswith="Action",
-                )
-                .select_related(
-                    "push",
-                    "job_type",
-                    "taskcluster_metadata",
-                    "failure_classification",
-                    "repository",
-                    "repository__repository_group",
-                )
-                .prefetch_related("jobnote_set")
+        jobs = (
+            Job.objects.filter(push__revision=rev, repository__name=branch)
+            .exclude(
+                tier=3,
+                result="retry",
+                job_type__name="Gecko Decision Task",
+                job_type__name__startswith="Action",
             )
-
-            tasks = {}
-
-            for task in self.normalize(jobs):
-                # TODO: Add support for tags.
-                task["tags"] = {}
-
-                tasks[task["id"]] = task
-            return tasks
-
-        logger.trace(
-            "Unable to reach Treeherder as a datasource because the Job model "
-            "was not available to import."
+            .select_related(
+                "push",
+                "job_type",
+                "taskcluster_metadata",
+                "failure_classification",
+                "repository",
+                "repository__repository_group",
+            )
+            .prefetch_related("jobnote_set")
         )
-        return {}
+
+        tasks = {}
+
+        for task in self.normalize(jobs):
+            # TODO: Add support for tags.
+            task["tags"] = {}
+
+            tasks[task["id"]] = task
+        return tasks
 
     def run_push_tasks(self, branch, rev):
+        if not Job:
+            raise ContractNotFilled(
+                self.name, "push_tasks", "could not import Job model"
+            )
+
         tasks = self._get_tasks(branch, rev)
 
         return [
@@ -106,6 +105,11 @@ class TreeherderSource(DataSource):
         ]
 
     def run_push_tasks_results(self, branch, rev):
+        if not Job:
+            raise ContractNotFilled(
+                self.name, "push_tasks_results", "could not import Job model"
+            )
+
         tasks = self._get_tasks(branch, rev)
 
         result = {}

@@ -16,8 +16,10 @@ pytestmark = pytest.mark.skipif(
     os.environ.get("TRAVIS_EVENT_TYPE") != "cron", reason="Not run by a cron task"
 )
 
-if not os.environ.get("MOZCI_CONFIG_PATH"):
-    raise Exception("Set MOZCI_CONFIG_PATH to tests/config.toml")
+
+@pytest.fixture(autouse=True)
+def set_config_path(monkeypatch):
+    monkeypatch.setenv("MOZCI_CONFIG_PATH", os.path.join(here, "config.toml"))
 
 
 @pytest.fixture

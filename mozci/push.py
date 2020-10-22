@@ -254,23 +254,21 @@ class Push:
         """
         # Gather data about tasks that ran on a given push.
         try:
+            # TODO: Skip tasks with `retry` as result
             tasks = data.handler.get("push_tasks", branch=self.branch, rev=self.rev)
         except MissingDataError:
             return []
 
-        # Gather data about results of tasks that ran on a given push.
+        # Gather task classifications.
         try:
             classifications = data.handler.get(
                 "push_tasks_classifications", branch=self.branch, rev=self.rev
             )
-
             for task in tasks:
                 if task["id"] in classifications:
                     task.update(classifications[task["id"]])
         except MissingDataError:
             pass
-
-        # TODO: Skip tasks with `retry` as result
 
         # Let's gather error/results from cache or AD/Taskcluster
         test_tasks_results = config.cache.get(self.push_uuid, {})

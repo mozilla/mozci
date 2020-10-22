@@ -106,6 +106,7 @@ def register_sources():
     DataHandler.ALL_SOURCES = {
         src.name: src
         for src in (
+            treeherder.TreeherderClientSource(),
             treeherder.TreeherderDBSource(),
             taskcluster.TaskclusterSource(),
             hgmo.HGMOSource(),

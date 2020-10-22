@@ -85,8 +85,11 @@ def register_sources():
     from mozci.data.sources import activedata, hgmo, taskcluster, treeherder
 
     DataHandler.ALL_SOURCES = {
-        "treeherder_db": treeherder.TreeherderDBSource(),
-        "taskcluster": taskcluster.TaskclusterSource(),
-        "hgmo": hgmo.HGMOSource(),
-        "adr": activedata.ActiveDataSource(),
+        src.name: src
+        for src in (
+            treeherder.TreeherderDBSource(),
+            taskcluster.TaskclusterSource(),
+            hgmo.HGMOSource(),
+            activedata.ActiveDataSource(),
+        )
     }

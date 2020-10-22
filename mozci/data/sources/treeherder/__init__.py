@@ -3,10 +3,12 @@
 from collections import defaultdict
 from functools import lru_cache
 
+from adr.util.memoize import memoized_property
 from loguru import logger
 
 from mozci.data.base import DataSource
 from mozci.errors import ContractNotFilled
+from mozci.util.req import get_session
 
 try:
     from treeherder.model.models import Job
@@ -14,8 +16,50 @@ except ImportError:
     Job = None
 
 
-class TreeherderDBSource(DataSource):
-    """Uses ORM to query Treeherder."""
+class BaseTreeherderSource(DataSource):
+    pass
+
+
+class TreeherderClientSource(BaseTreeherderSource):
+    """Uses the public API to query Treeherder."""
+
+    name = "treeherder_client"
+    supported_contracts = ("push_tasks_classifications",)
+    base_url = "https://treeherder.mozilla.org/api/"
+
+    @memoized_property
+    def session(self):
+        session = get_session()
+        session.headers = {"User-Agent": "mozci"}
+        return session
+
+    def _run_query(self, query, params=None):
+        query = query.strip("/")
+        url = f"{self.base_url}/{query}"
+
+        params = params or {}
+        params.setdefault("format", "json")
+
+        response = self.session.get(url, params=params)
+        response.raise_for_status()
+        return response.json()
+
+    def run_push_tasks_classifications(self, branch, rev):
+        data = self._run_query(f"/project/{branch}/note/push_notes/?revision={rev}")
+
+        classifications = {}
+        for item in data:
+            job = item["job"]
+            classifications[job["task_id"]] = {
+                "classification": item["failure_classification_name"]
+            }
+            if item["text"]:
+                classifications[job["task_id"]]["classification_note"] = item["text"]
+        return classifications
+
+
+class TreeherderDBSource(BaseTreeherderSource):
+    """Uses the ORM to query Treeherder."""
 
     name = "treeherder_db"
     supported_contracts = (

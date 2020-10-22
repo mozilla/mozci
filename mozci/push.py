@@ -770,10 +770,7 @@ class Push:
                     del adjusted_candidate_regressions[name]
 
             yield other, adjusted_candidate_regressions
-
-            if self.branch != "try":
-                other = other.child
-                count += 1
+            count += 1
 
     def get_candidate_regressions(
         self, runnable_type: str

@@ -14,10 +14,10 @@ except ImportError:
     Job = None
 
 
-class TreeherderSource(DataSource):
+class TreeherderDBSource(DataSource):
     """Uses ORM to query Treeherder."""
 
-    name = "treeherder"
+    name = "treeherder_db"
     supported_contracts = (
         "push_tasks",
         "push_tasks_results",

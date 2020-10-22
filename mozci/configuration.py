@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import copy
 import os
-from collections import Mapping
+from collections.abc import Mapping
 from pathlib import Path
 
 from appdirs import user_config_dir

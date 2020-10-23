@@ -20,7 +20,7 @@ class TreeherderDBSource(DataSource):
     name = "treeherder_db"
     supported_contracts = (
         "push_tasks",
-        "push_tasks_results",
+        "push_tasks_classifications",
     )
 
     @classmethod
@@ -44,7 +44,7 @@ class TreeherderDBSource(DataSource):
             if len(notes):
                 note = str(notes[0].text)
 
-            result = {
+            item = {
                 "id": str(task_id),
                 "label": job.job_type.name,
                 "result": job.result,
@@ -54,7 +54,18 @@ class TreeherderDBSource(DataSource):
                     job.submit_time, job.start_time, job.end_time
                 ),
             }
-            items.append(result)
+
+            result_map = {
+                "success": "passed",
+                "testfailed": "failed",
+                "bustage": "failed",
+                "usercancel": "canceled",
+                "retry": "exception",
+            }
+            if item["result"] in result_map:
+                item["result"] = result_map[item["result"]]
+
+            items.append(item)
         return items
 
     @lru_cache(maxsize=1)
@@ -99,15 +110,17 @@ class TreeherderDBSource(DataSource):
             {
                 "id": task_data["id"],
                 "label": task_data["label"],
+                "result": task_data["result"],
+                "duration": task_data["duration"],
                 "tags": task_data["tags"],
             }
             for task_id, task_data in tasks.items()
         ]
 
-    def run_push_tasks_results(self, branch, rev):
+    def run_push_tasks_classifications(self, branch, rev):
         if not Job:
             raise ContractNotFilled(
-                self.name, "push_tasks_results", "could not import Job model"
+                self.name, "push_tasks_classifications", "could not import Job model"
             )
 
         tasks = self._get_tasks(branch, rev)
@@ -115,9 +128,7 @@ class TreeherderDBSource(DataSource):
         result = {}
         for task_id, task_data in tasks.items():
             result[task_id] = {
-                "result": task_data["result"],
                 "classification": task_data["classification"],
-                "duration": task_data["duration"],
             }
 
             if task_data.get("classification_note"):

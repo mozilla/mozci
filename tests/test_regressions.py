@@ -17,13 +17,13 @@ def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_failed_in_gran
     i = 3  # the index of the push we are mainly interested in
 
     # setup
-    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[i].backedoutby = p[i + 3].rev
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -32,7 +32,7 @@ def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_failed_in_gran
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -59,7 +59,7 @@ def test_intermittent_in_parent_didnt_run_in_current_failed_in_child(
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="intermittent",
         )
     ]
@@ -68,7 +68,7 @@ def test_intermittent_in_parent_didnt_run_in_current_failed_in_child(
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -90,18 +90,18 @@ def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_succeeded_in_g
     i = 3  # the index of the push we are mainly interested in
 
     # setup
-    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[i].backedoutby = p[i + 3].rev
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
     p[i + 1].backedoutby = p[i + 3].rev
-    p[i + 2].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i + 2].tasks = [Task.create(id="1", label="test-prova", result="passed")]
 
     assert p[i - 2].get_regressions("label") == {}
     assert p[i - 1].get_regressions("label") == {}
@@ -121,13 +121,13 @@ def test_succeeded_in_parent_didnt_run_in_current_passed_in_child_failed_in_gran
     p = create_pushes(7)
     i = 3  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
-    p[i + 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
+    p[i + 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[i + 2].tasks = [
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -151,13 +151,13 @@ def test_succeeded_in_parent_succeeded_in_current_failed_in_child_failed_in_gran
     p = create_pushes(7)
     i = 3  # the index of the push we are mainly interested in
 
-    p[i - 2].tasks = [Task.create(id="1", label="test-prova", result="success")]
-    p[i].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i - 2].tasks = [Task.create(id="1", label="test-prova", result="passed")]
+    p[i].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -166,7 +166,7 @@ def test_succeeded_in_parent_succeeded_in_current_failed_in_child_failed_in_gran
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -190,18 +190,18 @@ def test_succeeded_in_parent_failed_in_current_succeeded_in_child_succeeded_in_g
     p = create_pushes(7)
     i = 3  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
     p[i].backedoutby = p[i + 3].rev
-    p[i + 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
-    p[i + 2].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i + 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
+    p[i + 2].tasks = [Task.create(id="1", label="test-prova", result="passed")]
 
     assert p[i - 2].get_regressions("label") == {}
     assert p[i - 1].get_regressions("label") == {}
@@ -218,7 +218,7 @@ def test_failure_on_backout(create_pushes):
     p = create_pushes(5)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 2].rev
     p[i + 1].tasks = []
     p[i + 1].backedoutby = p[i + 3].rev
@@ -226,7 +226,7 @@ def test_failure_on_backout(create_pushes):
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -245,14 +245,14 @@ def test_failure_on_bustage_fix(create_pushes):
     i = 1  # the index of the push we are mainly interested in
 
     p[i - 1].tasks = [
-        Task.create(id="1", label="test", result="success"),
-        Task.create(id="1", label="test_for_detecting_bustage_fix", result="success"),
+        Task.create(id="1", label="test", result="passed"),
+        Task.create(id="1", label="test_for_detecting_bustage_fix", result="passed"),
     ]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test_for_detecting_bustage_fix",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
     ]
@@ -263,13 +263,13 @@ def test_failure_on_bustage_fix(create_pushes):
         Task.create(
             id="1",
             label="test",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
         Task.create(
             id="1",
             label="test_for_detecting_bustage_fix",
-            result="success",
+            result="passed",
         ),
     ]
     p[i + 2].bugs = {123}
@@ -288,7 +288,7 @@ def test_failure_on_multiple_backouts(create_pushes):
     p = create_pushes(5)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].backedoutby = "myrev"
     p[i + 1].tasks = []
     p[i + 1].backedoutby = p[i + 3].rev
@@ -296,7 +296,7 @@ def test_failure_on_multiple_backouts(create_pushes):
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -315,14 +315,14 @@ def test_failure_after_backout(create_pushes):
     p = create_pushes(5)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 1].rev
     p[i + 1].tasks = []
     p[i + 2].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -341,12 +341,12 @@ def test_failure_keeps_happening_on_backout(monkeypatch, create_pushes):
     p = create_pushes(4)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -356,7 +356,7 @@ def test_failure_keeps_happening_on_backout(monkeypatch, create_pushes):
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -374,12 +374,12 @@ def test_failure_intermittent_on_backout(monkeypatch, create_pushes):
     p = create_pushes(4)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -389,7 +389,7 @@ def test_failure_intermittent_on_backout(monkeypatch, create_pushes):
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="intermittent",
         )
     ]
@@ -408,14 +408,14 @@ def test_failure_not_on_push_keeps_happening_on_backout(monkeypatch, create_push
     p = create_pushes(4)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].tasks = []
     p[i].backedoutby = p[i + 2].rev
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -423,7 +423,7 @@ def test_failure_not_on_push_keeps_happening_on_backout(monkeypatch, create_push
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -442,7 +442,7 @@ def test_failure_not_on_push_keeps_happening_after_backout(monkeypatch, create_p
     p = create_pushes(7)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].tasks = []
     p[i].backedoutby = p[i + 3].rev
     p[i + 1].tasks = []
@@ -450,7 +450,7 @@ def test_failure_not_on_push_keeps_happening_after_backout(monkeypatch, create_p
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -458,7 +458,7 @@ def test_failure_not_on_push_keeps_happening_after_backout(monkeypatch, create_p
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -476,7 +476,7 @@ def test_succeeded_and_backedout(create_pushes):
     p = create_pushes(3)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[i].backedoutby = p[i + 1].rev
 
     assert p[i].get_regressions("label") == {}
@@ -489,12 +489,12 @@ def test_failed_and_backedout(create_pushes):
     p = create_pushes(3)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -511,22 +511,22 @@ def test_failed_and_bustage_fixed(create_pushes):
     p = create_pushes(3)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-prova1", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova1", result="passed")]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test-prova1",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
         Task.create(
             id="1",
             label="test-prova2",
-            result="success",
+            result="passed",
         ),
     ]
     p[i].bugs = {123}
-    p[i + 1].tasks = [Task.create(id="1", label="test-prova1", result="success")]
+    p[i + 1].tasks = [Task.create(id="1", label="test-prova1", result="passed")]
     p[i + 1].bugs = {123}
 
     assert p[i].get_regressions("label") == {"test-prova1": 0}
@@ -540,22 +540,22 @@ def test_failed_and_bustage_fixed_intermittently(create_pushes):
     p = create_pushes(3)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[i].tasks = [
         Task.create(
             id="4",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
         Task.create(
             id="5",
             label="test-prova",
-            result="success",
+            result="passed",
         ),
     ]
     p[i].bugs = {123}
-    p[i + 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i + 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[i + 1].bugs = {123}
 
     assert p[i].get_regressions("label") == {"test-prova": 0}
@@ -569,12 +569,12 @@ def test_failed_with_child_push_fixing_same_bug(create_pushes):
     p = create_pushes(3)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -595,34 +595,34 @@ def test_failed_with_child_push_still_failing_fixing_same_bug(create_pushes):
     i = 1  # the index of the push we are mainly interested in
 
     p[i - 1].tasks = [
-        Task.create(id="1", label="test-failure", result="success"),
+        Task.create(id="1", label="test-failure", result="passed"),
         Task.create(
             id="2",
-            label="test-success",
-            result="success",
+            label="test-passed",
+            result="passed",
         ),
         Task.create(
             id="3",
             label="test-classified-intermittent",
-            result="success",
+            result="passed",
         ),
     ]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
         Task.create(
             id="2",
-            label="test-success",
-            result="success",
+            label="test-passed",
+            result="passed",
         ),
         Task.create(
             id="3",
             label="test-classified-intermittent",
-            result="testfailed",
+            result="failed",
             classification="intermittent",
         ),
     ]
@@ -631,18 +631,18 @@ def test_failed_with_child_push_still_failing_fixing_same_bug(create_pushes):
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
         Task.create(
             id="2",
-            label="test-success",
-            result="success",
+            label="test-passed",
+            result="passed",
         ),
         Task.create(
             id="3",
             label="test-classified-intermittent",
-            result="success",
+            result="passed",
         ),
     ]
     p[i + 1].bugs = {123}
@@ -658,12 +658,12 @@ def test_failed_and_not_backedout_nor_bustage_fixed(create_pushes):
     p = create_pushes(3)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -679,17 +679,17 @@ def test_child_failed_and_bustage_fixed(create_pushes):
     p = create_pushes(3 + (MAX_DEPTH // 4))
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[i].bugs = {123}
     p[len(p) - 2].tasks = [
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
-    p[len(p) - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[len(p) - 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[len(p) - 1].bugs = {123}
 
     assert p[i].get_regressions("label") == {"test-prova": 10}
@@ -703,12 +703,12 @@ def test_child_failed_and_not_backedout(create_pushes):
     p = create_pushes(3 + (MAX_DEPTH // 4))
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[len(p) - 2].tasks = [
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -724,12 +724,12 @@ def test_far_child_failed_and_backedout(create_pushes):
     p = create_pushes(3 + (MAX_DEPTH // 2 + 1))
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-prova", result="passed")]
     p[len(p) - 2].tasks = [
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -760,22 +760,22 @@ def test_fixed_by_commit(monkeypatch, create_pushes):
     monkeypatch.setattr(HGMO, "pushid", property(lambda cls: 1))
 
     p[i - 1].tasks = [
-        Task.create(id="1", label="test-failure-current", result="success"),
-        Task.create(id="1", label="test-failure-next", result="success"),
+        Task.create(id="1", label="test-failure-current", result="passed"),
+        Task.create(id="1", label="test-failure-next", result="passed"),
     ]
     p[i].backedoutby = p[i + 2].rev
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure-current",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 2].rev,
         ),
         Task.create(
             id="1",
             label="test-failure-next",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 3].rev,
         ),
@@ -814,7 +814,7 @@ def test_fixed_by_commit_task_didnt_run_in_parents(monkeypatch, create_pushes):
         Task.create(
             id="1",
             label="test-failure-current",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 2].rev,
         )
@@ -843,13 +843,13 @@ def test_fixed_by_commit_push_wasnt_backedout(monkeypatch, create_pushes):
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [
-        Task.create(id="1", label="test-failure-current", result="success")
+        Task.create(id="1", label="test-failure-current", result="passed")
     ]
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure-current",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 3].rev,
         )
@@ -879,7 +879,7 @@ def test_fixed_by_commit_another_push_possible_classification(
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 4].rev
     p[i + 1].tasks = []
     p[i + 1].backedoutby = p[i + 3].rev
@@ -887,7 +887,7 @@ def test_fixed_by_commit_another_push_possible_classification(
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 3].rev,
         )
@@ -919,13 +919,13 @@ def test_fixed_by_commit_another_push_possible_classification2(
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 4].rev
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note="rev3",
         )
@@ -935,7 +935,7 @@ def test_fixed_by_commit_another_push_possible_classification2(
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note="3rev1",
         )
@@ -970,13 +970,13 @@ def test_fixed_by_commit_another_push_possible_classification3(
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 4].rev
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -985,7 +985,7 @@ def test_fixed_by_commit_another_push_possible_classification3(
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 3].rev,
         )
@@ -1013,14 +1013,14 @@ def test_fixed_by_commit_another_push_possible_classification4(
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 3].rev
-    p[i + 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i + 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i + 2].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 3].rev,
         )
@@ -1051,14 +1051,14 @@ def test_fixed_by_commit_another_push_possible_classification5(
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].backedoutby = "3rev2"
-    p[i + 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i + 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i + 2].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 3].rev,
         )
@@ -1103,14 +1103,14 @@ def test_fixed_by_commit_another_push_possible_classification6(
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 3].rev
-    p[i + 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i + 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i + 2].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note="3rev2",
         )
@@ -1155,14 +1155,14 @@ def test_fixed_by_commit_another_push_possible_classification7(
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].backedoutby = "3rev2"
-    p[i + 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i + 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i + 2].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note="3rev2",
         )
@@ -1192,12 +1192,12 @@ def test_fixed_by_commit_another_push_possible_classification8(
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 4].rev,
         )
@@ -1208,12 +1208,12 @@ def test_fixed_by_commit_another_push_possible_classification8(
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 4].rev,
         )
     ]
-    p[i + 4].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i + 4].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i + 4].bugs = p[i].bugs
     p[i + 4]._revs = [p[i + 4].rev, "rev4.2"]
 
@@ -1240,14 +1240,14 @@ def test_fixed_by_commit_another_push_possible_classification9(
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
-    p[i].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
+    p[i].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].backedoutby = "3rev2"
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 3].rev,
         )
@@ -1256,7 +1256,7 @@ def test_fixed_by_commit_another_push_possible_classification9(
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 3].rev,
         )
@@ -1279,13 +1279,13 @@ def test_intermittent_then_unclassified(monkeypatch, create_pushes):
     p = create_pushes(6)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 4].rev
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="intermittent",
         )
     ]
@@ -1293,7 +1293,7 @@ def test_intermittent_then_unclassified(monkeypatch, create_pushes):
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         )
     ]
@@ -1323,12 +1323,12 @@ def test_fixed_by_commit_after_intermittent(monkeypatch, create_pushes):
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="intermittent",
         )
     ]
@@ -1337,7 +1337,7 @@ def test_fixed_by_commit_after_intermittent(monkeypatch, create_pushes):
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 2].rev,
         )
@@ -1365,12 +1365,12 @@ def test_fixed_by_commit_after_success(monkeypatch, create_pushes):
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="success",
+            result="passed",
         )
     ]
     p[i].backedoutby = p[i + 2].rev
@@ -1378,7 +1378,7 @@ def test_fixed_by_commit_after_success(monkeypatch, create_pushes):
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 2].rev,
         )
@@ -1406,12 +1406,12 @@ def test_intermittent_after_fixed_by_commit(monkeypatch, create_pushes):
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 2].rev,
         )
@@ -1421,7 +1421,7 @@ def test_intermittent_after_fixed_by_commit(monkeypatch, create_pushes):
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="intermittent",
         )
     ]
@@ -1448,12 +1448,12 @@ def test_success_after_fixed_by_commit(monkeypatch, create_pushes):
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 2].rev,
         )
@@ -1463,7 +1463,7 @@ def test_success_after_fixed_by_commit(monkeypatch, create_pushes):
         Task.create(
             id="1",
             label="test-failure",
-            result="success",
+            result="passed",
         )
     ]
 
@@ -1495,14 +1495,14 @@ def test_success_after_fixed_by_commit_not_on_push_interest(monkeypatch, create_
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].tasks = []
     p[i].backedoutby = p[i + 3].rev
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 3].rev,
         )
@@ -1512,7 +1512,7 @@ def test_success_after_fixed_by_commit_not_on_push_interest(monkeypatch, create_
         Task.create(
             id="1",
             label="test-failure",
-            result="success",
+            result="passed",
         )
     ]
 
@@ -1546,14 +1546,14 @@ def test_intermittent_after_fixed_by_commit_not_on_push_interest(
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].tasks = []
     p[i].backedoutby = p[i + 3].rev
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 3].rev,
         )
@@ -1563,7 +1563,7 @@ def test_intermittent_after_fixed_by_commit_not_on_push_interest(
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="intermittent",
         )
     ]
@@ -1591,13 +1591,13 @@ def test_fixed_by_commit_failure_on_another_push_possible_classification(
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 4].rev
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 3].rev,
         )
@@ -1625,12 +1625,12 @@ def test_fixed_by_commit_another_push_wrong_classification(monkeypatch, create_p
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note="rev4",
         )
@@ -1640,7 +1640,7 @@ def test_fixed_by_commit_another_push_wrong_classification(monkeypatch, create_p
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note="rev4",
         )
@@ -1671,14 +1671,14 @@ def test_fixed_by_commit_another_push_wrong_classification_bustage_fixed(
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].tasks = []
     p[i].bugs = {123}
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 4].rev,
         )
@@ -1710,7 +1710,7 @@ def test_fixed_by_commit_another_push_wrong_classification_bustage_fixed2(
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].tasks = []
     p[i].bugs = {123}
     p[i + 1].bugs = {123}
@@ -1718,7 +1718,7 @@ def test_fixed_by_commit_another_push_wrong_classification_bustage_fixed2(
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 4].rev,
         )
@@ -1749,14 +1749,14 @@ def test_fixed_by_commit_another_push_wrong_classification2(monkeypatch, create_
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
-    p[i].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
+    p[i].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 4].rev
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 4].rev,
         )
@@ -1766,7 +1766,7 @@ def test_fixed_by_commit_another_push_wrong_classification2(monkeypatch, create_
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 5].rev,
         )
@@ -1809,14 +1809,14 @@ def test_fixed_by_commit_multiple_backout(monkeypatch, create_pushes):
 
     monkeypatch.setattr(HGMO, "pushid", property(mock_pushid))
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-failure", result="passed")]
     p[i]._revs = ["rev1.1", "rev1.2"]
     p[i].backedoutby = "rev4.2"
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-failure",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 2].rev,
         )
@@ -1851,8 +1851,8 @@ def test_fixed_by_commit_no_backout(monkeypatch, create_pushes):
     monkeypatch.setattr(HGMO, "pushid", property(lambda cls: 1))
 
     p[i - 1].tasks = [
-        Task.create(id="1", label="test-failure-current", result="success"),
-        Task.create(id="1", label="test-failure-next", result="success"),
+        Task.create(id="1", label="test-failure-current", result="passed"),
+        Task.create(id="1", label="test-failure-next", result="passed"),
     ]
     p[i].backedoutby = p[i + 3].rev
 
@@ -1860,14 +1860,14 @@ def test_fixed_by_commit_no_backout(monkeypatch, create_pushes):
         Task.create(
             id="1",
             label="test-failure-current",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note="xxx",
         ),
         Task.create(
             id="1",
             label="test-failure-next",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 2].rev,
         ),
@@ -1889,13 +1889,13 @@ def test_intermittent_without_classification_and_not_backedout(create_pushes):
     p = create_pushes(3)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-intermittent", result="passed")]
     p[i].tasks = [
-        Task.create(id="1", label="test-intermittent", result="success"),
+        Task.create(id="1", label="test-intermittent", result="passed"),
         Task.create(
             id="2",
             label="test-intermittent",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
     ]
@@ -1913,13 +1913,13 @@ def test_far_intermittent_without_classification_and_not_backedout(create_pushes
     p = create_pushes(4)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-intermittent", result="passed")]
     p[i + 1].tasks = [
-        Task.create(id="1", label="test-intermittent", result="success"),
+        Task.create(id="1", label="test-intermittent", result="passed"),
         Task.create(
             id="2",
             label="test-intermittent",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
     ]
@@ -1936,13 +1936,13 @@ def test_intermittent_without_classification_and_backedout(create_pushes):
     p = create_pushes(3)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-intermittent", result="passed")]
     p[i].tasks = [
-        Task.create(id="1", label="test-intermittent", result="success"),
+        Task.create(id="1", label="test-intermittent", result="passed"),
         Task.create(
             id="2",
             label="test-intermittent",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
     ]
@@ -1960,14 +1960,14 @@ def test_far_intermittent_without_classification_and_backedout(create_pushes):
     p = create_pushes(5)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-intermittent", result="passed")]
     p[i].backedoutby = p[i + 2].rev
     p[i + 1].tasks = [
-        Task.create(id="1", label="test-intermittent", result="success"),
+        Task.create(id="1", label="test-intermittent", result="passed"),
         Task.create(
             id="2",
             label="test-intermittent",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
     ]
@@ -1994,15 +1994,15 @@ def test_intermittent_fixed_by_commit(monkeypatch, create_pushes):
 
     monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
 
-    p[i - 2].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
+    p[i - 2].tasks = [Task.create(id="1", label="test-intermittent", result="passed")]
     p[i - 2].backedoutby = None
     p[i].backedoutby = p[i + 2].rev
     p[i + 1].tasks = [
-        Task.create(id="1", label="test-intermittent", result="success"),
+        Task.create(id="1", label="test-intermittent", result="passed"),
         Task.create(
             id="2",
             label="test-intermittent",
-            result="testfailed",
+            result="failed",
             classification="fixed by commit",
             classification_note=p[i + 2].rev,
         ),
@@ -2022,13 +2022,13 @@ def test_intermittent_classification(create_pushes):
     p = create_pushes(5)
     i = 1  # the index of the push we are mainly interested in
 
-    p[i - 1].tasks = [Task.create(id="1", label="test-intermittent", result="success")]
+    p[i - 1].tasks = [Task.create(id="1", label="test-intermittent", result="passed")]
     p[i].backedoutby = p[i + 2].rev
     p[i + 1].tasks = [
         Task.create(
             id="1",
             label="test-intermittent",
-            result="testfailed",
+            result="failed",
             classification="intermittent",
         )
     ]
@@ -2049,14 +2049,14 @@ def test_try(
     try_p.parent = p[i]
 
     p[i - 1].tasks = [
-        Task.create(id="1", label="test-new", result="success"),
-        Task.create(id="1", label="test-preexisting", result="success"),
+        Task.create(id="1", label="test-new", result="passed"),
+        Task.create(id="1", label="test-preexisting", result="passed"),
     ]
     p[i].tasks = [
         Task.create(
             id="1",
             label="test-preexisting",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
     ]
@@ -2065,13 +2065,13 @@ def test_try(
         Task.create(
             id="1",
             label="test-new",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
         Task.create(
             id="1",
             label="test-preexisting",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
     ]
@@ -2092,26 +2092,26 @@ def test_intermittent_failure_in_parent(create_pushes):
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
         Task.create(
             id="2",
             label="test-prova",
-            result="success",
+            result="passed",
         ),
     ]
     p[i].tasks = [
         Task.create(
             id="3",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
         Task.create(
             id="4",
             label="test-prova",
-            result="success",
+            result="passed",
         ),
     ]
     p[i].backedoutby = p[i + 1].rev
@@ -2131,7 +2131,7 @@ def test_intermittent_failure_and_consistent_in_parent(create_pushes):
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
     ]
@@ -2139,13 +2139,13 @@ def test_intermittent_failure_and_consistent_in_parent(create_pushes):
         Task.create(
             id="2",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
         Task.create(
             id="3",
             label="test-prova",
-            result="success",
+            result="passed",
         ),
     ]
     p[i].backedoutby = p[i + 1].rev
@@ -2165,20 +2165,20 @@ def test_intermittent_failure_and_passes_in_parent(create_pushes):
         Task.create(
             id="1",
             label="test-prova",
-            result="success",
+            result="passed",
         ),
     ]
     p[i].tasks = [
         Task.create(
             id="2",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
         Task.create(
             id="3",
             label="test-prova",
-            result="success",
+            result="passed",
         ),
     ]
     p[i].backedoutby = p[i + 1].rev
@@ -2198,20 +2198,20 @@ def test_intermittent_failure_in_parent_after_failures(create_pushes):
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
         Task.create(
             id="2",
             label="test-prova",
-            result="success",
+            result="passed",
         ),
     ]
     p[i - 1].tasks = [
         Task.create(
             id="3",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
     ]
@@ -2219,13 +2219,13 @@ def test_intermittent_failure_in_parent_after_failures(create_pushes):
         Task.create(
             id="4",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
         Task.create(
             id="5",
             label="test-prova",
-            result="success",
+            result="passed",
         ),
     ]
     p[i].backedoutby = p[i + 1].rev
@@ -2245,33 +2245,33 @@ def test_intermittent_failure_in_parent_after_passes(create_pushes):
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
         Task.create(
             id="2",
             label="test-prova",
-            result="success",
+            result="passed",
         ),
     ]
     p[i - 1].tasks = [
         Task.create(
             id="3",
             label="test-prova",
-            result="success",
+            result="passed",
         ),
     ]
     p[i].tasks = [
         Task.create(
             id="4",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
         Task.create(
             id="5",
             label="test-prova",
-            result="success",
+            result="passed",
         ),
     ]
     p[i].backedoutby = p[i + 1].rev
@@ -2292,7 +2292,7 @@ def test_classified_intermittent_failure_in_parent_after_passes(create_pushes):
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="intermittent",
         ),
     ]
@@ -2300,14 +2300,14 @@ def test_classified_intermittent_failure_in_parent_after_passes(create_pushes):
         Task.create(
             id="2",
             label="test-prova",
-            result="success",
+            result="passed",
         ),
     ]
     p[i].tasks = [
         Task.create(
             id="3",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="intermittent",
         ),
     ]
@@ -2328,7 +2328,7 @@ def test_failure_after_pass(create_pushes):
         Task.create(
             id="1",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
     ]
@@ -2336,14 +2336,14 @@ def test_failure_after_pass(create_pushes):
         Task.create(
             id="2",
             label="test-prova",
-            result="success",
+            result="passed",
         ),
     ]
     p[i].tasks = [
         Task.create(
             id="3",
             label="test-prova",
-            result="testfailed",
+            result="failed",
             classification="not classified",
         ),
     ]

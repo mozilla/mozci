@@ -124,7 +124,7 @@ def test_GroupSummary_classifications():
     task1 = Task.create(
         id=1,
         label="test-task1",
-        result="testfailed",
+        result="failed",
         classification="fixed by commit",
         classification_note="xxx",
     )
@@ -138,7 +138,7 @@ def test_GroupSummary_classifications():
     task1 = Task.create(
         id=1,
         label="test-task1",
-        result="testfailed",
+        result="failed",
         classification="fixed by commit",
         classification_note="xxx",
     )
@@ -151,7 +151,7 @@ def test_GroupSummary_classifications():
     ]
 
     task1 = Task.create(
-        id=1, label="test-task1", result="testfailed", classification="intermittent"
+        id=1, label="test-task1", result="failed", classification="intermittent"
     )
     task1._results = [GroupResult("group1", False), GroupResult("group2", False)]
     assert GroupSummary("group1", [task1]).classifications == [("intermittent", None)]
@@ -160,7 +160,7 @@ def test_GroupSummary_classifications():
     task1 = Task.create(
         id=1,
         label="test-task1",
-        result="testfailed",
+        result="failed",
         classification="fixed by commit",
         classification_note="xxx",
     )
@@ -173,13 +173,13 @@ def test_GroupSummary_classifications():
     task1 = Task.create(
         id=1,
         label="test-task1",
-        result="testfailed",
+        result="failed",
         classification="fixed by commit",
         classification_note="xxx",
     )
     task1._results = [GroupResult("group1", True), GroupResult("group2", False)]
     task2 = Task.create(
-        id=1, label="test-task1", result="testfailed", classification="intermittent"
+        id=1, label="test-task1", result="failed", classification="intermittent"
     )
     task2._results = [GroupResult("group1", False), GroupResult("group2", False)]
     assert GroupSummary("group1", [task1, task2]).classifications == [

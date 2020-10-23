@@ -20,7 +20,7 @@ class ActiveDataSource(DataSource):
     name = "adr"
     supported_contracts = (
         "push_tasks",
-        "push_tasks_results",
+        "push_tasks_classifications",
         "push_test_groups",
         "push_revisions",
     )
@@ -58,6 +58,17 @@ class ActiveDataSource(DataSource):
                 # We don't need to store the retry ID.
                 del item["retry_id"]
 
+            # Normalize result
+            result_map = {
+                "success": "passed",
+                "testfailed": "failed",
+                "bustage": "failed",
+                "usercancel": "canceled",
+                "retry": "exception",
+            }
+            if item.get("result") in result_map:
+                item["result"] = result_map[item["result"]]
+
             items.append(item)
         return items
 
@@ -73,6 +84,7 @@ class ActiveDataSource(DataSource):
             "id",
             "label",
             "result",
+            "state",
         )
 
         for task in self.normalize(result):
@@ -99,6 +111,8 @@ class ActiveDataSource(DataSource):
 
             tasks[task["id"]] = task
 
+        # TODO: Figure out why we have some results from the `push_tasks_tags_from_task` query
+        # that we don't have from `push_tasks_from_treeherder`.
         result = adr.query.run_query(
             "push_tasks_tags_from_task", Namespace(branch=branch, rev=rev)
         )
@@ -110,8 +124,6 @@ class ActiveDataSource(DataSource):
                 if any(k not in tag for k in ("name", "value")):
                     continue
 
-                # TODO: Figure out why we have some results from the `push_tasks_tags_from_task` query
-                # that we don't have from `push_tasks_from_treeherder`.
                 if item["id"] in tasks:
                     tasks[item["id"]]["tags"][tag["name"]] = tag["value"]
 
@@ -124,20 +136,21 @@ class ActiveDataSource(DataSource):
             {
                 "id": task_data["id"],
                 "label": task_data["label"],
+                "result": task_data["result"],
+                "state": task_data["state"],
+                "duration": task_data["duration"],
                 "tags": task_data["tags"],
             }
             for task_id, task_data in tasks.items()
         ]
 
-    def run_push_tasks_results(self, branch, rev):
+    def run_push_tasks_classifications(self, branch, rev):
         tasks = self._get_tasks(branch, rev)
 
         result = {}
         for task_id, task_data in tasks.items():
             result[task_id] = {
-                "result": task_data["result"],
                 "classification": task_data["classification"],
-                "duration": task_data["duration"],
             }
 
             if task_data.get("classification_note"):

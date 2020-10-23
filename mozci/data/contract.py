@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from dataclasses import dataclass
+from textwrap import dedent
 from typing import Tuple
 
 from voluptuous import Any, Marker, Optional, Required, Schema
@@ -29,18 +30,37 @@ _contracts: Tuple[Contract, ...] = (
                 {
                     Required("id"): str,
                     Required("label"): str,
+                    Required("state"): Any(
+                        "completed",
+                        "running",
+                        "pending",
+                        "unscheduled",
+                    ),
                     Required("tags"): {
                         Marker(str, description="tag name"): Marker(
                             str, description="tag value"
                         )
                     },
+                    Optional("duration"): int,
+                    Optional("result"): Any(
+                        "passed",
+                        "failed",
+                        "exception",
+                        "canceled",
+                        "superseded",
+                    ),
                 }
             ]
         ),
     ),
     Contract(
-        name="push_tasks_results",
-        description="Data about the results of the tasks that ran on a given push.",
+        name="push_tasks_classifications",
+        description=dedent(
+            """
+            Return classifications on the tasks that ran on a given push. Tasks
+            without a classification need not be present.
+        """
+        ),
         validate_in=Schema(
             {
                 Required("branch"): str,
@@ -50,7 +70,6 @@ _contracts: Tuple[Contract, ...] = (
         validate_out=Schema(
             {
                 Marker(str, description="task id"): {
-                    Required("result"): str,
                     Required("classification"): Any(
                         "autoclassified intermittent",
                         "infra",
@@ -60,7 +79,6 @@ _contracts: Tuple[Contract, ...] = (
                         "not classified",
                     ),
                     Optional("classification_note"): str,
-                    Optional("duration"): int,
                 }
             }
         ),

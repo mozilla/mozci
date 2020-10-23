@@ -125,7 +125,8 @@ class Task:
     label: Optional[str] = field(default=None)
     duration: Optional[int] = field(default=None)
     result: Optional[str] = field(default=None)
-    classification: Optional[str] = field(default=None)
+    state: Optional[str] = field(default=None)
+    classification: Optional[str] = field(default="not classified")
     classification_note: Optional[str] = field(default=None)
     tags: Dict = field(default_factory=dict)
 
@@ -156,7 +157,7 @@ class Task:
 
     @property
     def failed(self):
-        return self.result in ("busted", "exception", "testfailed")
+        return self.result in ("failed", "exception")
 
     @memoized_property
     def artifacts(self):

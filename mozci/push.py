@@ -260,13 +260,13 @@ class Push:
 
         # Gather data about results of tasks that ran on a given push.
         try:
-            tasks_results = data.handler.get(
-                "push_tasks_results", branch=self.branch, rev=self.rev
+            classifications = data.handler.get(
+                "push_tasks_classifications", branch=self.branch, rev=self.rev
             )
 
             for task in tasks:
-                if task["id"] in tasks_results:
-                    task.update(tasks_results[task["id"]])
+                if task["id"] in classifications:
+                    task.update(classifications[task["id"]])
         except MissingDataError:
             pass
 

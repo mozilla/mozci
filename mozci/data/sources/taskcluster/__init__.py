@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from datetime import datetime
+
 from mozci.data.base import DataSource
 from mozci.util import taskcluster
 
@@ -9,6 +11,10 @@ class TaskclusterSource(DataSource):
 
     name = "taskcluster"
     supported_contracts = ("push_tasks",)
+
+    def to_ms(self, datestring, fmt="%Y-%m-%dT%H:%M:%S.%fZ"):
+        dt = datetime.strptime(datestring, fmt)
+        return int(dt.timestamp() * 1000)
 
     def run_push_tasks(self, branch, rev):
         decision_task_id = taskcluster.find_task_id(
@@ -33,12 +39,40 @@ class TaskclusterSource(DataSource):
             if result["task"]["metadata"]["name"].startswith("Action"):
                 continue
 
-            tasks.append(
-                {
-                    "id": result["status"]["taskId"],
-                    "label": result["task"]["metadata"]["name"],
-                    "tags": result["task"]["tags"],
-                }
-            )
+            task = {
+                "id": result["status"]["taskId"],
+                "label": result["task"]["metadata"]["name"],
+                "tags": result["task"]["tags"],
+                "state": result["status"]["state"],
+            }
+
+            # Use the latest run (earlier ones likely had exceptions that
+            # caused an automatic retry).
+            if task["state"] != "unscheduled":
+                run = result["status"]["runs"][-1]
+
+                # Normalize the state to match treeherder's values.
+                if task["state"] in ("failed", "exception"):
+                    task["state"] = "completed"
+
+                # Derive a result from the reasonResolved.
+                reason = run.get("reasonResolved")
+                if reason == "completed":
+                    task["result"] = "passed"
+                elif reason in ("canceled", "superseded", "failed"):
+                    task["result"] = reason
+                elif reason:
+                    task["result"] = "exception"
+                else:
+                    # Task is not finished, so there is no result yet.
+                    assert task["state"] in ("pending", "running")
+
+            # Compute duration.
+            if "resolved" in run:
+                task["duration"] = self.to_ms(run["resolved"]) - self.to_ms(
+                    run["started"]
+                )
+
+            tasks.append(task)
 
         return tasks

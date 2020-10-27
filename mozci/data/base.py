@@ -113,3 +113,5 @@ def register_sources():
             activedata.ActiveDataSource(),
         )
     }
+    # XXX Create an alias for backwards compatibility. Remove with the next major release.
+    DataHandler.ALL_SOURCES["treeherder"] = DataHandler.ALL_SOURCES["treeherder_db"]

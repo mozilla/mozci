@@ -25,7 +25,7 @@ class TreeherderClientSource(BaseTreeherderSource):
 
     name = "treeherder_client"
     supported_contracts = ("push_tasks_classifications",)
-    base_url = "https://treeherder.mozilla.org/api/"
+    base_url = "https://treeherder.mozilla.org/api"
 
     @memoized_property
     def session(self):

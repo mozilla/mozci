@@ -14,7 +14,6 @@ class HGMO:
     # urls
     BASE_URL = "https://hg.mozilla.org/"
     AUTOMATION_RELEVANCE_TEMPLATE = BASE_URL + "{branch}/json-automationrelevance/{rev}"
-    JSON_TEMPLATE = BASE_URL + "{branch}/rev/{rev}?style=json"
     JSON_PUSHES_TEMPLATE_BASE = BASE_URL + "{branch}/json-pushes?version=2"
     JSON_PUSHES_TEMPLATE = (
         JSON_PUSHES_TEMPLATE_BASE + "&startID={push_id_start}&endID={push_id_end}"
@@ -58,17 +57,6 @@ class HGMO:
         url = self.AUTOMATION_RELEVANCE_TEMPLATE.format(**self.context)
         return self._get_resource(url)["changesets"]
 
-    @memoized_property
-    def data(self):
-        url = self.JSON_TEMPLATE.format(**self.context)
-        return self._get_resource(url)
-
-    def __getitem__(self, k):
-        return self.data[k]
-
-    def get(self, k, default=None):
-        return self.data.get(k, default)
-
     @memoize
     def json_pushes(self, push_id_start, push_id_end):
         url = self.JSON_PUSHES_TEMPLATE.format(
@@ -86,6 +74,17 @@ class HGMO:
         )
         return self._get_resource(url)["pushes"]
 
+    def _find_self(self):
+        for changeset in self.changesets:
+            if changeset["node"].startswith(self.context["rev"]):
+                return changeset
+
+        assert False
+
+    @property
+    def node(self):
+        return self._find_self()["node"]
+
     @property
     def pushid(self):
         return self.changesets[0]["pushid"]
@@ -93,6 +92,14 @@ class HGMO:
     @property
     def pushhead(self):
         return self.changesets[0]["pushhead"]
+
+    @property
+    def pushdate(self):
+        return self.changesets[0]["pushdate"][0]
+
+    @property
+    def backedoutby(self):
+        return self._find_self()["backedoutby"]
 
     @property
     def backouts(self):

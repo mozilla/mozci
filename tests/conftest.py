@@ -39,23 +39,16 @@ def create_push(monkeypatch, responses):
 
     monkeypatch.setattr(HGMO, "pushid", property(mock_pushid))
 
-    def inner(rev=None, branch="integration/autoland", json_data=None):
+    def mock_node(cls):
+        return cls.context["rev"]
+
+    monkeypatch.setattr(HGMO, "node", property(mock_node))
+
+    def inner(rev=None, branch="integration/autoland"):
         nonlocal prev_push, push_id
 
         if not rev:
             rev = "rev{}".format(push_id)
-
-        if json_data is None:
-            json_data = {
-                "node": rev,
-            }
-
-        responses.add(
-            responses.GET,
-            HGMO.JSON_TEMPLATE.format(branch=branch, rev=rev),
-            json=json_data,
-            status=200,
-        )
 
         def automationrelevance_callback(request):
             *repo, _, revision = request.path_url[1:].split("/")

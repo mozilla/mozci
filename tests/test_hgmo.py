@@ -100,15 +100,3 @@ def test_hgmo_backouts(responses):
     h = HGMO("abcdef")
     assert h.backouts == {"789": ["123456"], "ghi": ["789"]}
     assert h.changesets[0]["backsoutnodes"] == [{"node": "123456"}]
-
-
-def test_hgmo_json_data(responses):
-    responses.add(
-        responses.GET,
-        "https://hg.mozilla.org/integration/autoland/rev/abcdef?style=json",
-        json={"backedoutby": "123456"},
-        status=200,
-    )
-
-    h = HGMO("abcdef")
-    assert h.get("backedoutby") == "123456"

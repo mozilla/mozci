@@ -64,7 +64,7 @@ class Push:
         if len(revs[0]) == 40:
             self.rev = revs[0]
         else:
-            self.rev = self._hgmo["node"]
+            self.rev = self._hgmo.node
 
         self.index = BASE_INDEX.format(branch=self.branch, rev=self.rev)
         # Unique identifier for a Push across branches
@@ -83,7 +83,7 @@ class Push:
         Returns:
             str or None: The commit revision which backs this push out (or None).
         """
-        return self._hgmo.get("backedoutby") or None
+        return self._hgmo.backedoutby or None
 
     @property
     def backedout(self):
@@ -113,7 +113,7 @@ class Push:
         if self._date:
             return self._date
 
-        self._date = self._hgmo["pushdate"][0]
+        self._date = self._hgmo.pushdate
         return self._date
 
     @property
@@ -126,7 +126,7 @@ class Push:
         if self._id:
             return self._id
 
-        self._id = self._hgmo["pushid"]
+        self._id = self._hgmo.pushid
         return self._id
 
     def create_push(self, push_id):
@@ -181,7 +181,7 @@ class Push:
         for branch in branches:
             try:
                 hgmo = HGMO.create(parent_rev, branch=branch)
-                head = hgmo.changesets[0]["pushhead"]
+                head = hgmo.pushhead
             except PushNotFound:
                 continue
 

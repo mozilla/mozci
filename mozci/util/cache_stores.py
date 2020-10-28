@@ -153,21 +153,35 @@ def get_s3_credentials(bucket, prefix):
     return response["credentials"]
 
 
-class S3Store(Store):
-    def __init__(self, config):
-        """A Store instance that stores items in S3."""
-        self._bucket = config["bucket"]
-        self._prefix = config["prefix"]
-        self._create_client()
+S3_CLIENTS = {}
 
-    def _create_client(self):
-        credentials = get_s3_credentials(self._bucket, self._prefix)
-        self.client = boto3.client(
+
+def get_s3_client(bucket, prefix):
+    if (bucket, prefix) not in S3_CLIENTS:
+        credentials = get_s3_credentials(bucket, prefix)
+        S3_CLIENTS[(bucket, prefix)] = boto3.client(
             "s3",
             aws_access_key_id=credentials["accessKeyId"],
             aws_secret_access_key=credentials["secretAccessKey"],
             aws_session_token=credentials["sessionToken"],
         )
+
+    return S3_CLIENTS[(bucket, prefix)]
+
+
+def destroy_s3_client(bucket, prefix):
+    del S3_CLIENTS[(bucket, prefix)]
+
+
+class S3Store(Store):
+    def __init__(self, config):
+        """A Store instance that stores items in S3."""
+        self._bucket = config["bucket"]
+        self._prefix = config["prefix"]
+
+    @property
+    def _client(self):
+        return get_s3_client(self._bucket, self._prefix)
 
     def _key(self, key):
         return os.path.join(self._prefix, key)
@@ -176,11 +190,11 @@ class S3Store(Store):
         try:
             return op()
         except botocore.exceptions.ClientError:
-            self._create_client()
+            destroy_s3_client(self._bucket, self._prefix)
             return op()
 
     def _forget(self, key):
-        self.client.delete_object(Bucket=self._bucket, Key=self._key(key))
+        self._client.delete_object(Bucket=self._bucket, Key=self._key(key))
         # Should return False if the item was not present in the cache, but we
         # don't care.
         return True
@@ -191,13 +205,13 @@ class S3Store(Store):
     def _get(self, key):
         # Copy the object onto itself to extend its expiration.
         try:
-            head = self.client.head_object(Bucket=self._bucket, Key=self._key(key))
+            head = self._client.head_object(Bucket=self._bucket, Key=self._key(key))
 
             # Change its metadata, or Amazon will complain.
             metadata = head["Metadata"]
             metadata["id"] = "1" if "id" in metadata and metadata["id"] == "0" else "0"
 
-            self.client.copy_object(
+            self._client.copy_object(
                 Bucket=self._bucket,
                 CopySource={"Bucket": self._bucket, "Key": self._key(key)},
                 Key=self._key(key),
@@ -209,7 +223,7 @@ class S3Store(Store):
                 return None
             raise
 
-        response = self.client.get_object(Bucket=self._bucket, Key=self._key(key))
+        response = self._client.get_object(Bucket=self._bucket, Key=self._key(key))
         data = response["Body"].read()
         try:
             return self.unserialize(data)
@@ -222,7 +236,7 @@ class S3Store(Store):
         return self._retry_if_expired(lambda: self._get(key))
 
     def _put(self, key, value):
-        self.client.put_object(
+        self._client.put_object(
             Body=self.serialize(value), Bucket=self._bucket, Key=self._key(key)
         )
 

@@ -67,11 +67,11 @@ class TaskclusterSource(DataSource):
                     # Task is not finished, so there is no result yet.
                     assert task["state"] in ("pending", "running")
 
-            # Compute duration.
-            if "resolved" in run:
-                task["duration"] = self.to_ms(run["resolved"]) - self.to_ms(
-                    run["started"]
-                )
+                # Compute duration.
+                if "started" in run and "resolved" in run:
+                    task["duration"] = self.to_ms(run["resolved"]) - self.to_ms(
+                        run["started"]
+                    )
 
             tasks.append(task)
 

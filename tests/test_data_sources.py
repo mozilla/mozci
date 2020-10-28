@@ -12,6 +12,207 @@ from mozci.data.sources.treeherder import TreeherderClientSource
 @pytest.mark.parametrize(
     "source,contract,rsps,data_in,expected",
     (
+        # taskcluster
+        pytest.param(
+            "taskcluster",
+            "push_tasks",
+            # responses
+            (
+                {
+                    "method": responses.GET,
+                    "url": "https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.v2.autoland.revision.abcdef.taskgraph.decision",
+                    "status": 200,
+                    "json": {
+                        "taskId": "abc123",
+                    },
+                },
+                {
+                    "method": responses.GET,
+                    "url": "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/abc123",
+                    "status": 200,
+                    "json": {
+                        "taskGroupId": "xyz789",
+                    },
+                },
+                {
+                    "method": responses.GET,
+                    "url": "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task-group/xyz789/list",
+                    "status": 200,
+                    "json": {
+                        "tasks": [
+                            {
+                                "task": {
+                                    "extra": {
+                                        "treeherder": {"tier": 3},
+                                    },
+                                },
+                            },
+                            {
+                                "task": {
+                                    "extra": {},
+                                },
+                                "status": {
+                                    "taskId": "abc123",
+                                },
+                            },
+                            {
+                                "task": {
+                                    "extra": {},
+                                    "metadata": {
+                                        "name": "ActionTask",
+                                    },
+                                },
+                                "status": {
+                                    "taskId": "abc123",
+                                },
+                            },
+                            {
+                                "task": {
+                                    "extra": {},
+                                    "metadata": {
+                                        "name": "task-A",
+                                    },
+                                    "tags": {"name": "tag-A"},
+                                },
+                                "status": {
+                                    "taskId": "task-id-A",
+                                    "state": "unscheduled",
+                                },
+                            },
+                            {
+                                "task": {
+                                    "extra": {},
+                                    "metadata": {
+                                        "name": "task-B",
+                                    },
+                                    "tags": {},
+                                },
+                                "status": {
+                                    "taskId": "task-id-B",
+                                    "state": "pending",
+                                    "runs": [{}],
+                                },
+                            },
+                            {
+                                "task": {
+                                    "extra": {},
+                                    "metadata": {
+                                        "name": "task-C",
+                                    },
+                                    "tags": {"name": "tag-C"},
+                                },
+                                "status": {
+                                    "taskId": "task-id-C",
+                                    "state": "pending",
+                                    "runs": [
+                                        {
+                                            "reasonResolved": "claim-expired",
+                                            "resolved": "2020-10-28T19:19:27.341Z",
+                                        }
+                                    ],
+                                },
+                            },
+                            {
+                                "task": {
+                                    "extra": {},
+                                    "metadata": {
+                                        "name": "task-D",
+                                    },
+                                    "tags": {},
+                                },
+                                "status": {
+                                    "taskId": "task-id-D",
+                                    "state": "running",
+                                    "runs": [
+                                        {
+                                            "started": "2020-10-28T19:18:27.341Z",
+                                        }
+                                    ],
+                                },
+                            },
+                            {
+                                "task": {
+                                    "extra": {},
+                                    "metadata": {
+                                        "name": "task-E",
+                                    },
+                                    "tags": {},
+                                },
+                                "status": {
+                                    "taskId": "task-id-E",
+                                    "state": "completed",
+                                    "runs": [
+                                        {
+                                            "started": "2020-10-28T19:18:27.341Z",
+                                            "resolved": "2020-10-28T19:19:27.341Z",
+                                            "reasonResolved": "failed",
+                                        }
+                                    ],
+                                },
+                            },
+                            {
+                                "task": {
+                                    "extra": {},
+                                    "metadata": {
+                                        "name": "task-F",
+                                    },
+                                    "tags": {},
+                                },
+                                "status": {
+                                    "taskId": "task-id-F",
+                                    "state": "completed",
+                                    "runs": [
+                                        {
+                                            "started": "2020-10-28T19:18:27.341Z",
+                                            "resolved": "2020-10-28T19:19:27.341Z",
+                                            "reasonResolved": "completed",
+                                        }
+                                    ],
+                                },
+                            },
+                        ],  # end tasks
+                    },  # end json
+                },
+            ),  # end rsps
+            # input
+            {"branch": "autoland", "rev": "abcdef"},
+            # expected output
+            [
+                {
+                    "id": "task-id-A",
+                    "label": "task-A",
+                    "state": "unscheduled",
+                    "tags": {"name": "tag-A"},
+                },
+                {"id": "task-id-B", "label": "task-B", "state": "pending", "tags": {}},
+                {
+                    "id": "task-id-C",
+                    "label": "task-C",
+                    "result": "exception",
+                    "state": "pending",
+                    "tags": {"name": "tag-C"},
+                },
+                {"id": "task-id-D", "label": "task-D", "state": "running", "tags": {}},
+                {
+                    "duration": 60000,
+                    "id": "task-id-E",
+                    "label": "task-E",
+                    "result": "failed",
+                    "state": "completed",
+                    "tags": {},
+                },
+                {
+                    "duration": 60000,
+                    "id": "task-id-F",
+                    "label": "task-F",
+                    "result": "passed",
+                    "state": "completed",
+                    "tags": {},
+                },
+            ],
+            id="taskcluster.push_tasks",
+        ),
+        # treeherder_client
         pytest.param(
             "treeherder_client",
             "push_tasks_classifications",

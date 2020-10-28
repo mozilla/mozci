@@ -5,14 +5,13 @@
 
 import functools
 
+import taskcluster
 import taskcluster_urls as liburls
-from taskcluster.helper import TaskclusterConfig
 
 from mozci.util import yaml
 from mozci.util.req import get_session
 
 PRODUCTION_TASKCLUSTER_ROOT_URL = "https://firefox-ci-tc.services.mozilla.com"
-taskcluster_config = TaskclusterConfig(PRODUCTION_TASKCLUSTER_ROOT_URL)
 
 
 def _do_request(url, force_get=False, **kwargs):
@@ -94,7 +93,7 @@ def get_tasks_in_group(group_id):
     def _save_tasks(response):
         tasks.extend(response["tasks"])
 
-    queue = taskcluster_config.get_service("queue")
+    queue = taskcluster.Queue({"rootUrl": PRODUCTION_TASKCLUSTER_ROOT_URL})
     queue.listTaskGroup(group_id, paginationHandler=_save_tasks)
 
     return tasks

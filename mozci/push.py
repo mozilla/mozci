@@ -22,6 +22,7 @@ from mozci.task import (
     Status,
     Task,
     TestTask,
+    get_configuration_from_label,
 )
 from mozci.util.hgmo import HGMO
 
@@ -975,7 +976,7 @@ class Push:
         )
 
     @memoize
-    def get_shadow_scheduler_tasks(self, name: str) -> Set[str]:
+    def get_shadow_scheduler_tasks(self, name: str) -> List[dict]:
         """Returns all tasks the given shadow scheduler would have scheduled,
         or None if the given scheduler didn't run.
 
@@ -989,7 +990,15 @@ class Push:
         task = Task.create(index=index)
 
         optimized = task.get_artifact("public/shadow-scheduler/optimized-tasks.json")
-        return set(t["label"] for t in optimized.values())
+        return list(optimized.values())
+
+    @property
+    def shadow_scheduler_names(self) -> List[str]:
+        return sorted(
+            label.split("shadow-scheduler-")[1]
+            for label in self.scheduled_task_labels
+            if "shadow-scheduler" in label
+        )
 
     def generate_all_shadow_scheduler_tasks(
         self,
@@ -1002,14 +1011,35 @@ class Push:
             would have scheduled, or an exception instance in case the shadow
             scheduler failed.
         """
-        names = [
-            label.split("shadow-scheduler-")[1]
-            for label in self.scheduled_task_labels
-            if "shadow-scheduler" in label
-        ]
-        for name in sorted(names):
+        for name in sorted(self.shadow_scheduler_names):
             try:
-                yield name, self.get_shadow_scheduler_tasks(name)
+                yield name, set(
+                    t["label"] for t in self.get_shadow_scheduler_tasks(name)
+                )
+            except Exception as e:
+                yield name, e
+
+    def generate_all_shadow_scheduler_config_groups(
+        self,
+    ) -> Iterator[Tuple[str, Union[Set[Tuple[str, str]], Exception]]]:
+        """Generates all groups from all tasks from all of the shadow schedulers that
+           ran on the push.
+
+        Yields:
+            tuple: Of the form (<name>, {(<config>, <group>)}) where the first value
+            is the name of the shadow scheduler and the second is the set of groups, on
+            given configurations, it would have scheduled, or an exception instance in
+            case the shadow scheduler failed.
+        """
+        for name in sorted(self.shadow_scheduler_names):
+            try:
+                config_groups = {
+                    (get_configuration_from_label(task["label"]), group)
+                    for task in self.get_shadow_scheduler_tasks(name)
+                    for group in task["attributes"].get("test_manifests", [])
+                }
+
+                yield name, config_groups
             except Exception as e:
                 yield name, e
 

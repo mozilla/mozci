@@ -62,6 +62,19 @@ SUITES = (
 )
 
 
+# We can stop relying on parsing the label when https://bugzilla.mozilla.org/show_bug.cgi?id=1632870 is fixed.
+def get_configuration_from_label(label: str) -> str:
+    # Remove the suite name.
+    config = label
+    for s in SUITES:
+        if f"-{s}-" in config:
+            config = config.replace(s, "*")
+
+    # Remove the chunk number.
+    parts = config.split("-")
+    return "-".join(parts[:-1] if parts[-1].isdigit() else parts)
+
+
 NO_GROUPS_SUITES = (
     "raptor",
     "talos",
@@ -350,16 +363,9 @@ class TestTask(Task):
         return self._errors
 
     @property
-    def configuration(self):
-        # Remove the suite name.
-        config = self.label
-        for s in SUITES:
-            if f"-{s}-" in config:
-                config = config.replace(s, "*")
-
-        # Remove the chunk number.
-        parts = config.split("-")
-        return "-".join(parts[:-1] if parts[-1].isdigit() else parts)
+    def configuration(self) -> str:
+        assert self.label is not None
+        return get_configuration_from_label(self.label)
 
 
 # Don't perform type checking because of https://github.com/python/mypy/issues/5374.

@@ -412,31 +412,86 @@ def test_generate_all_shadow_scheduler_tasks(responses):
         assert tasks == set(shadow_schedulers[i][1])
 
 
-def test_get_shadow_scheduler_tasks_fallback(responses):
+def test_generate_all_shadow_scheduler_config_groups(responses):
     rev = "a" * 40
-    ss = ("foo", ["task-2", "task-4"])
-    ss_id = 1
+    shadow_schedulers = (
+        (
+            "bar",
+            [
+                (
+                    "test-linux1804-64/debug-xpcshell-spi-nw-e10s-1",
+                    ["group1", "group5"],
+                ),
+                ("test-linux1804-64/debug-xpcshell-spi-nw-e10s-2", ["group2"]),
+                ("test-windows7-32/opt-xpcshell-e10s-1", ["group3"]),
+            ],
+            {
+                ("test-linux1804-64/debug-*-spi-nw-e10s", "group2"),
+                ("test-linux1804-64/debug-*-spi-nw-e10s", "group5"),
+                ("test-linux1804-64/debug-*-spi-nw-e10s", "group1"),
+                ("test-windows7-32/opt-*-e10s", "group3"),
+            },
+        ),
+        (
+            "foo",
+            [
+                ("test-macosx1014-64/opt-xpcshell-e10s-1", ["group4"]),
+                (
+                    "test-android-em-7.0-x86_64/debug-geckoview-xpcshell-e10s-1",
+                    ["group3"],
+                ),
+            ],
+            {
+                ("test-android-em-7.0-x86_64/debug-geckoview-*-e10s", "group3"),
+                ("test-macosx1014-64/opt-*-e10s", "group4"),
+            },
+        ),
+    )
 
     push = Push(rev)
     responses.add(
         responses.GET,
-        get_index_url(f"{push.index}.source.shadow-scheduler-{ss[0]}"),
-        json={"taskId": ss_id},
+        get_index_url(push.index + ".taskgraph.decision"),
+        json={"taskId": 1},
         status=200,
     )
 
+    id = count(2)
     responses.add(
         responses.GET,
-        get_artifact_url(ss_id, "public/shadow-scheduler/optimized-tasks.json"),
-        status=404,
-    )
-
-    responses.add(
-        responses.GET,
-        get_artifact_url(ss_id, "public/shadow-scheduler/optimized_tasks.list"),
-        stream=True,
-        body="\n".join(ss[1]),
+        get_artifact_url(1, "public/task-graph.json"),
+        json={
+            next(id): {"label": f"source-test-shadow-scheduler-{s[0]}"}
+            for s in shadow_schedulers
+        },
         status=200,
     )
 
-    assert push.get_shadow_scheduler_tasks(ss[0]) == set(ss[1])
+    id = count(2)
+    for ss in shadow_schedulers:
+        s_id = next(id)
+        responses.add(
+            responses.GET,
+            get_index_url(f"{push.index}.source.shadow-scheduler-{ss[0]}"),
+            json={"taskId": s_id},
+            status=200,
+        )
+
+        responses.add(
+            responses.GET,
+            get_artifact_url(s_id, "public/shadow-scheduler/optimized-tasks.json"),
+            stream=True,
+            json={
+                next(id): {"label": label, "attributes": {"test_manifests": groups}}
+                for label, groups in ss[1]
+            },
+            status=200,
+        )
+
+    # retrieve the data
+    for i, (name, config_groups) in enumerate(
+        push.generate_all_shadow_scheduler_config_groups()
+    ):
+        print(i, name, config_groups)
+        assert name == shadow_schedulers[i][0]
+        assert config_groups == shadow_schedulers[i][2]

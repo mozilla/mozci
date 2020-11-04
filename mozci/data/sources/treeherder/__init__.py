@@ -11,9 +11,11 @@ from mozci.errors import ContractNotFilled
 from mozci.util.req import get_session
 
 try:
-    from treeherder.model.models import Job
+    from treeherder.log_parser.failureline import get_group_results
+    from treeherder.model.models import Job, Push
 except ImportError:
     Job = None
+    Push = None
 
 
 class BaseTreeherderSource(DataSource):
@@ -65,6 +67,7 @@ class TreeherderDBSource(BaseTreeherderSource):
     supported_contracts = (
         "push_tasks",
         "push_tasks_classifications",
+        "push_test_groups",
     )
 
     @classmethod
@@ -181,3 +184,12 @@ class TreeherderDBSource(BaseTreeherderSource):
                 ]
 
         return result
+
+    def run_push_test_groups(self, branch, rev):
+        if not Push:
+            raise ContractNotFilled(
+                self.name, "push_test_groups", "could not import Push model"
+            )
+
+        push = Push.objects.get(repository__name=branch, revision=rev)
+        return get_group_results(push)

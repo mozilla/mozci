@@ -241,10 +241,14 @@ class TestTask(Task):
 
     def __post_init__(self):
         if is_no_groups_suite(self.label):
-            assert self._errors is None, f"{self.label} should have no errors"
+            assert (
+                self._errors is None
+            ), f"{self.id} : {self.label} should have no errors"
             self._errors = []
 
-            assert self._results is None, f"{self.label} should have no results"
+            assert (
+                self._results is None
+            ), f"{self.id} : {self.label} should have no results"
             self._results = []
 
         if self._results is None:

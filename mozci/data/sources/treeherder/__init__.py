@@ -144,6 +144,7 @@ class TreeherderDBSource(BaseTreeherderSource):
         return tasks
 
     def run_push_tasks(self, branch, rev):
+        keys = ("id", "label", "result", "duration", "tags", "state")
         if not Job:
             raise ContractNotFilled(
                 self.name, "push_tasks", "could not import Job model"
@@ -153,11 +154,9 @@ class TreeherderDBSource(BaseTreeherderSource):
 
         return [
             {
-                "id": task_data["id"],
-                "label": task_data["label"],
-                "result": task_data["result"],
-                "duration": task_data["duration"],
-                "tags": task_data["tags"],
+                key: task_data[key]
+                for key in keys
+                if not (key == "result" and task_data[key] == "unknown")
             }
             for task_id, task_data in tasks.items()
         ]

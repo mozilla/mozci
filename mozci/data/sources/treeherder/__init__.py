@@ -92,6 +92,7 @@ class TreeherderDBSource(BaseTreeherderSource):
                 "id": str(task_id),
                 "label": job.job_type.name,
                 "result": job.result,
+                "state": job.state,
                 "classification": job.failure_classification.name,
                 "classification_note": note,
                 "duration": Job.get_duration(
@@ -102,7 +103,7 @@ class TreeherderDBSource(BaseTreeherderSource):
             result_map = {
                 "success": "passed",
                 "testfailed": "failed",
-                "bustage": "failed",
+                "busted": "failed",
                 "usercancel": "canceled",
                 "retry": "exception",
             }

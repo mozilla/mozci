@@ -61,14 +61,18 @@ def test_create_push(responses):
         )
         responses.add(
             responses.GET,
-            HGMO.JSON_TEMPLATE.format(branch=ctx["branch"], rev="abcdef"),
-            json={"node": "abcdef"},
+            HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+                branch=ctx["branch"], rev="abcdef"
+            ),
+            json={"changesets": [{"node": "abcdef"}]},
             status=200,
         )
         responses.add(
             responses.GET,
-            HGMO.JSON_TEMPLATE.format(branch=ctx["branch"], rev="123456"),
-            json={"node": "123456"},
+            HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+                branch=ctx["branch"], rev="123456"
+            ),
+            json={"changesets": [{"node": "123456"}]},
             status=200,
         )
 
@@ -100,7 +104,9 @@ def test_push_does_not_exist(responses):
     rev = "foobar"
     responses.add(
         responses.GET,
-        HGMO.JSON_TEMPLATE.format(branch="integration/autoland", rev=rev),
+        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+            branch="integration/autoland", rev="foobar"
+        ),
         json={"error": f"unknown revision '{rev}'"},
         status=404,
     )
@@ -112,7 +118,9 @@ def test_push_does_not_exist(responses):
     rev = "a" * 40
     responses.add(
         responses.GET,
-        HGMO.JSON_TEMPLATE.format(branch="integration/autoland", rev=rev),
+        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+            branch="integration/autoland", rev=rev
+        ),
         json={"error": f"unknown revision '{rev}'"},
         status=404,
     )

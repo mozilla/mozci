@@ -62,7 +62,7 @@ class ActiveDataSource(DataSource):
             result_map = {
                 "success": "passed",
                 "testfailed": "failed",
-                "bustage": "failed",
+                "busted": "failed",
                 "usercancel": "canceled",
                 "retry": "exception",
             }

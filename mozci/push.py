@@ -83,7 +83,7 @@ class Push:
         Returns:
             str or None: The commit revision which backs this push out (or None).
         """
-        return self._hgmo.backedoutby or None
+        return self._hgmo.backedoutby
 
     @property
     def backedout(self):

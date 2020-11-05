@@ -100,3 +100,42 @@ def test_hgmo_backouts(responses):
     h = HGMO("abcdef")
     assert h.backouts == {"789": ["123456"], "ghi": ["789"]}
     assert h.changesets[0]["backsoutnodes"] == [{"node": "123456"}]
+
+
+def test_hgmo_backedoutby(responses):
+    responses.add(
+        responses.GET,
+        "https://hg.mozilla.org/integration/autoland/json-automationrelevance/abcdef",
+        json={
+            "changesets": [
+                {
+                    "node": "abcdef",
+                    "backsoutnodes": [{"node": "123456"}],
+                    "pushhead": "abcdef",
+                }
+            ]
+        },
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://hg.mozilla.org/integration/autoland/json-automationrelevance/123456",
+        json={
+            "changesets": [
+                {
+                    "node": "123456",
+                    "backedoutby": "abcdef",
+                    "backsoutnodes": [],
+                    "pushhead": "123456",
+                },
+            ]
+        },
+        status=200,
+    )
+
+    h = HGMO("abcdef")
+    assert h.backedoutby is None
+
+    h = HGMO("123456")
+    assert h.backedoutby == "abcdef"

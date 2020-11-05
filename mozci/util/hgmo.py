@@ -99,7 +99,10 @@ class HGMO:
 
     @property
     def backedoutby(self):
-        return self._find_self()["backedoutby"]
+        self_changeset = self._find_self()
+        return (
+            self_changeset["backedoutby"] if "backedoutby" in self_changeset else None
+        )
 
     @property
     def backouts(self):

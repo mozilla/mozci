@@ -4,6 +4,7 @@ import pickle
 import shutil
 import tarfile
 import tempfile
+import threading
 from distutils.dir_util import copy_tree
 
 import boto3
@@ -153,24 +154,27 @@ def get_s3_credentials(bucket, prefix):
     return response["credentials"]
 
 
+S3_CLIENTS_LOCK = threading.Lock()
 S3_CLIENTS = {}
 
 
 def get_s3_client(bucket, prefix):
-    if (bucket, prefix) not in S3_CLIENTS:
-        credentials = get_s3_credentials(bucket, prefix)
-        S3_CLIENTS[(bucket, prefix)] = boto3.client(
-            "s3",
-            aws_access_key_id=credentials["accessKeyId"],
-            aws_secret_access_key=credentials["secretAccessKey"],
-            aws_session_token=credentials["sessionToken"],
-        )
+    with S3_CLIENTS_LOCK:
+        if (bucket, prefix) not in S3_CLIENTS:
+            credentials = get_s3_credentials(bucket, prefix)
+            S3_CLIENTS[(bucket, prefix)] = boto3.client(
+                "s3",
+                aws_access_key_id=credentials["accessKeyId"],
+                aws_secret_access_key=credentials["secretAccessKey"],
+                aws_session_token=credentials["sessionToken"],
+            )
 
-    return S3_CLIENTS[(bucket, prefix)]
+        return S3_CLIENTS[(bucket, prefix)]
 
 
 def destroy_s3_client(bucket, prefix):
-    del S3_CLIENTS[(bucket, prefix)]
+    with S3_CLIENTS_LOCK:
+        del S3_CLIENTS[(bucket, prefix)]
 
 
 class S3Store(Store):

@@ -2,6 +2,9 @@
 
 from datetime import datetime
 
+import requests
+from loguru import logger
+
 from mozci.data.base import DataSource
 from mozci.util import taskcluster
 
@@ -17,9 +20,18 @@ class TaskclusterSource(DataSource):
         return int(dt.timestamp() * 1000)
 
     def run_push_tasks(self, branch, rev):
-        decision_task_id = taskcluster.find_task_id(
-            f"gecko.v2.{branch}.revision.{rev}.taskgraph.decision"
-        )
+        try:
+            decision_task_id = taskcluster.find_task_id(
+                f"gecko.v2.{branch}.revision.{rev}.taskgraph.decision"
+            )
+        except requests.exceptions.HTTPError as e:
+            # If the decision task was not indexed, it means it was broken. So we can
+            # assume we didn't run any task for this push.
+            if e.response.status_code == 404:
+                logger.warning(f"Decision task broken in {rev} on {branch}")
+                return []
+
+            raise
 
         task_data = taskcluster.get_task(decision_task_id)
 

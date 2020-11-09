@@ -13,7 +13,9 @@ from mozci.util.req import get_session
 class HGMO:
     # urls
     BASE_URL = "https://hg.mozilla.org/"
-    AUTOMATION_RELEVANCE_TEMPLATE = BASE_URL + "{branch}/json-automationrelevance/{rev}"
+    AUTOMATION_RELEVANCE_TEMPLATE = (
+        BASE_URL + "{branch}/json-automationrelevance/{rev}?backouts=1"
+    )
     JSON_PUSHES_TEMPLATE_BASE = BASE_URL + "{branch}/json-pushes?version=2"
     JSON_PUSHES_TEMPLATE = (
         JSON_PUSHES_TEMPLATE_BASE + "&startID={push_id_start}&endID={push_id_end}"

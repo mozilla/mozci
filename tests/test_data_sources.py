@@ -194,6 +194,25 @@ class Responses:
         },
     )
 
+    treeherder_push_test_groups = (
+        {
+            "method": responses.GET,
+            "url": f"{TreeherderClientSource.base_url}/project/autoland/push/group_results/?revision=abcdef&format=json",
+            "status": 200,
+            "json": {
+                "AMHoZy9eRE2_l7xPabtwiw": {"devtools/client/netmonitor/test": True},
+                "amn79ZnzQbWAbrSvxJ-GBQ": {"dom/media/test": False},
+                "anz5vAGSTqOEDk9pjAxyxg": {
+                    "devtools/client/inspector/flexbox/test": True,
+                    "devtools/client/netmonitor/src/har/test": False,
+                    "devtools/client/application/test/browser": True,
+                    "devtools/client/inspector/rules/test": False,
+                },
+                "a0Lw1AH_T9mSnvHxKKKCBg": {"": True, "default": False},
+            },
+        },
+    )
+
 
 @pytest.mark.parametrize(
     "source,contract,rsps,data_in,expected",
@@ -256,6 +275,26 @@ class Responses:
                 "apfcu1KHSVqCHT_3P2QMfQ": {
                     "classification": "fixed by commit",
                     "classification_note": "c81c365a9616218b15035c19111a488b51252225",
+                },
+            },
+            id="treeherder_client.push_tasks_classifications",
+        ),
+        pytest.param(
+            "treeherder_client",
+            "push_test_groups",
+            # responses
+            Responses.treeherder_push_test_groups,
+            # input
+            {"branch": "autoland", "rev": "abcdef"},
+            # expected output
+            {
+                "AMHoZy9eRE2_l7xPabtwiw": {"devtools/client/netmonitor/test": True},
+                "amn79ZnzQbWAbrSvxJ-GBQ": {"dom/media/test": False},
+                "anz5vAGSTqOEDk9pjAxyxg": {
+                    "devtools/client/inspector/flexbox/test": True,
+                    "devtools/client/netmonitor/src/har/test": False,
+                    "devtools/client/application/test/browser": True,
+                    "devtools/client/inspector/rules/test": False,
                 },
             },
             id="treeherder_client.push_tasks_classifications",

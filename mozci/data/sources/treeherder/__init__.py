@@ -26,7 +26,7 @@ class TreeherderClientSource(BaseTreeherderSource):
     """Uses the public API to query Treeherder."""
 
     name = "treeherder_client"
-    supported_contracts = ("push_tasks_classifications",)
+    supported_contracts = ("push_tasks_classifications", "push_test_groups")
     base_url = "https://treeherder.mozilla.org/api"
 
     @memoized_property
@@ -58,6 +58,13 @@ class TreeherderClientSource(BaseTreeherderSource):
             if item["text"]:
                 classifications[job["task_id"]]["classification_note"] = item["text"]
         return classifications
+
+    def run_push_test_groups(self, branch, rev):
+        data = self._run_query(f"/project/{branch}/push/group_results/?revision={rev}")
+        for task_id in data:
+            data[task_id].pop("", None)
+            data[task_id].pop("default", None)
+        return {k: v for k, v in data.items() if v}
 
 
 class TreeherderDBSource(BaseTreeherderSource):

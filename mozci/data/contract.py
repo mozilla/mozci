@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from textwrap import dedent
 from typing import Tuple
 
-from voluptuous import Any, Marker, Optional, Required, Schema
+from voluptuous import All, Any, Length, Marker, Optional, Required, Schema
 
 
 @dataclass
@@ -94,8 +94,8 @@ _contracts: Tuple[Contract, ...] = (
         ),
         validate_out=Schema(
             {
-                Marker(str, description="task id"): {
-                    Marker(str, description="group name"): Marker(
+                Marker(All(str, Length(min=22, max=22)), description="task id"): {
+                    Marker(All(str, Length(min=1)), description="group name"): Marker(
                         bool, description="group result"
                     )
                 }

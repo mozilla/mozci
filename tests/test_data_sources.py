@@ -9,6 +9,192 @@ from mozci.data.contract import all_contracts
 from mozci.data.sources.treeherder import TreeherderClientSource
 
 
+class Responses:
+    """Simple container to make test cases below more readable."""
+
+    taskcluster_push_tasks = (
+        {
+            "method": responses.GET,
+            "url": "https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.v2.autoland.revision.abcdef.taskgraph.decision",
+            "status": 200,
+            "json": {
+                "taskId": "abc123",
+            },
+        },
+        {
+            "method": responses.GET,
+            "url": "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/abc123",
+            "status": 200,
+            "json": {
+                "taskGroupId": "xyz789",
+            },
+        },
+        {
+            "method": responses.GET,
+            "url": "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task-group/xyz789/list",
+            "status": 200,
+            "json": {
+                "tasks": [
+                    {
+                        "task": {
+                            "extra": {
+                                "treeherder": {"tier": 3},
+                            },
+                        },
+                    },
+                    {
+                        "task": {
+                            "extra": {},
+                        },
+                        "status": {
+                            "taskId": "abc123",
+                        },
+                    },
+                    {
+                        "task": {
+                            "extra": {},
+                            "metadata": {
+                                "name": "ActionTask",
+                            },
+                        },
+                        "status": {
+                            "taskId": "abc123",
+                        },
+                    },
+                    {
+                        "task": {
+                            "extra": {},
+                            "metadata": {
+                                "name": "task-A",
+                            },
+                            "tags": {"name": "tag-A"},
+                        },
+                        "status": {
+                            "taskId": "task-id-A",
+                            "state": "unscheduled",
+                        },
+                    },
+                    {
+                        "task": {
+                            "extra": {},
+                            "metadata": {
+                                "name": "task-B",
+                            },
+                            "tags": {},
+                        },
+                        "status": {
+                            "taskId": "task-id-B",
+                            "state": "pending",
+                            "runs": [{}],
+                        },
+                    },
+                    {
+                        "task": {
+                            "extra": {},
+                            "metadata": {
+                                "name": "task-C",
+                            },
+                            "tags": {"name": "tag-C"},
+                        },
+                        "status": {
+                            "taskId": "task-id-C",
+                            "state": "pending",
+                            "runs": [
+                                {
+                                    "reasonResolved": "claim-expired",
+                                    "resolved": "2020-10-28T19:19:27.341Z",
+                                }
+                            ],
+                        },
+                    },
+                    {
+                        "task": {
+                            "extra": {},
+                            "metadata": {
+                                "name": "task-D",
+                            },
+                            "tags": {},
+                        },
+                        "status": {
+                            "taskId": "task-id-D",
+                            "state": "running",
+                            "runs": [
+                                {
+                                    "started": "2020-10-28T19:18:27.341Z",
+                                }
+                            ],
+                        },
+                    },
+                    {
+                        "task": {
+                            "extra": {},
+                            "metadata": {
+                                "name": "task-E",
+                            },
+                            "tags": {},
+                        },
+                        "status": {
+                            "taskId": "task-id-E",
+                            "state": "completed",
+                            "runs": [
+                                {
+                                    "started": "2020-10-28T19:18:27.341Z",
+                                    "resolved": "2020-10-28T19:19:27.341Z",
+                                    "reasonResolved": "failed",
+                                }
+                            ],
+                        },
+                    },
+                    {
+                        "task": {
+                            "extra": {},
+                            "metadata": {
+                                "name": "task-F",
+                            },
+                            "tags": {},
+                        },
+                        "status": {
+                            "taskId": "task-id-F",
+                            "state": "completed",
+                            "runs": [
+                                {
+                                    "started": "2020-10-28T19:18:27.341Z",
+                                    "resolved": "2020-10-28T19:19:27.341Z",
+                                    "reasonResolved": "completed",
+                                }
+                            ],
+                        },
+                    },
+                ],  # end tasks
+            },  # end json
+        },
+    )
+
+    treeherder_push_tasks_classifications = (
+        {
+            "method": responses.GET,
+            "url": f"{TreeherderClientSource.base_url}/project/autoland/note/push_notes/?revision=abcdef&format=json",
+            "status": 200,
+            "json": [
+                {
+                    "job": {
+                        "task_id": "apfcu1KHSVqCHT_3P2QMfQ",
+                    },
+                    "failure_classification_name": "fixed by commit",
+                    "text": "c81c365a9616218b15035c19111a488b51252225",
+                },
+                {
+                    "job": {
+                        "task_id": "B87ylZVeTYG4dgrPzeBkhg",
+                    },
+                    "failure_classification_name": "fixed by commit",
+                    "text": "",
+                },
+            ],
+        },
+    )
+
+
 @pytest.mark.parametrize(
     "source,contract,rsps,data_in,expected",
     (
@@ -17,163 +203,7 @@ from mozci.data.sources.treeherder import TreeherderClientSource
             "taskcluster",
             "push_tasks",
             # responses
-            (
-                {
-                    "method": responses.GET,
-                    "url": "https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.v2.autoland.revision.abcdef.taskgraph.decision",
-                    "status": 200,
-                    "json": {
-                        "taskId": "abc123",
-                    },
-                },
-                {
-                    "method": responses.GET,
-                    "url": "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/abc123",
-                    "status": 200,
-                    "json": {
-                        "taskGroupId": "xyz789",
-                    },
-                },
-                {
-                    "method": responses.GET,
-                    "url": "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task-group/xyz789/list",
-                    "status": 200,
-                    "json": {
-                        "tasks": [
-                            {
-                                "task": {
-                                    "extra": {
-                                        "treeherder": {"tier": 3},
-                                    },
-                                },
-                            },
-                            {
-                                "task": {
-                                    "extra": {},
-                                },
-                                "status": {
-                                    "taskId": "abc123",
-                                },
-                            },
-                            {
-                                "task": {
-                                    "extra": {},
-                                    "metadata": {
-                                        "name": "ActionTask",
-                                    },
-                                },
-                                "status": {
-                                    "taskId": "abc123",
-                                },
-                            },
-                            {
-                                "task": {
-                                    "extra": {},
-                                    "metadata": {
-                                        "name": "task-A",
-                                    },
-                                    "tags": {"name": "tag-A"},
-                                },
-                                "status": {
-                                    "taskId": "task-id-A",
-                                    "state": "unscheduled",
-                                },
-                            },
-                            {
-                                "task": {
-                                    "extra": {},
-                                    "metadata": {
-                                        "name": "task-B",
-                                    },
-                                    "tags": {},
-                                },
-                                "status": {
-                                    "taskId": "task-id-B",
-                                    "state": "pending",
-                                    "runs": [{}],
-                                },
-                            },
-                            {
-                                "task": {
-                                    "extra": {},
-                                    "metadata": {
-                                        "name": "task-C",
-                                    },
-                                    "tags": {"name": "tag-C"},
-                                },
-                                "status": {
-                                    "taskId": "task-id-C",
-                                    "state": "pending",
-                                    "runs": [
-                                        {
-                                            "reasonResolved": "claim-expired",
-                                            "resolved": "2020-10-28T19:19:27.341Z",
-                                        }
-                                    ],
-                                },
-                            },
-                            {
-                                "task": {
-                                    "extra": {},
-                                    "metadata": {
-                                        "name": "task-D",
-                                    },
-                                    "tags": {},
-                                },
-                                "status": {
-                                    "taskId": "task-id-D",
-                                    "state": "running",
-                                    "runs": [
-                                        {
-                                            "started": "2020-10-28T19:18:27.341Z",
-                                        }
-                                    ],
-                                },
-                            },
-                            {
-                                "task": {
-                                    "extra": {},
-                                    "metadata": {
-                                        "name": "task-E",
-                                    },
-                                    "tags": {},
-                                },
-                                "status": {
-                                    "taskId": "task-id-E",
-                                    "state": "completed",
-                                    "runs": [
-                                        {
-                                            "started": "2020-10-28T19:18:27.341Z",
-                                            "resolved": "2020-10-28T19:19:27.341Z",
-                                            "reasonResolved": "failed",
-                                        }
-                                    ],
-                                },
-                            },
-                            {
-                                "task": {
-                                    "extra": {},
-                                    "metadata": {
-                                        "name": "task-F",
-                                    },
-                                    "tags": {},
-                                },
-                                "status": {
-                                    "taskId": "task-id-F",
-                                    "state": "completed",
-                                    "runs": [
-                                        {
-                                            "started": "2020-10-28T19:18:27.341Z",
-                                            "resolved": "2020-10-28T19:19:27.341Z",
-                                            "reasonResolved": "completed",
-                                        }
-                                    ],
-                                },
-                            },
-                        ],  # end tasks
-                    },  # end json
-                },
-            ),  # end rsps
+            Responses.taskcluster_push_tasks,
             # input
             {"branch": "autoland", "rev": "abcdef"},
             # expected output
@@ -217,29 +247,7 @@ from mozci.data.sources.treeherder import TreeherderClientSource
             "treeherder_client",
             "push_tasks_classifications",
             # responses
-            (
-                {
-                    "method": responses.GET,
-                    "url": f"{TreeherderClientSource.base_url}/project/autoland/note/push_notes/?revision=abcdef&format=json",
-                    "status": 200,
-                    "json": [
-                        {
-                            "job": {
-                                "task_id": "apfcu1KHSVqCHT_3P2QMfQ",
-                            },
-                            "failure_classification_name": "fixed by commit",
-                            "text": "c81c365a9616218b15035c19111a488b51252225",
-                        },
-                        {
-                            "job": {
-                                "task_id": "B87ylZVeTYG4dgrPzeBkhg",
-                            },
-                            "failure_classification_name": "fixed by commit",
-                            "text": "",
-                        },
-                    ],
-                },
-            ),
+            Responses.treeherder_push_tasks_classifications,
             # input
             {"branch": "autoland", "rev": "abcdef"},
             # expected output

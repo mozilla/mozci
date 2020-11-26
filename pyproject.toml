@@ -27,7 +27,7 @@ taskcluster = "^30.1.1"
 aiohttp = "^3.6.3"
 
 [tool.poetry.dev-dependencies]
-pre-commit = "^2.8"
+pre-commit = "^2.9"
 pytest = "^6.1"
 tox = "^3.20"
 responses = "^0.12"

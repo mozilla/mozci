@@ -172,7 +172,7 @@ class Task:
     def failed(self):
         return self.result in ("failed", "exception")
 
-    @memoized_property
+    @property
     def artifacts(self):
         """List the artifacts that were uploaded by this task."""
         return [artifact["name"] for artifact in list_artifacts(self.id)]

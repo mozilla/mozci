@@ -293,6 +293,8 @@ class TestTask(Task):
 
         groups = set()
         group_results = {}
+        # TODO After April 1st 2021, switch to using group_result exclusively.
+        old_style_group_results = {}
 
         lines = [
             json.loads(line)
@@ -300,8 +302,8 @@ class TestTask(Task):
             for line in self.get_artifact(path).splitlines()
         ]
 
-        has_group_result = any(line["action"] == "group_result" for line in lines)
-        has_crashed = any(line["action"] == "crash" for line in lines)
+        has_group_result = False
+        has_crashed = False
 
         for line in lines:
             if line["action"] == "test_groups":
@@ -316,18 +318,26 @@ class TestTask(Task):
                 # The "OK" case should never happen given how errorsummary.log works, but
                 # better to be safe than sorry.
                 if line["expected"] == line["status"]:
-                    if group not in group_results:
-                        group_results[group] = "OK"
+                    if group not in old_style_group_results:
+                        old_style_group_results[group] = "OK"
                 else:
-                    group_results[group] = "ERROR"
+                    old_style_group_results[group] = "ERROR"
 
             elif line["action"] == "group_result":
+                has_group_result = True
+
                 group = line["group"]
                 if group not in group_results or line["status"] != "OK":
                     group_results[group] = line["status"]
 
             elif line["action"] == "log":
                 self._errors.append(line["message"])
+
+            elif line["action"] == "crash":
+                has_crashed = True
+
+        if not has_group_result:
+            group_results = old_style_group_results
 
         self._results = [
             GroupResult(group, result == "OK")

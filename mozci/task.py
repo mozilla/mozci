@@ -11,7 +11,6 @@ from typing import Dict, List, Optional
 import requests
 from adr.util import memoized_property
 from loguru import logger
-from urllib3.response import HTTPResponse
 
 from mozci.errors import ArtifactNotFound, TaskNotFound
 from mozci.util.taskcluster import find_task_id, get_artifact, list_artifacts
@@ -200,13 +199,7 @@ class Task:
                 raise ArtifactNotFound(path, self.id, self.label) from e
             raise
 
-        if not isinstance(data, HTTPResponse):
-            return data
-
-        output = data.read()
-        if isinstance(output, bytes):
-            output = output.decode("utf-8")
-        return output
+        return data
 
     def to_json(self):
         """A JSON compatible representation of this Task in dictionary form.
@@ -296,11 +289,12 @@ class TestTask(Task):
         # TODO After April 1st 2021, switch to using group_result exclusively.
         old_style_group_results = {}
 
-        lines = [
+        lines = (
             json.loads(line)
             for path in paths
-            for line in self.get_artifact(path).splitlines()
-        ]
+            for line in self.get_artifact(path).iter_lines(decode_unicode=True)
+            if line
+        )
 
         has_group_result = False
         has_crashed = False

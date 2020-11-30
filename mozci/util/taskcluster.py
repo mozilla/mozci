@@ -3,8 +3,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-import functools
-
 import taskcluster
 import taskcluster_urls as liburls
 
@@ -33,8 +31,7 @@ def _handle_artifact(path, response):
         return response.json()
     if path.endswith(".yml"):
         return yaml.load_stream(response.text)
-    response.raw.read = functools.partial(response.raw.read, decode_content=True)
-    return response.raw
+    return response
 
 
 def get_artifact_url(task_id, path):

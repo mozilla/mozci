@@ -9,7 +9,6 @@ from adr.query import run_query
 
 from mozci import config, task
 from mozci.push import Push, make_push_objects
-from mozci.task import TestTask
 
 here = os.path.abspath(os.path.dirname(__file__))
 pytestmark = pytest.mark.skipif(
@@ -190,30 +189,20 @@ def test_caching_of_push(cache):
     # all test tasks results will come from Taskcluster
     REV = "08c29f9d87799463cdf99ab81f08f62339b49328"  # Push from Jul. 23, 2020.
     BRANCH = "mozilla-central"
-    PUSH_UUID = "{}/{}".format(BRANCH, REV)
+    TASKS_KEY = "{}/{}/tasks".format(BRANCH, REV)
 
     # Making sure there's nothing left in the cache
-    if cache.get(PUSH_UUID):
-        cache.forget(PUSH_UUID)
-    assert cache.get(PUSH_UUID) is None
+    if cache.get(TASKS_KEY):
+        cache.forget(TASKS_KEY)
+    assert cache.get(TASKS_KEY) is None
 
     push = Push(REV, branch=BRANCH)
     # Q: Calling push.tasks a second time would hit the cache; Should we test that scenario?
-    tasks = push.tasks
-    assert len(tasks) > 0
-    push_task_map = cache.get(PUSH_UUID, {})
-    TOTAL_TEST_TASKS = 3245
+    assert len(push.tasks) > 0
+    cached_tasks = cache.get(TASKS_KEY)
+    assert cached_tasks is not None
+    TOTAL_TEST_TASKS = 3517
     # Testing that the tasks associated to a push have been cached
-    assert len(push_task_map.keys()) == TOTAL_TEST_TASKS
-
-    cached_test_tasks = 0
-    for t in tasks:
-        if not isinstance(t, TestTask):
-            assert push_task_map.get(t.id) is None
-
-        # Assert all test tasks have written to the cache
-        if isinstance(t, TestTask):
-            assert push_task_map[t.id]
-            cached_test_tasks += 1
-
-    assert cached_test_tasks == TOTAL_TEST_TASKS
+    assert len(cached_tasks) == TOTAL_TEST_TASKS
+    assert len(cached_tasks) == len(push.tasks)
+    assert cached_tasks == push.tasks

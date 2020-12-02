@@ -248,6 +248,10 @@ class Push:
         Returns:
             list: A list of `Task` objects.
         """
+        tasks = config.cache.get(f"{self.push_uuid}/tasks")
+        if tasks is not None:
+            return tasks
+
         # Gather data about tasks that ran on a given push.
         try:
             # TODO: Skip tasks with `retry` as result
@@ -266,48 +270,25 @@ class Push:
         except MissingDataError:
             pass
 
-        # Let's gather error/results from cache or AD/Taskcluster
-        test_tasks_results = config.cache.get(self.push_uuid, {})
-        was_cached = len(test_tasks_results.keys()) != 0
-        groups = None
-        if not was_cached:
-            # Gather information from the unittest table. We allow missing data for this table because
-            # ActiveData only holds very recent data in it, but we have fallbacks on Taskcluster
-            # artifacts.
-            try:
-                groups = data.handler.get(
-                    "push_test_groups", branch=self.branch, rev=self.rev
-                )
-                for task in tasks:
-                    results = groups.get(task["id"])
-                    if results is not None:
-                        task["_results"] = [
-                            GroupResult(group=group, ok=ok)
-                            for group, ok in results.items()
-                        ]
-
-            except MissingDataError:
-                pass
+        # Gather information from the unittest table. We allow missing data for this table because
+        # ActiveData and Treeherder only hold very recent data in it, but we have fallbacks on Taskcluster
+        # artifacts.
+        try:
+            groups = data.handler.get(
+                "push_test_groups", branch=self.branch, rev=self.rev
+            )
+            for task in tasks:
+                results = groups.get(task["id"])
+                if results is not None:
+                    task["_results"] = [
+                        GroupResult(group=group, ok=ok) for group, ok in results.items()
+                    ]
+        except MissingDataError:
+            pass
 
         tasks = [Task.create(**task) for task in tasks]
 
-        # Add any data available in the cache
-        if was_cached:
-            # Let's add cached error summaries to TestTasks
-            for t in tasks:
-                if isinstance(t, TestTask):
-                    error_summary = test_tasks_results.get(t.id)
-                    # Only Test tasks have stored error summary information in the cache
-                    if error_summary:
-                        t._errors = error_summary["errors"]
-                        t._results = error_summary["results"]
-            logger.debug(
-                "Fetched tasks errors/results for {} from the cache".format(
-                    self.push_uuid
-                )
-            )
-
-        # Gather group data which could have been missing in ActiveData.
+        # Gather group data which could have been missing in ActiveData or Treeherder.
         concurrent.futures.wait(
             [
                 Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task)
@@ -318,31 +299,14 @@ class Push:
         )
 
         # Now we can cache the results.
-        self._cache_test_tasks(tasks)
-
-        return tasks
-
-    def _cache_test_tasks(self, tasks: list) -> None:
-        test_tasks = {}
-        for task in tasks:
-            if isinstance(task, TestTask):
-                test_tasks[task.id] = {
-                    "errors": task._errors,
-                    "results": task._results,
-                }
-
-        logger.debug(
-            "Storing error/results for test tasks for {} in the cache".format(
-                self.push_uuid
-            )
-        )
-        # We *only* cache errors and results
         # cachy's put() overwrites the value in the cache; add() would only add if its empty
         config.cache.put(
-            self.push_uuid,
-            test_tasks,
+            f"{self.push_uuid}/tasks",
+            tasks,
             config["cache"]["retention"],
         )
+
+        return tasks
 
     @property
     def task_labels(self):

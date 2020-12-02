@@ -3,29 +3,29 @@ category = "main"
 description = "Utility for running ActiveData recipes"
 name = "adr"
 optional = false
-python-versions = ">=3.6,<4.0"
-version = "0.19.0"
+python-versions = ">=3.6,<4"
+version = "0.19.4"
 
 [package.dependencies]
-appdirs = ">=1.4,<2.0"
-boto3 = ">=1.12.43,<2.0.0"
-cachy = ">=0.2,<0.4"
-docutils = ">=0.14,<0.17"
-json-e = ">=3.0.0,<4.0.0"
-loguru = ">=0.2.5,<0.6.0"
-markdown = ">=3.0.1,<4.0.0"
-pygments = ">=2.3.1,<3.0.0"
-python3-memcached = ">=1.51,<2.0"
-pyyaml = ">=5.1,<6.0"
-redis = ">=3.2,<4.0"
-requests = ">=2.21.0,<3.0.0"
-taskcluster = ">=29.0.1,<31.0.0"
-terminaltables = ">=3.1.0,<4.0.0"
-tomlkit = ">=0.5.3,<0.7.0"
-zstandard = ">=0.13,<0.15"
+appdirs = ">=1,<2"
+boto3 = ">=1,<2"
+cachy = ">=0,<1"
+docutils = ">=0,<1"
+json-e = ">=3,<4"
+loguru = ">=0,<1"
+markdown = ">=3,<4"
+pygments = ">=2,<3"
+python3-memcached = ">=1,<2"
+pyyaml = ">=5,<6"
+redis = ">=3,<4"
+requests = ">=2,<3"
+taskcluster = ">=38,<39"
+terminaltables = ">=3,<4"
+tomlkit = ">=0,<1"
+zstandard = ">=0,<1"
 
 [package.extras]
-app = ["flask (>=1.0.2,<2.0.0)"]
+app = ["flask (>=1,<2)"]
 
 [[package]]
 category = "main"
@@ -715,7 +715,7 @@ description = "Python client for Taskcluster"
 name = "taskcluster"
 optional = false
 python-versions = "*"
-version = "30.1.1"
+version = "38.0.6"
 
 [package.dependencies]
 mohawk = ">=0.3.4"
@@ -723,6 +723,14 @@ requests = ">=2.4.3"
 six = ">=1.10.0"
 slugid = ">=2"
 taskcluster-urls = ">=12.1.0"
+
+[package.dependencies.aiohttp]
+python = ">=3.6"
+version = ">=2.0.0,<3.7.0 || >3.7.0"
+
+[package.dependencies.async-timeout]
+python = ">=3.6"
+version = ">=2.0.0"
 
 [package.extras]
 test = ["pytest", "pytest-cov", "pytest-mock", "httmock", "mock", "setuptools-lint", "flake8", "psutil", "hypothesis", "tox", "coverage", "python-dateutil", "subprocess32"]
@@ -756,8 +764,8 @@ category = "main"
 description = "Style preserving TOML library"
 name = "tomlkit"
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-version = "0.6.0"
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+version = "0.7.0"
 
 [[package]]
 category = "dev"
@@ -886,13 +894,13 @@ python-versions = "*"
 version = "0.14.0"
 
 [metadata]
-content-hash = "82755faf7fbc4786285384477be04235071c6de9c609529350ed0e64b065523c"
-python-versions = "^3.7"
+content-hash = "5f8743e3a7eaf03442cc671a61be2e5907efd9856f015adc5613fa5226eb3cdc"
+python-versions = ">=3.7,<4"
 
 [metadata.files]
 adr = [
-    {file = "adr-0.19.0-py3-none-any.whl", hash = "sha256:e2ff565c4f2f668bf7c736d03ffc1d4599b1994d75d599858074bf11a4cbb737"},
-    {file = "adr-0.19.0.tar.gz", hash = "sha256:3182f33c19439582fa0bee0840d79ac167f44f53572b09287f3860b069781ad0"},
+    {file = "adr-0.19.4-py3-none-any.whl", hash = "sha256:8aa93cc3bd3a368d257b2f14bb7138678f88be7c8dc5303c4df2c0141240cdeb"},
+    {file = "adr-0.19.4.tar.gz", hash = "sha256:3fb790707e3e5635c64ed6cbdaff4ca0e3996e9ba8c7b2e6d40843c22ddb87e5"},
 ]
 aiohttp = [
     {file = "aiohttp-3.7.3-cp36-cp36m-macosx_10_14_x86_64.whl", hash = "sha256:328b552513d4f95b0a2eea4c8573e112866107227661834652a8984766aa7656"},
@@ -1243,9 +1251,9 @@ sphinxcontrib-serializinghtml = [
     {file = "sphinxcontrib_serializinghtml-1.1.4-py2.py3-none-any.whl", hash = "sha256:f242a81d423f59617a8e5cf16f5d4d74e28ee9a66f9e5b637a18082991db5a9a"},
 ]
 taskcluster = [
-    {file = "taskcluster-30.1.1-py2-none-any.whl", hash = "sha256:9f3548b1898e5f2d345257ea2822ac1d5ec1694e3acdabe3825550b126d2ad30"},
-    {file = "taskcluster-30.1.1-py3-none-any.whl", hash = "sha256:4789bfee6b95020c6361301d64c7b7b1518b029fa50c65521914b11898f41a36"},
-    {file = "taskcluster-30.1.1.tar.gz", hash = "sha256:96295013ce891c8d86c59353ff24e7e0c0a1d7d2e2e517ab424281af4ff6a64c"},
+    {file = "taskcluster-38.0.6-py2-none-any.whl", hash = "sha256:4b765a12b0444c66510f5def5f6f30b1cea53785781626dd75fdd62f101e91df"},
+    {file = "taskcluster-38.0.6-py3-none-any.whl", hash = "sha256:41759b25b52b4eae87c363ae99edebd7d15c0ac5eca44eadefbae3556ed65635"},
+    {file = "taskcluster-38.0.6.tar.gz", hash = "sha256:db6d4e91fe97a03431b8ca79b98c4b41f89c42745c84fd4512cd0cb25a030de5"},
 ]
 taskcluster-urls = [
     {file = "taskcluster-urls-13.0.1.tar.gz", hash = "sha256:b25e122ecec249c4299ac7b20b08db76e3e2025bdaeb699a9d444556de5fd367"},
@@ -1260,8 +1268,8 @@ toml = [
     {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
 ]
 tomlkit = [
-    {file = "tomlkit-0.6.0-py2.py3-none-any.whl", hash = "sha256:e5d5f20809c2b09276a6c5d98fb0202325aee441a651db84ac12e0812ab7e569"},
-    {file = "tomlkit-0.6.0.tar.gz", hash = "sha256:74f976908030ff164c0aa1edabe3bf83ea004b3daa5b0940b9c86a060c004e9a"},
+    {file = "tomlkit-0.7.0-py2.py3-none-any.whl", hash = "sha256:6babbd33b17d5c9691896b0e68159215a9387ebfa938aa3ac42f4a4beeb2b831"},
+    {file = "tomlkit-0.7.0.tar.gz", hash = "sha256:ac57f29693fab3e309ea789252fcce3061e19110085aa31af5446ca749325618"},
 ]
 tox = [
     {file = "tox-3.20.1-py2.py3-none-any.whl", hash = "sha256:42ce19ce5dc2f6d6b1fdc5666c476e1f1e2897359b47e0aa3a5b774f335d57c2"},

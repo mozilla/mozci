@@ -5,12 +5,13 @@ import platform
 import time
 from pathlib import Path
 
-import adr
 import boto3
 import botocore
 import pytest
 import responses
-from adr.util.cache_stores import RenewingFileStore, S3Store, SeededFileStore
+
+import mozci
+from mozci.util.cache_stores import RenewingFileStore, S3Store, SeededFileStore
 
 here = Path(__file__).resolve().parent
 IS_WINDOWS = "windows" in platform.system().lower()
@@ -127,7 +128,7 @@ def test_s3_store(monkeypatch):
             def head_object(self, Bucket, Key):
                 nonlocal s3_data, s3_metadata, expire_token
                 assert Bucket == "myBucket"
-                assert Key == "data/adr_cache/foo"
+                assert Key == "data/mozci_cache/foo"
 
                 if expire_token:
                     expire_token = False
@@ -148,15 +149,15 @@ def test_s3_store(monkeypatch):
             def put_object(self, Body, Bucket, Key):
                 nonlocal s3_data
                 assert Bucket == "myBucket"
-                assert Key == "data/adr_cache/foo"
+                assert Key == "data/mozci_cache/foo"
                 s3_data[(Bucket, Key)] = Body
 
             def copy_object(self, Bucket, CopySource, Key, Metadata, MetadataDirective):
                 nonlocal s3_metadata, copy_calls
                 assert Bucket == "myBucket"
-                assert Key == "data/adr_cache/foo"
+                assert Key == "data/mozci_cache/foo"
                 assert CopySource["Bucket"] == "myBucket"
-                assert CopySource["Key"] == "data/adr_cache/foo"
+                assert CopySource["Key"] == "data/mozci_cache/foo"
                 if (Bucket, Key) in s3_metadata:
                     assert Metadata != s3_metadata[(Bucket, Key)]
                 assert MetadataDirective == "REPLACE"
@@ -167,13 +168,13 @@ def test_s3_store(monkeypatch):
             def get_object(self, Bucket, Key):
                 nonlocal s3_data
                 assert Bucket == "myBucket"
-                assert Key == "data/adr_cache/foo"
+                assert Key == "data/mozci_cache/foo"
                 return {"Body": Response(s3_data[(Bucket, Key)])}
 
             def delete_object(self, Bucket, Key):
                 nonlocal delete_calls
                 assert Bucket == "myBucket"
-                assert Key == "data/adr_cache/foo"
+                assert Key == "data/mozci_cache/foo"
 
                 del s3_data[(Bucket, Key)]
                 del s3_metadata[(Bucket, Key)]
@@ -191,7 +192,7 @@ def test_s3_store(monkeypatch):
         get_credentials_calls += 1
 
         assert bucket == "myBucket"
-        assert prefix == "data/adr_cache/"
+        assert prefix == "data/mozci_cache/"
         return {
             "accessKeyId": "aws_access_key_id",
             "secretAccessKey": "aws_secret_access_key",
@@ -199,16 +200,16 @@ def test_s3_store(monkeypatch):
         }
 
     monkeypatch.setattr(
-        adr.util.cache_stores, "get_s3_credentials", mock_get_s3_credentials
+        mozci.util.cache_stores, "get_s3_credentials", mock_get_s3_credentials
     )
 
     config = {
         "bucket": "myBucket",
-        "prefix": "data/adr_cache/",
+        "prefix": "data/mozci_cache/",
     }
     fs = S3Store(config)
 
-    assert get_credentials_calls == 1
+    assert get_credentials_calls == 0
 
     # The cache is empty at first.
     assert fs.get("foo") is None
@@ -232,7 +233,7 @@ def test_s3_store(monkeypatch):
     assert get_credentials_calls == 2
 
     # Delete object if the stored data is broken.
-    s3_data[("myBucket", "data/adr_cache/foo")] = "goo"
+    s3_data[("myBucket", "data/mozci_cache/foo")] = "goo"
     assert fs.get("foo") is None
     assert delete_calls == 1
 

@@ -7,7 +7,6 @@ from argparse import Namespace
 from collections import defaultdict
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
-import adr
 from loguru import logger
 
 from mozci import config, data
@@ -1114,6 +1113,8 @@ def __make_group_summary_objects(pushes, branch):
     Returns:
         list: List of GroupSummary objects.
     """
+    import adr
+
     # Obtain all the task.id values contained in the pushes. It will be used in
     # the `where` query against ActiveData.
     results = []

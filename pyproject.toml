@@ -9,7 +9,6 @@ authors = [
 
 [tool.poetry.dependencies]
 python = ">=3.7,<4"
-adr = "~0"
 taskcluster_urls = "~13"
 appdirs = "~1"
 loguru = "~0"
@@ -26,12 +25,18 @@ taskcluster = "~38"
 # aiohttp is an unlisted dependency of taskcluster, see https://github.com/taskcluster/taskcluster/issues/3730
 aiohttp = "~3"
 
+# Optional dependencies
+adr = { version = "~0", optional = true }
+
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.9"
 pytest = "^6.1"
 tox = "^3.20"
 responses = "^0.12"
 sphinx = "^3.3.0"
+
+[tool.poetry.extras]
+adr = ["adr"]
 
 [build-system]
 requires = ["poetry>=1.0.2"]

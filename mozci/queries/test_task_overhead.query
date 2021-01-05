@@ -1,0 +1,11 @@
+from: unittest
+format: list
+groupby: task.id
+limit: 20000
+select:
+    - {value: action.start_time, name: task_min, aggregate: min}
+    - {value: action.end_time, name: task_max, aggregate: max}
+    - {value: result.start_time, name: group_min, aggregate: min}
+    - {value: result.end_time, name: group_max, aggregate: max}
+where:
+    - in: {task.id: {$eval: task_id}}

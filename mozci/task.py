@@ -2,6 +2,7 @@
 import json
 import os
 from abc import ABC, abstractmethod
+from argparse import Namespace
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import signature
@@ -9,6 +10,7 @@ from statistics import median
 from typing import Dict, List, Optional
 
 import requests
+from adr.query import run_query
 from adr.util import memoized_property
 from loguru import logger
 
@@ -375,6 +377,30 @@ class TestTask(Task):
         assert self.label is not None
         return get_configuration_from_label(self.label)
 
+    @property
+    def overhead(self):
+        """Calculate the overhead of a task.
+
+        The methodology is simple: each task (action) has a start/end time.
+        Each group also has a start/end time. Take the earliest known group start
+        and latest known group end time, ensure the two falls somewhere in between
+        task start/end.
+
+        This definition of overhead does not take into account inter-group overhead
+        eg. restarting browser, teardown, etc.
+
+        Returns:
+            float: difference between task start/end and group start/end times.
+        """
+        data = run_query("test_task_overhead", Namespace(task_id=self.id))["data"].pop()
+        # Sanity check to ensure group start/end times are within task start/end.
+        if data["task_min"] < data["group_min"] or data["task_max"] > data["group_max"]:
+            logger.warning(f"task f{self.id} has inconsistent group duration.")
+
+        return (data["group_min"] - data["task_min"]) + (
+            data["task_max"] - data["group_max"]
+        )
+
 
 # Don't perform type checking because of https://github.com/python/mypy/issues/5374.
 @dataclass  # type: ignore
@@ -508,6 +534,18 @@ class LabelSummary(RunnableSummary):
     @property
     def median_duration(self):
         return median(self.durations)
+
+    @property
+    def overheads(self):
+        return [task.overhead for task in self.tasks]
+
+    @property
+    def total_overheads(self):
+        return sum(self.overheads)
+
+    @property
+    def median_overhead(self):
+        return median(self.overheads)
 
     @memoized_property
     def status(self):

@@ -3,8 +3,8 @@
 [![Docs](https://readthedocs.org/projects/mozci/badge/?version=latest)](https://mozci.readthedocs.io/en/latest/?badge=latest)
 
 # mozci
-A library for inspecting push and task results in Mozilla's CI.
 
+A library for inspecting push and task results in Mozilla's CI.
 
 ## Installation
 
@@ -14,10 +14,9 @@ To install, run:
 $ pip install mozci
 ```
 
-
 ## Usage
 
-Basic usage is to instantiate a ``Push`` object then start accessing properties and call methods.
+Basic usage is to instantiate a `Push` object then start accessing properties and call methods.
 For example:
 
 ```python3
@@ -29,7 +28,6 @@ print("\n".join([t.label for t in push.tasks if t.failed]))
 
 This will print all the failing tasks from a given push. See the
 [documentation](https://mozci.readthedocs.io/en/latest/) for more usage details and API docs.
-
 
 ## Contributing
 

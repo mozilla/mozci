@@ -30,7 +30,7 @@ def extract_tar_zst(path, dest):
 
 
 class SeededFileStore(FileStore):
-    RESEED_KEY = "adr:SeededFileStore:reseed"
+    RESEED_KEY = "mozci:SeededFileStore:reseed"
 
     def __init__(self, config):
         """A FileStore instance that allows pre-seeding the cache from an archive
@@ -71,7 +71,7 @@ class SeededFileStore(FileStore):
     def seed(self):
         """Download and extract the seed data to the cache directory."""
         logger.info(
-            f"Seeding adr cache at {self._directory} with contents from {self._url}"
+            f"Seeding mozci cache at {self._directory} with contents from {self._url}"
         )
         self._create_cache_directory(self._directory)
 

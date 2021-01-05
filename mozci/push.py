@@ -7,12 +7,16 @@ from argparse import Namespace
 from collections import defaultdict
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
-from adr.errors import MissingDataError
-from adr.query import run_query
+import adr
 from loguru import logger
 
 from mozci import config, data
-from mozci.errors import ChildPushNotFound, ParentPushNotFound, PushNotFound
+from mozci.errors import (
+    ChildPushNotFound,
+    MissingDataError,
+    ParentPushNotFound,
+    PushNotFound,
+)
 from mozci.task import (
     GroupResult,
     GroupSummary,
@@ -1118,10 +1122,10 @@ def __make_group_summary_objects(pushes, branch):
     for i in range(0, len(revs), 30):
         for revs_chunk in revs[i : i + 30]:
             try:
-                results += run_query(
+                results += adr.query.run_query(
                     "group_durations", Namespace(push_ids=revs_chunk, branch=branch)
                 )["data"]
-            except MissingDataError:
+            except adr.MissingDataError:
                 pass
 
     # Sort by the result.group attribute.

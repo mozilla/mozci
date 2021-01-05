@@ -9,6 +9,7 @@ import adr
 from loguru import logger
 
 from mozci.data.base import DataSource
+from mozci.errors import MissingDataError
 
 here = Path(__file__).parent.resolve()
 adr.sources.load_source(here)
@@ -74,9 +75,13 @@ class ActiveDataSource(DataSource):
 
     @lru_cache(maxsize=1)
     def _get_tasks(self, branch, rev):
-        result = adr.query.run_query(
-            "push_tasks_from_treeherder", Namespace(branch=branch, rev=rev)
-        )
+        try:
+            result = adr.query.run_query(
+                "push_tasks_from_treeherder", Namespace(branch=branch, rev=rev)
+            )
+        except adr.MissingDataError as e:
+            raise MissingDataError(str(e))
+
         tasks = {}
 
         # If we are missing one of these keys, discard the task.
@@ -113,9 +118,13 @@ class ActiveDataSource(DataSource):
 
         # TODO: Figure out why we have some results from the `push_tasks_tags_from_task` query
         # that we don't have from `push_tasks_from_treeherder`.
-        result = adr.query.run_query(
-            "push_tasks_tags_from_task", Namespace(branch=branch, rev=rev)
-        )
+        try:
+            result = adr.query.run_query(
+                "push_tasks_tags_from_task", Namespace(branch=branch, rev=rev)
+            )
+        except adr.MissingDataError as e:
+            raise MissingDataError(str(e))
+
         for item in self.normalize(result):
             if "tags" not in item:
                 continue
@@ -161,9 +170,13 @@ class ActiveDataSource(DataSource):
         return result
 
     def run_push_test_groups(self, **kwargs):
-        result = adr.query.run_query(
-            "push_test_groups_from_unittest", Namespace(**kwargs)
-        )
+        try:
+            result = adr.query.run_query(
+                "push_test_groups_from_unittest", Namespace(**kwargs)
+            )
+        except adr.MissingDataError as e:
+            raise MissingDataError(str(e))
+
         required_keys = ("result_group", "result_ok")
         groups = defaultdict(dict)
         for item in self.normalize(result):
@@ -175,7 +188,10 @@ class ActiveDataSource(DataSource):
         return groups
 
     def run_push_revisions(self, **kwargs):
-        result = adr.query.run_query("push_revisions", Namespace(**kwargs))
+        try:
+            result = adr.query.run_query("push_revisions", Namespace(**kwargs))
+        except adr.MissingDataError as e:
+            raise MissingDataError(str(e))
 
         pushes = []
 

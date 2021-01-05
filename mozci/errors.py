@@ -102,3 +102,9 @@ class InvalidSource(BaseDataException):
         self.source = source
         self.reason = reason
         self.msg = f"'{source}' source is malformed: {reason}"
+
+
+class MissingDataError(ValueError):
+    """Raised when a source returns no data."""
+
+    pass

@@ -4,9 +4,9 @@ from __future__ import annotations
 from typing import Dict, Tuple
 
 import requests
-from adr.util.memoize import memoize, memoized_property
 
 from mozci.errors import PushNotFound
+from mozci.util.memoize import memoize, memoized_property
 from mozci.util.req import get_session
 
 

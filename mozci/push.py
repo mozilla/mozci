@@ -9,7 +9,6 @@ from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
 from adr.errors import MissingDataError
 from adr.query import run_query
-from adr.util.memoize import memoize, memoized_property
 from loguru import logger
 
 from mozci import config, data
@@ -25,6 +24,7 @@ from mozci.task import (
     get_configuration_from_label,
 )
 from mozci.util.hgmo import HGMO
+from mozci.util.memoize import memoize, memoized_property
 
 BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
 

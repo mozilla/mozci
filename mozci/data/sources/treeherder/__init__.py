@@ -3,11 +3,11 @@
 from collections import defaultdict
 from functools import lru_cache
 
-from adr.util.memoize import memoized_property
 from loguru import logger
 
 from mozci.data.base import DataSource
 from mozci.errors import ContractNotFilled
+from mozci.util.memoize import memoized_property
 from mozci.util.req import get_session
 
 try:

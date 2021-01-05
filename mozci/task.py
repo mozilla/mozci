@@ -9,10 +9,10 @@ from statistics import median
 from typing import Dict, List, Optional
 
 import requests
-from adr.util import memoized_property
 from loguru import logger
 
 from mozci.errors import ArtifactNotFound, TaskNotFound
+from mozci.util.memoize import memoized_property
 from mozci.util.taskcluster import find_task_id, get_artifact, list_artifacts
 
 

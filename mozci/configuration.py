@@ -102,7 +102,7 @@ class Configuration(Mapping):
             "cache": {"retention": 1440},
         },  # minutes
         "replace": {
-            "data_sources": ["adr"],
+            "data_sources": ["hgmo", "taskcluster", "treeherder_client"],
             "verbose": False,
         },
     }

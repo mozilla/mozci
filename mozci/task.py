@@ -92,23 +92,17 @@ def is_no_groups_suite(label):
     return any(f"-{s}-" in label for s in NO_GROUPS_SUITES)
 
 
-# We only want to warn about bad groups once.
-bad_group_warned = False
-
-
 def is_bad_group(task_id: str, group: str) -> bool:
-    global bad_group_warned
-
     bad_group = (
         not group.strip()
         or group.startswith("file://")
         or group.startswith("Z:")
         or os.path.isabs(group)
+        or "\\" in group
     )
 
-    if not bad_group_warned and (bad_group or "\\" in group):
-        bad_group_warned = True
-        logger.warning(f"Bad group name in task {task_id}: '{group}'")
+    if bad_group:
+        logger.error(f"Bad group name in task {task_id}: '{group}'")
 
     return bad_group
 
@@ -252,19 +246,8 @@ class TestTask(Task):
             for result in self._results:
                 result.group = wpt_workaround(result.group)
 
-        # TODO After January 1st 2021, we should be able to remove the filtering
-        # and slash replacing.
-
-        # Filter out groups with bad names.
-        self._results = [
-            result
-            for result in self._results
-            if not is_bad_group(self.id, result.group)
-        ]
-
-        # Replace backslashes with forward slashes.
-        for result in self._results:
-            result.group = result.group.replace("\\", "/")
+        # Ensure there are no groups with bad names.
+        assert not any(is_bad_group(self.id, result.group) for result in self._results)
 
     def _load_errorsummary(self) -> None:
         # This may clobber the values that were populated by ActiveData, but

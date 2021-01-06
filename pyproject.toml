@@ -21,6 +21,7 @@ redis = {version = "~3", optional = true}
 requests = "~2"
 voluptuous = "~0"
 flake8 = "~3"
+pyyaml = "~5"
 taskcluster = "~39"
 # aiohttp is an unlisted dependency of taskcluster, see https://github.com/taskcluster/taskcluster/issues/3730
 aiohttp = "~3"

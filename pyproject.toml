@@ -22,7 +22,7 @@ requests = "~2"
 voluptuous = "~0"
 flake8 = "~3"
 pyyaml = "~5"
-taskcluster = "~39"
+taskcluster = ">=39,<41"
 
 # Optional dependencies
 adr = { version = "~0", optional = true }

@@ -689,7 +689,7 @@ test = ["pytest"]
 
 [[package]]
 name = "taskcluster"
-version = "40.0.0"
+version = "40.0.3"
 description = "Python client for Taskcluster"
 category = "main"
 optional = false
@@ -860,7 +860,7 @@ adr = ["adr"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7,<4"
-content-hash = "76d3d90310f3e1f830419ec06598b777f50dd6ff5773764a64581be84933b8d7"
+content-hash = "ff09b7d3dc817f7a6b04505c5394f2fa27fd911c94b7e1bcffbf1da28fc134c4"
 
 [metadata.files]
 adr = [
@@ -1218,9 +1218,9 @@ sphinxcontrib-serializinghtml = [
     {file = "sphinxcontrib_serializinghtml-1.1.4-py2.py3-none-any.whl", hash = "sha256:f242a81d423f59617a8e5cf16f5d4d74e28ee9a66f9e5b637a18082991db5a9a"},
 ]
 taskcluster = [
-    {file = "taskcluster-40.0.0-py2-none-any.whl", hash = "sha256:83c086f0122431652d5d95192795c7047517123c058f3525bf47a6689c0f80c7"},
-    {file = "taskcluster-40.0.0-py3-none-any.whl", hash = "sha256:e95632c659d827de8e491d24752313b8bdf845263e23632e7b8940c0a9053e7a"},
-    {file = "taskcluster-40.0.0.tar.gz", hash = "sha256:b6f424a4d8d5f41d04902a49426a17709ef8fcb05b76d7084e94a739a1ba3cfb"},
+    {file = "taskcluster-40.0.3-py2-none-any.whl", hash = "sha256:483f1bad78f7ed975060639f9905070425bad75e3ef24e8b002ffb0ff5da7a34"},
+    {file = "taskcluster-40.0.3-py3-none-any.whl", hash = "sha256:e4a322ed17ac5b7860acf30a3c39bd20138103ecb84d1829ba54017853050591"},
+    {file = "taskcluster-40.0.3.tar.gz", hash = "sha256:2854253ab5c78f5802295a446bb3cf52daf59e4148d454105fd44bf14dcd1904"},
 ]
 taskcluster-urls = [
     {file = "taskcluster-urls-13.0.1.tar.gz", hash = "sha256:b25e122ecec249c4299ac7b20b08db76e3e2025bdaeb699a9d444556de5fd367"},

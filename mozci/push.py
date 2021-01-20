@@ -255,12 +255,18 @@ class Push:
         if tasks is not None:
             return tasks
 
+        logger.debug(f"Retrieving all tasks and groups which run on {self.rev}...")
+
+        logger.debug(f"Gathering data about tasks that run on {self.rev}...")
+
         # Gather data about tasks that ran on a given push.
         try:
             # TODO: Skip tasks with `retry` as result
             tasks = data.handler.get("push_tasks", branch=self.branch, rev=self.rev)
         except MissingDataError:
             return []
+
+        logger.debug(f"Gathering task classifications for {self.rev}...")
 
         # Gather task classifications.
         try:
@@ -272,6 +278,8 @@ class Push:
                     task.update(classifications[task["id"]])
         except MissingDataError:
             pass
+
+        logger.debug(f"Gathering test groups for {self.rev}...")
 
         # Gather information from the unittest table. We allow missing data for this table because
         # ActiveData and Treeherder only hold very recent data in it, but we have fallbacks on Taskcluster
@@ -291,6 +299,10 @@ class Push:
 
         tasks = [Task.create(**task) for task in tasks]
 
+        logger.debug(
+            f"Gathering test groups which were missing from the API for {self.rev}..."
+        )
+
         # Gather group data which could have been missing in ActiveData or Treeherder.
         concurrent.futures.wait(
             [
@@ -301,6 +313,8 @@ class Push:
             return_when=concurrent.futures.FIRST_EXCEPTION,
         )
 
+        logger.debug(f"Retrieved all tasks and groups which run on {self.rev}.")
+
         # Now we can cache the results.
         # cachy's put() overwrites the value in the cache; add() would only add if its empty
         config.cache.put(
@@ -308,6 +322,8 @@ class Push:
             tasks,
             config["cache"]["retention"],
         )
+
+        logger.debug(f"Cached all tasks and groups which run on {self.rev}.")
 
         return tasks
 
@@ -714,6 +730,8 @@ class Push:
         Returns:
             set: Set of runnable names (str).
         """
+        logger.debug(f"Retrieving candidate regressions for {self.rev}...")
+
         for other, candidate_regressions in self._iterate_failures(runnable_type):
             # Break early if we reached the backout of this push, since any failure
             # after that won't be blamed on this push.
@@ -721,6 +739,10 @@ class Push:
                 self.backedoutby in other.child.revs
                 or self.bustage_fixed_by in other.child.revs
             ):
+                logger.debug(
+                    f"Reached a backout/bustage fix of {self.rev}, stop looking for failures in children."
+                )
+
                 # Runnables that still fail after the backout, can't be considered
                 # regressions of the push.
                 # NOTE: There could be another push in between the push of interest and its

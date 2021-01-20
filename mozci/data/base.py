@@ -48,6 +48,7 @@ class DataHandler:
 
     def __init__(self, *sources: str) -> None:
         self.sources = [self.ALL_SOURCES[sname] for sname in sources]
+        logger.info(f"Sources selected, in order of priority: {sources}.")
 
     def get(self, name: str, **context: Any) -> Dict[Any, Any]:
         """Given a contract, find the first registered source that supports it

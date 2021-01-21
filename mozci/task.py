@@ -92,6 +92,9 @@ def is_no_groups_suite(label):
     return any(f"-{s}-" in label for s in NO_GROUPS_SUITES)
 
 
+slash_group_warned = False
+
+
 def is_bad_group(task_id: str, group: str) -> bool:
     bad_group = (
         not group.strip()
@@ -227,6 +230,8 @@ class TestTask(Task):
         return any(s in self.label for s in {"web-platform-tests", "test-verify-wpt"})
 
     def __post_init__(self):
+        global slash_group_warned
+
         if is_no_groups_suite(self.label):
             assert (
                 self._errors is None
@@ -243,6 +248,16 @@ class TestTask(Task):
 
         # Apply WPT workaround, needed at least until bug 1632546 is fixed.
         if self.is_wpt:
+            # TODO: It can be removed a year after https://bugzilla.mozilla.org/show_bug.cgi?id=1688043 is fixed.
+            # Filter out "/" groups.
+            if not slash_group_warned and any(
+                result.group == "/" for result in self._results
+            ):
+                slash_group_warned = True
+                logger.warning(f"'/' group name in task {self.id}")
+
+            self._results = [result for result in self._results if result.group != "/"]
+
             for result in self._results:
                 result.group = wpt_workaround(result.group)
 

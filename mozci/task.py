@@ -57,6 +57,7 @@ SUITES = (
     "reftest",
     "junit",
     "test-verify",
+    "test-coverage",
     "jittest",
 )
 
@@ -227,7 +228,10 @@ class TestTask(Task):
 
     @property
     def is_wpt(self):
-        return any(s in self.label for s in {"web-platform-tests", "test-verify-wpt"})
+        return any(
+            s in self.label
+            for s in {"web-platform-tests", "test-verify-wpt", "test-coverage-wpt"}
+        )
 
     def __post_init__(self):
         global slash_group_warned

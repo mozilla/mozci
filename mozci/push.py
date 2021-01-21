@@ -627,7 +627,11 @@ class Push:
         for other in self._iterate_children(max_depth):
             for name, summary in getattr(other, f"{runnable_type}_summaries").items():
                 # test-verify is special, we don't want to look at children pushes.
-                if self != other and runnable_type == "label" and "test-verify" in name:
+                if (
+                    self != other
+                    and runnable_type == "label"
+                    and ("test-verify" in name or "test-coverage" in name)
+                ):
                     break
 
                 if summary.status == Status.PASS:
@@ -846,7 +850,11 @@ class Push:
 
             # test-verify is special, we can assume the test-verify task is not the same as the one
             # in the parent pushes.
-            if runnable_type != "label" or "test-verify" not in name:
+            if (
+                runnable_type != "label"
+                or "test-verify" not in name
+                or "test-coverage" not in name
+            ):
                 found_in_parent = False
                 i = 0
                 while count >= 0 and i < MAX_DEPTH:

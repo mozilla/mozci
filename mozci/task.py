@@ -265,8 +265,13 @@ class TestTask(Task):
             for result in self._results:
                 result.group = wpt_workaround(result.group)
 
-        # Ensure there are no groups with bad names.
-        assert not any(is_bad_group(self.id, result.group) for result in self._results)
+        # Filter out groups with bad names.
+        # TODO: Figure out why we still have some groups with bad names.
+        self._results = [
+            result
+            for result in self._results
+            if not is_bad_group(self.id, result.group)
+        ]
 
     def _load_errorsummary(self) -> None:
         # This may clobber the values that were populated by ActiveData, but

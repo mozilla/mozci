@@ -104,20 +104,20 @@ pytz = ">=2015.7"
 
 [[package]]
 name = "boto3"
-version = "1.17.12"
+version = "1.17.44"
 description = "The AWS SDK for Python"
 category = "main"
 optional = true
 python-versions = ">= 2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
 
 [package.dependencies]
-botocore = ">=1.20.12,<1.21.0"
+botocore = ">=1.20.44,<1.21.0"
 jmespath = ">=0.7.1,<1.0.0"
 s3transfer = ">=0.3.0,<0.4.0"
 
 [[package]]
 name = "botocore"
-version = "1.20.12"
+version = "1.20.44"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = true
@@ -127,6 +127,9 @@ python-versions = ">= 2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
 jmespath = ">=0.7.1,<1.0.0"
 python-dateutil = ">=2.1,<3.0.0"
 urllib3 = ">=1.25.4,<1.27"
+
+[package.extras]
+crt = ["awscrt (==0.10.8)"]
 
 [[package]]
 name = "cachy"
@@ -931,12 +934,12 @@ babel = [
     {file = "Babel-2.9.0.tar.gz", hash = "sha256:da031ab54472314f210b0adcff1588ee5d1d1d0ba4dbd07b94dba82bde791e05"},
 ]
 boto3 = [
-    {file = "boto3-1.17.12-py2.py3-none-any.whl", hash = "sha256:bbc47e6f83372d9a18483895e7116ea50e8da32ffb62e8afc0a6e2323f964ed9"},
-    {file = "boto3-1.17.12.tar.gz", hash = "sha256:62f06cd1e7a78d8aaa4e527c327653e9a6c1af415b59836048a90c28a27e5f09"},
+    {file = "boto3-1.17.44-py2.py3-none-any.whl", hash = "sha256:e74da1da74fbefbe2db7a9c53082018d862433f35e2ecd4c173632efc5742f40"},
+    {file = "boto3-1.17.44.tar.gz", hash = "sha256:ffb9b192b2b52ab88cde09e2af7d9fd6e541287e5719098be97ffd7144f47eb1"},
 ]
 botocore = [
-    {file = "botocore-1.20.12-py2.py3-none-any.whl", hash = "sha256:e576e1697ad9dc794961ed1ba51bdea7e0574ec27981c888482955f4be5cc4e8"},
-    {file = "botocore-1.20.12.tar.gz", hash = "sha256:39a92315a17a6f8bc1914dbb020f52e929f18e5b99a4fa1c5d8785f913427ed8"},
+    {file = "botocore-1.20.44-py2.py3-none-any.whl", hash = "sha256:8a7f85bf05ad62551b0e6dfeeec471147b330cb2b5c7f48795057e811e6a2e77"},
+    {file = "botocore-1.20.44.tar.gz", hash = "sha256:2958e3912939558fd789a64b23a10039d8b0c0c84a23b573f3f2e3154de357ad"},
 ]
 cachy = [
     {file = "cachy-0.3.0-py2.py3-none-any.whl", hash = "sha256:338ca09c8860e76b275aff52374330efedc4d5a5e45dc1c5b539c1ead0786fe7"},

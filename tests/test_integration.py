@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 import shutil
-from argparse import Namespace
 
-import adr
 import pytest
-from adr.query import run_query
 
-from mozci import config, task
+from mozci import config
 from mozci.push import Push, make_push_objects
 
 here = os.path.abspath(os.path.dirname(__file__))
@@ -36,11 +33,6 @@ def cache():
         shutil.rmtree(cache_path)
 
 
-@pytest.fixture(scope="module", autouse=True)
-def load_source():
-    adr.sources.load_source(here)
-
-
 def test_create_pushes_and_get_regressions():
     """
     An integration test mimicking the mozci usage done by bugbug.
@@ -63,118 +55,6 @@ def test_create_pushes_and_get_regressions():
 
     push.get_likely_regressions("label")
     push.get_likely_regressions("group")
-
-
-def test_missing_manifests():
-    """
-    Ensure all suites (except an ignorelist) are generating manifest information.
-    """
-    IGNORELIST = {
-        "talos": None,
-        "jittest": None,
-        "geckoview-junit": None,
-        "cppunittest": None,
-        "default": 5,
-    }
-
-    result = run_query("test_missing_manifests", Namespace())
-
-    missing = []
-
-    for suite, count in result["data"]:
-        allowed_missing = IGNORELIST.get(suite, IGNORELIST["default"])
-        if allowed_missing is None:
-            continue
-
-        if count > allowed_missing:
-            missing.append((suite, count))
-
-    assert missing == []
-
-    # Ensure the ignorelist doesn't contain more than necessary.
-    unignorable = []
-    found_suites = {suite: count for suite, count in result["data"]}
-    for suite, allowed_missing in IGNORELIST.items():
-        if suite == "default":
-            continue
-
-        allowed_missing = allowed_missing or IGNORELIST["default"]
-        if suite not in found_suites or found_suites[suite] < allowed_missing:
-            unignorable.append((suite, found_suites.get(suite)))
-
-    assert unignorable == []
-
-
-def test_missing_result_manifests():
-    """
-    Ensure unittest results from all manifest-based suites (except an ignorelist)
-    have information on what manifest the result corresponds to.
-    """
-    IGNORELIST = {
-        "marionette",
-    }
-    ALLOWED_MISSING = 70
-
-    result = run_query("test_missing_result_manifests", Namespace())
-
-    missing = []
-
-    for suite, count in result["data"]:
-        if suite not in IGNORELIST:
-            if count > ALLOWED_MISSING:
-                missing.append((suite, count))
-
-    assert missing == []
-
-    # Ensure the ignorelist doesn't contain more than necessary.
-    unignorable = []
-    found_suites = {suite: count for suite, count in result["data"]}
-    for suite in IGNORELIST:
-        if suite not in found_suites or found_suites[suite] < ALLOWED_MISSING:
-            unignorable.append(suite)
-
-    assert unignorable == []
-
-
-def test_good_manifests():
-    """
-    Ensure there are no bad manifest paths in recent manifest information.
-    """
-    result = run_query("test_all_groups", Namespace())
-
-    for (groups, label) in result["data"]:
-        if groups is None:
-            continue
-
-        if not isinstance(groups, list):
-            groups = [groups]
-
-        for group in groups:
-
-            if any(s in label for s in {"web-platform-tests", "test-verify-wpt"}):
-                group = task.wpt_workaround(group)
-
-            assert (
-                not task.is_bad_group("x", group) and "\\" not in group
-            ), f"{group} group for task {label} is bad!"
-
-
-def test_good_result_manifests():
-    """
-    Ensure there are no bad manifest paths in recent result manifest information.
-    """
-    result = run_query("test_all_result_groups", Namespace())
-
-    for group, label, _ in result["data"]:
-        if group is None:
-            continue
-
-        if any(s in label for s in {"web-platform-tests", "test-verify-wpt"}):
-            group = task.wpt_workaround(group)
-
-        assert (
-            not task.is_bad_group("x", group) and "\\" not in group
-        ), f"{group} group for task {label} is bad!"
 
 
 def test_caching_of_push(cache):

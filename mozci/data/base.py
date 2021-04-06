@@ -38,7 +38,7 @@ class DataSource(ABC):
     def supported_contracts(self) -> Tuple[str, ...]:
         pass
 
-    def get(self, name: str, **kwargs: Any) -> Dict[Any, Any]:
+    def get(self, name: str, **kwargs: Any) -> Any:
         fn = getattr(self, f"run_{name}")
         return fn(**kwargs)
 
@@ -50,7 +50,7 @@ class DataHandler:
         self.sources = [self.ALL_SOURCES[sname] for sname in sources]
         logger.info(f"Sources selected, in order of priority: {sources}.")
 
-    def get(self, name: str, **context: Any) -> Dict[Any, Any]:
+    def get(self, name: str, **context: Any) -> Any:
         """Given a contract, find the first registered source that supports it
         run it and return the results.
 

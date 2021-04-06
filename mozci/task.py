@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import json
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -11,6 +10,7 @@ from typing import Dict, List, Optional
 import requests
 from loguru import logger
 
+from mozci import data
 from mozci.errors import ArtifactNotFound, TaskNotFound
 from mozci.util.memoize import memoized_property
 from mozci.util.taskcluster import find_task_id, get_artifact, list_artifacts
@@ -273,108 +273,25 @@ class TestTask(Task):
             if not is_bad_group(self.id, result.group)
         ]
 
-    def _load_errorsummary(self) -> None:
-        # This may clobber the values that were populated by ActiveData, but
-        # since the artifact is already downloaded, parsed and we need to
-        # iterate over it anyway. It doesn't really hurt and simplifies some
-        # logic. It also ensures we don't attempt to load the errorsummary more
-        # than once.
-        self._results = []
-        self._errors = []
-
-        # Make sure that we don't try to load errorsummary.log for suites which
-        # don't support groups.
-        assert not is_no_groups_suite(self.label)
-
-        try:
-            paths = [a for a in self.artifacts if a.endswith("errorsummary.log")]
-        except IndexError:
-            return
-
-        groups = set()
-        group_results = {}
-        # TODO After April 1st 2021, switch to using group_result exclusively.
-        old_style_group_results = {}
-
-        lines = (
-            json.loads(line)
-            for path in paths
-            for line in self.get_artifact(path).iter_lines(decode_unicode=True)
-            if line
-        )
-
-        has_group_result = False
-        has_crashed = False
-
-        for line in lines:
-            if line["action"] == "test_groups":
-                groups |= set(line["groups"]) - {"default"}
-
-            # TODO After April 1st 2021, switch to using group_result exclusively.
-            elif not has_group_result and line["action"] == "test_result":
-                group = line.get("group")
-                if group == "default":
-                    continue
-
-                # The "OK" case should never happen given how errorsummary.log works, but
-                # better to be safe than sorry.
-                if line["expected"] == line["status"]:
-                    if group not in old_style_group_results:
-                        old_style_group_results[group] = "OK"
-                else:
-                    old_style_group_results[group] = "ERROR"
-
-            elif line["action"] == "group_result":
-                has_group_result = True
-
-                group = line["group"]
-                if group not in group_results or line["status"] != "OK":
-                    group_results[group] = line["status"]
-
-            elif line["action"] == "log":
-                self._errors.append(line["message"])
-
-            elif line["action"] == "crash":
-                has_crashed = True
-
-        if not has_group_result:
-            group_results = old_style_group_results
-
-        self._results = [
-            GroupResult(group, result == "OK")
-            for group, result in group_results.items()
-            if result != "SKIP"
-        ]
-
-        # Assume all groups for which we have no results passed, unless we have 'group_result' lines
-        # or the suite crashed.
-        # TODO After April 1st 2021, we can remove this assumption altogether, as all errorsummary.log
-        # files will have 'group_result' entries.
-        if not has_group_result and not has_crashed and len(groups) > 0:
-            self._results += [
-                GroupResult(group, True)
-                for group in groups
-                if group not in group_results
-            ]
-
-        self.__post_init__()
-
     @property
     def groups(self):
-        if self._results is None:
-            self._load_errorsummary()
         return [result.group for result in self.results]
 
     @property
     def results(self):
         if self._results is None:
-            self._load_errorsummary()
+            self._results = [
+                GroupResult(group, result)
+                for group, result in data.handler.get(
+                    "test_task_groups", task_id=self.id
+                ).items()
+            ]
         return self._results
 
     @property
     def errors(self):
         if self._errors is None:
-            self._load_errorsummary()
+            self._errors = data.handler.get("test_task_errors", task_id=self.id)
         return self._errors
 
     @property

@@ -1,11 +1,6 @@
 mozci package
 =============
 
-.. automodule:: mozci
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Subpackages
 -----------
 
@@ -46,6 +41,14 @@ mozci.task module
 -----------------
 
 .. automodule:: mozci.task
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: mozci
    :members:
    :undoc-members:
    :show-inheritance:

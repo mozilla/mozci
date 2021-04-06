@@ -1,11 +1,6 @@
 mozci.data package
 ==================
 
-.. automodule:: mozci.data
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Subpackages
 -----------
 
@@ -29,6 +24,14 @@ mozci.data.contract module
 --------------------------
 
 .. automodule:: mozci.data.contract
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: mozci.data
    :members:
    :undoc-members:
    :show-inheritance:

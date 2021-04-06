@@ -1,11 +1,6 @@
 mozci.util package
 ==================
 
-.. automodule:: mozci.util
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Submodules
 ----------
 
@@ -33,6 +28,14 @@ mozci.util.logging module
    :undoc-members:
    :show-inheritance:
 
+mozci.util.memoize module
+-------------------------
+
+.. automodule:: mozci.util.memoize
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 mozci.util.req module
 ---------------------
 
@@ -53,6 +56,14 @@ mozci.util.yaml module
 ----------------------
 
 .. automodule:: mozci.util.yaml
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: mozci.util
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,5 +1,5 @@
-API
-===
+mozci
+=====
 
 .. toctree::
    :maxdepth: 4

@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractproperty
 from pprint import pprint
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
 import voluptuous
 from loguru import logger
@@ -38,7 +38,7 @@ class DataSource(ABC):
     def supported_contracts(self) -> Tuple[str, ...]:
         pass
 
-    def get(self, name: str, **kwargs: Any) -> Dict[Any, Any]:
+    def get(self, name: str, **kwargs: Any) -> Union[Dict[Any, Any], List[Any]]:
         fn = getattr(self, f"run_{name}")
         return fn(**kwargs)
 
@@ -50,7 +50,7 @@ class DataHandler:
         self.sources = [self.ALL_SOURCES[sname] for sname in sources]
         logger.info(f"Sources selected, in order of priority: {sources}.")
 
-    def get(self, name: str, **context: Any) -> Dict[Any, Any]:
+    def get(self, name: str, **context: Any) -> Union[Dict[Any, Any], List[Any]]:
         """Given a contract, find the first registered source that supports it
         run it and return the results.
 
@@ -102,13 +102,14 @@ class DataHandler:
 
 
 def register_sources():
-    from mozci.data.sources import hgmo, taskcluster, treeherder
+    from mozci.data.sources import artifact, hgmo, taskcluster, treeherder
 
     sources = [
+        artifact.ErrorSummarySource(),
+        hgmo.HGMOSource(),
+        taskcluster.TaskclusterSource(),
         treeherder.TreeherderClientSource(),
         treeherder.TreeherderDBSource(),
-        taskcluster.TaskclusterSource(),
-        hgmo.HGMOSource(),
     ]
 
     DataHandler.ALL_SOURCES = {src.name: src for src in sources}

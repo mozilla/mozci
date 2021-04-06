@@ -122,6 +122,34 @@ _contracts: Tuple[Contract, ...] = (
             ]
         ),
     ),
+    Contract(
+        name="test_task_groups",
+        description="A dict of test groups and their results for a given TestTask.",
+        validate_in=Schema(
+            {
+                Required("task_id"): All(str, Length(min=22, max=22)),
+            }
+        ),
+        validate_out=Schema(
+            {
+                Marker(All(str, Length(min=1)), description="group name"): Marker(
+                    bool, description="group result"
+                )
+            }
+        ),
+    ),
+    Contract(
+        name="test_task_errors",
+        description="A list of errors for a given TestTask.",
+        validate_in=Schema(
+            {
+                Required("task_id"): All(str, Length(min=22, max=22)),
+            }
+        ),
+        validate_out=Schema(
+            [Marker(All(str, Length(min=1)), description="error message")]
+        ),
+    ),
 )
 
 

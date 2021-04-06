@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from pprint import pprint
+from textwrap import dedent
 
 import pytest
 import responses
@@ -213,6 +214,41 @@ class Responses:
         },
     )
 
+    errorsummary_test_task_groups = (
+        {
+            "method": responses.GET,
+            "url": "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/1111111111111111111111/artifacts",
+            "status": 200,
+            "json": {
+                "artifacts": [{"name": "errorsummary.log"}],
+            },
+        },
+        {
+            "method": responses.GET,
+            "url": "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/1111111111111111111111/artifacts/errorsummary.log",
+            "status": 200,
+            "body": dedent(
+                r"""
+                {"action": "test_groups", "line": 3, "groups": ["layout/base/tests/browser.ini", "toolkit/components/certviewer/tests/browser/browser.ini", "browser/base/content/test/general/browser.ini", "toolkit/components/nimbus/test/browser/browser.ini", "browser/components/customizableui/test/browser.ini", "browser/components/urlbar/tests/browser-tips/browser.ini", "toolkit/components/pictureinpicture/tests/browser.ini", "browser/components/shell/test/browser.ini", "toolkit/content/tests/browser/browser.ini", "browser/base/content/test/sanitize/browser.ini", "tools/profiler/tests/browser/browser.ini"]}
+                {"status": "FAIL", "subtest": "second value", "group": "toolkit/content/tests/browser/browser.ini", "action": "test_result", "known_intermittent": [], "test": "toolkit/content/tests/browser/browser_findbar_marks.js", "message": "got 1354, expected 1366 epsilon: +/- 10\nStack trace:\nchrome://mochikit/content/tests/SimpleTest/SimpleTest.js:SimpleTest.isfuzzy:513\nchrome://mochitests/content/browser/toolkit/content/tests/browser/browser_findbar_marks.js:test_findmarks:91", "line": 4054, "stack": null, "expected": "PASS"}
+                {"status": "FAIL", "subtest": "second value", "group": "toolkit/content/tests/browser/browser.ini", "action": "test_result", "known_intermittent": [], "test": "toolkit/content/tests/browser/browser_findbar_marks.js", "message": "got 1354, expected 1366 epsilon: +/- 10\nStack trace:\nchrome://mochikit/content/tests/SimpleTest/SimpleTest.js:SimpleTest.isfuzzy:513\nchrome://mochitests/content/browser/toolkit/content/tests/browser/browser_findbar_marks.js:test_findmarks:91", "line": 4095, "stack": null, "expected": "PASS"}
+                {"status": "FAIL", "subtest": "second value", "group": "toolkit/content/tests/browser/browser.ini", "action": "test_result", "known_intermittent": [], "test": "toolkit/content/tests/browser/browser_findbar_marks.js", "message": "got 1354, expected 1366 epsilon: +/- 10\nStack trace:\nchrome://mochikit/content/tests/SimpleTest/SimpleTest.js:SimpleTest.isfuzzy:513\nchrome://mochitests/content/browser/toolkit/content/tests/browser/browser_findbar_marks.js:test_findmarks:91", "line": 4136, "stack": null, "expected": "PASS"}
+                {"status": "OK", "duration": 12430, "line": 4465, "group": "layout/base/tests/browser.ini", "action": "group_result"}
+                {"status": "OK", "duration": 8906, "line": 4465, "group": "tools/profiler/tests/browser/browser.ini", "action": "group_result"}
+                {"status": "OK", "duration": 50884, "line": 4465, "group": "toolkit/components/certviewer/tests/browser/browser.ini", "action": "group_result"}
+                {"status": "OK", "duration": 227333, "line": 4465, "group": "browser/base/content/test/general/browser.ini", "action": "group_result"}
+                {"status": "OK", "duration": 405460, "line": 4465, "group": "browser/components/shell/test/browser.ini", "action": "group_result"}
+                {"status": "OK", "duration": 371201, "line": 4465, "group": "browser/components/customizableui/test/browser.ini", "action": "group_result"}
+                {"status": "OK", "duration": 44998, "line": 4465, "group": "browser/components/urlbar/tests/browser-tips/browser.ini", "action": "group_result"}
+                {"status": "OK", "duration": 686860, "line": 4465, "group": "toolkit/components/pictureinpicture/tests/browser.ini", "action": "group_result"}
+                {"status": "ERROR", "duration": 822508, "line": 4465, "group": "toolkit/content/tests/browser/browser.ini", "action": "group_result"}
+                {"status": "OK", "duration": 7657, "line": 4465, "group": "browser/base/content/test/sanitize/browser.ini", "action": "group_result"}
+                {"status": "OK", "duration": 351, "line": 4465, "group": "toolkit/components/nimbus/test/browser/browser.ini", "action": "group_result"}
+            """.strip()
+            ),
+        },
+    )
+
 
 @pytest.mark.parametrize(
     "source,contract,rsps,data_in,expected",
@@ -298,6 +334,30 @@ class Responses:
                 },
             },
             id="treeherder_client.push_tasks_classifications",
+        ),
+        # errorsummary
+        pytest.param(
+            "errorsummary",
+            "test_task_groups",
+            # responses
+            Responses.errorsummary_test_task_groups,
+            # input
+            {"task_id": "1" * 22},
+            # expected output
+            {
+                "browser/base/content/test/general/browser.ini": True,
+                "browser/base/content/test/sanitize/browser.ini": True,
+                "browser/components/customizableui/test/browser.ini": True,
+                "browser/components/shell/test/browser.ini": True,
+                "browser/components/urlbar/tests/browser-tips/browser.ini": True,
+                "layout/base/tests/browser.ini": True,
+                "toolkit/components/certviewer/tests/browser/browser.ini": True,
+                "toolkit/components/nimbus/test/browser/browser.ini": True,
+                "toolkit/components/pictureinpicture/tests/browser.ini": True,
+                "toolkit/content/tests/browser/browser.ini": False,
+                "tools/profiler/tests/browser/browser.ini": True,
+            },
+            id="errorsummary.test_task_groups",
         ),
     ),
 )

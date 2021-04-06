@@ -18,11 +18,11 @@ attributes and calling the functions to retrieve the desired data of this push. 
     print("\n".join([t.label for t in push.tasks if t.failed])
 
 The above snippet prints the failed tasks for a given push. Mozci uses data from a variety of
-sources, including `Active Data`_, `hg.mozilla.org`_ and `decision task`_ artifacts.
+sources, including `treeherder`_, `hg.mozilla.org`_ and `decision task`_ artifacts.
 
 See the :doc:`API docs <api/mozci>` for more details.
 
-.. _Active Data: https://wiki.mozilla.org/EngineeringProductivity/Projects/ActiveData
+.. _Treeherder: https://github.com/mozilla/treeherder
 .. _hg.mozilla.org: https://hg.mozilla.org/
 .. _decision task: https://firefox-source-docs.mozilla.org/taskcluster/taskgraph.html#decision-task
 

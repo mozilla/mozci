@@ -281,7 +281,7 @@ class Push:
         logger.debug(f"Gathering test groups for {self.rev}...")
 
         # Gather information from the unittest table. We allow missing data for this table because
-        # ActiveData and Treeherder only hold very recent data in it, but we have fallbacks on Taskcluster
+        # Treeherder only holds very recent data in it, but we have fallbacks on Taskcluster
         # artifacts.
         try:
             groups = data.handler.get(
@@ -302,7 +302,7 @@ class Push:
             f"Gathering test groups which were missing from the API for {self.rev}..."
         )
 
-        # Gather group data which could have been missing in ActiveData or Treeherder.
+        # Gather group data which could have been missing in Treeherder.
         concurrent.futures.wait(
             [
                 Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task)

@@ -274,7 +274,7 @@ class TestTask(Task):
         ]
 
     def _load_errorsummary(self) -> None:
-        # This may clobber the values that were populated by ActiveData, but
+        # This may clobber the values that were populated by the data sources, but
         # since the artifact is already downloaded, parsed and we need to
         # iterate over it anyway. It doesn't really hurt and simplifies some
         # logic. It also ensures we don't attempt to load the errorsummary more

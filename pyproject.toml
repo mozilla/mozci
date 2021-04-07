@@ -30,7 +30,7 @@ adr = { version = "~0", optional = true }
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.12"
 pytest = "^6.2"
-tox = "^3.22"
+tox = "^3.23"
 responses = "^0.13"
 sphinx = "^3.5.3"
 

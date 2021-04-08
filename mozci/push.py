@@ -242,7 +242,7 @@ class Push:
             Task: A `Task` instance representing the decision task.
         """
         index = self.index + ".taskgraph.decision"
-        return Task.create(index=index)
+        return Task.create(push=self, index=index)
 
     @memoized_property
     def tasks(self):
@@ -297,7 +297,7 @@ class Push:
         except MissingDataError:
             pass
 
-        tasks = [Task.create(**task) for task in tasks]
+        tasks = [Task.create(push=self, **task) for task in tasks]
 
         logger.debug(
             f"Gathering test groups which were missing from the API for {self.rev}..."
@@ -950,7 +950,7 @@ class Push:
             set: All task labels that would have been scheduled.
         """
         index = self.index + ".source.shadow-scheduler-{}".format(name)
-        task = Task.create(index=index)
+        task = Task.create(push=self, index=index)
 
         optimized = task.get_artifact("public/shadow-scheduler/optimized-tasks.json")
         return list(optimized.values())

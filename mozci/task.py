@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import signature
 from statistics import median
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import requests
 from loguru import logger
@@ -14,6 +16,9 @@ from mozci import data
 from mozci.errors import ArtifactNotFound, TaskNotFound
 from mozci.util.memoize import memoized_property
 from mozci.util.taskcluster import find_task_id, get_artifact, list_artifacts
+
+if TYPE_CHECKING:
+    from mozci.push import Push
 
 
 class Status(Enum):
@@ -139,6 +144,7 @@ class Task:
     classification: Optional[str] = field(default="not classified")
     classification_note: Optional[str] = field(default=None)
     tags: Dict = field(default_factory=dict)
+    push: Optional[Push] = field(default=None)
 
     @staticmethod
     def create(index=None, **kwargs):

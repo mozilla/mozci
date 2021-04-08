@@ -293,8 +293,6 @@ class TestTask(Task):
 
         groups = set()
         group_results = {}
-        # TODO After April 1st 2021, switch to using group_result exclusively.
-        old_style_group_results = {}
 
         lines = (
             json.loads(line)
@@ -303,29 +301,11 @@ class TestTask(Task):
             if line
         )
 
-        has_group_result = False
-        has_crashed = False
-
         for line in lines:
             if line["action"] == "test_groups":
                 groups |= set(line["groups"]) - {"default"}
 
-            # TODO After April 1st 2021, switch to using group_result exclusively.
-            elif not has_group_result and line["action"] == "test_result":
-                group = line.get("group")
-                if group == "default":
-                    continue
-
-                # The "OK" case should never happen given how errorsummary.log works, but
-                # better to be safe than sorry.
-                if line["expected"] == line["status"]:
-                    if group not in old_style_group_results:
-                        old_style_group_results[group] = "OK"
-                else:
-                    old_style_group_results[group] = "ERROR"
-
             elif line["action"] == "group_result":
-                has_group_result = True
 
                 group = line["group"]
                 if group not in group_results or line["status"] != "OK":
@@ -334,28 +314,11 @@ class TestTask(Task):
             elif line["action"] == "log":
                 self._errors.append(line["message"])
 
-            elif line["action"] == "crash":
-                has_crashed = True
-
-        if not has_group_result:
-            group_results = old_style_group_results
-
         self._results = [
             GroupResult(group, result == "OK")
             for group, result in group_results.items()
             if result != "SKIP"
         ]
-
-        # Assume all groups for which we have no results passed, unless we have 'group_result' lines
-        # or the suite crashed.
-        # TODO After April 1st 2021, we can remove this assumption altogether, as all errorsummary.log
-        # files will have 'group_result' entries.
-        if not has_group_result and not has_crashed and len(groups) > 0:
-            self._results += [
-                GroupResult(group, True)
-                for group in groups
-                if group not in group_results
-            ]
 
         self.__post_init__()
 

@@ -8,6 +8,7 @@ import responses
 from mozci.data import DataHandler
 from mozci.data.contract import all_contracts
 from mozci.data.sources.treeherder import TreeherderClientSource
+from mozci.task import Task
 
 
 class Responses:
@@ -342,7 +343,7 @@ class Responses:
             # responses
             Responses.errorsummary_test_task_groups,
             # input
-            {"task_id": "1" * 22},
+            {"task": Task.create(id="1" * 22, label="test-foo")},
             # expected output
             {
                 "browser/base/content/test/general/browser.ini": True,

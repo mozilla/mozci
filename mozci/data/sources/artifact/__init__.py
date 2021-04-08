@@ -66,12 +66,12 @@ class ErrorSummarySource(DataSource):
             if result != "SKIP"
         }
 
-    def run_test_task_groups(self, task_id):
-        if task_id not in self.TASK_CACHE:
-            self._load_errorsummary(task_id)
-        return self.TASK_CACHE[task_id]["groups"]
+    def run_test_task_groups(self, task):
+        if task.id not in self.TASK_CACHE:
+            self._load_errorsummary(task.id)
+        return self.TASK_CACHE[task.id]["groups"]
 
-    def run_test_task_errors(self, task_id):
-        if task_id not in self.TASK_CACHE:
-            self._load_errorsummary(task_id)
-        return self.TASK_CACHE[task_id]["errors"]
+    def run_test_task_errors(self, task):
+        if task.id not in self.TASK_CACHE:
+            self._load_errorsummary(task.id)
+        return self.TASK_CACHE[task.id]["errors"]

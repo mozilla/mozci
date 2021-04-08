@@ -6,6 +6,8 @@ from typing import Tuple
 
 from voluptuous import All, Any, Length, Marker, Optional, Required, Schema
 
+from mozci.task import TestTask
+
 
 @dataclass
 class Contract:
@@ -127,7 +129,7 @@ _contracts: Tuple[Contract, ...] = (
         description="A dict of test groups and their results for a given TestTask.",
         validate_in=Schema(
             {
-                Required("task_id"): All(str, Length(min=22, max=22)),
+                Required("task"): TestTask,
             }
         ),
         validate_out=Schema(
@@ -143,7 +145,7 @@ _contracts: Tuple[Contract, ...] = (
         description="A list of errors for a given TestTask.",
         validate_in=Schema(
             {
-                Required("task_id"): All(str, Length(min=22, max=22)),
+                Required("task"): TestTask,
             }
         ),
         validate_out=Schema(

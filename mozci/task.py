@@ -284,7 +284,7 @@ class TestTask(Task):
             self._results = [
                 GroupResult(group, result)
                 for group, result in data.handler.get(
-                    "test_task_groups", task_id=self.id
+                    "test_task_groups", task=self
                 ).items()
             ]
             self.__post_init__()
@@ -293,7 +293,7 @@ class TestTask(Task):
     @property
     def errors(self):
         if self._errors is None:
-            self._errors = data.handler.get("test_task_errors", task_id=self.id)
+            self._errors = data.handler.get("test_task_errors", task=self)
         return self._errors
 
     @property

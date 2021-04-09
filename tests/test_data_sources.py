@@ -8,7 +8,17 @@ import responses
 from mozci.data import DataHandler
 from mozci.data.contract import all_contracts
 from mozci.data.sources.treeherder import TreeherderClientSource
-from mozci.task import Task
+from mozci.task import TestTask
+
+
+class FakePush:
+    def __init__(self, branch, rev):
+        self.branch = branch
+        self.rev = rev
+
+
+def create_task(branch, rev, task_id):
+    return TestTask.create(id=task_id, label="test-foo", push=FakePush(branch, rev))
 
 
 class Responses:
@@ -318,23 +328,43 @@ class Responses:
         ),
         pytest.param(
             "treeherder_client",
-            "push_test_groups",
+            "test_task_groups",
             # responses
             Responses.treeherder_push_test_groups,
             # input
-            {"branch": "autoland", "rev": "abcdef"},
+            {"task": create_task("autoland", "abcdef", "anz5vAGSTqOEDk9pjAxyxg")},
             # expected output
             {
-                "AMHoZy9eRE2_l7xPabtwiw": {"devtools/client/netmonitor/test": True},
-                "amn79ZnzQbWAbrSvxJ-GBQ": {"dom/media/test": False},
-                "anz5vAGSTqOEDk9pjAxyxg": {
-                    "devtools/client/inspector/flexbox/test": True,
-                    "devtools/client/netmonitor/src/har/test": False,
-                    "devtools/client/application/test/browser": True,
-                    "devtools/client/inspector/rules/test": False,
-                },
+                "devtools/client/inspector/flexbox/test": True,
+                "devtools/client/netmonitor/src/har/test": False,
+                "devtools/client/application/test/browser": True,
+                "devtools/client/inspector/rules/test": False,
             },
-            id="treeherder_client.push_tasks_classifications",
+            id="treeherder_client.test_task_groups",
+        ),
+        pytest.param(
+            "treeherder_client",
+            "test_task_groups",
+            # no responses due to cache from previous test
+            [],
+            # input
+            {"task": create_task("autoland", "abcdef", "AMHoZy9eRE2_l7xPabtwiw")},
+            # expected output
+            {"devtools/client/netmonitor/test": True},
+            id="treeherder_client.test_task_groups",
+        ),
+        # treeherder_db
+        pytest.param(
+            "treeherder_client",
+            "test_task_groups",
+            # treeherder_db shares a cache with treeherder_client, so no
+            # responses should be generated here either
+            [],
+            # input
+            {"task": create_task("autoland", "abcdef", "amn79ZnzQbWAbrSvxJ-GBQ")},
+            # expected output
+            {"dom/media/test": False},
+            id="treeherder_db.test_task_groups",
         ),
         # errorsummary
         pytest.param(
@@ -343,7 +373,7 @@ class Responses:
             # responses
             Responses.errorsummary_test_task_groups,
             # input
-            {"task": Task.create(id="1" * 22, label="test-foo")},
+            {"task": create_task("autoland", "abcdef", "1" * 22)},
             # expected output
             {
                 "browser/base/content/test/general/browser.ini": True,

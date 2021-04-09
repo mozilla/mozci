@@ -17,7 +17,6 @@ from mozci.errors import (
     PushNotFound,
 )
 from mozci.task import (
-    GroupResult,
     GroupSummary,
     LabelSummary,
     RunnableSummary,
@@ -279,31 +278,10 @@ class Push:
         except MissingDataError:
             pass
 
-        logger.debug(f"Gathering test groups for {self.rev}...")
-
-        # Gather information from the unittest table. We allow missing data for this table because
-        # ActiveData and Treeherder only hold very recent data in it, but we have fallbacks on Taskcluster
-        # artifacts.
-        try:
-            groups = data.handler.get(
-                "push_test_groups", branch=self.branch, rev=self.rev
-            )
-            for task in tasks:
-                results = groups.get(task["id"])
-                if results is not None:
-                    task["_results"] = [
-                        GroupResult(group=group, ok=ok) for group, ok in results.items()
-                    ]
-        except MissingDataError:
-            pass
-
         tasks = [Task.create(push=self, **task) for task in tasks]
 
-        logger.debug(
-            f"Gathering test groups which were missing from the API for {self.rev}..."
-        )
-
-        # Gather group data which could have been missing in ActiveData or Treeherder.
+        # Gather group data.
+        logger.debug(f"Gathering test groups for {self.rev}...")
         concurrent.futures.wait(
             [
                 Push.THREAD_POOL_EXECUTOR.submit(lambda task: task.groups, task)

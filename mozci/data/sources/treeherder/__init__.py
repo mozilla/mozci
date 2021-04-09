@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 
+import threading
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from functools import lru_cache
+from typing import Dict, List
 
 from loguru import logger
 
@@ -18,15 +21,31 @@ except ImportError:
     Push = None
 
 
-class BaseTreeherderSource(DataSource):
-    pass
+class BaseTreeherderSource(DataSource, ABC):
+    lock = threading.Lock()
+    groups_cache: Dict[str, List[str]] = {}
+
+    @abstractmethod
+    def get_push_test_groups(self, branch: str, rev: str) -> Dict[str, List[str]]:
+        ...
+
+    def run_test_task_groups(self, task):
+        # Use a lock since push.py invokes this across many threads (which is
+        # useful for the 'errorsummary' data source, but not here). This ensures
+        # we don't make more than one request to Treeherder.
+        with self.lock:
+            if task.id not in self.groups_cache:
+                self.groups_cache.update(
+                    self.get_push_test_groups(task.push.branch, task.push.rev)
+                )
+        return self.groups_cache[task.id]
 
 
 class TreeherderClientSource(BaseTreeherderSource):
     """Uses the public API to query Treeherder."""
 
     name = "treeherder_client"
-    supported_contracts = ("push_tasks_classifications", "push_test_groups")
+    supported_contracts = ("push_tasks_classifications", "test_task_groups")
     base_url = "https://treeherder.mozilla.org/api"
 
     @memoized_property
@@ -59,8 +78,9 @@ class TreeherderClientSource(BaseTreeherderSource):
                 classifications[job["task_id"]]["classification_note"] = item["text"]
         return classifications
 
-    def run_push_test_groups(self, branch, rev):
+    def get_push_test_groups(self, branch, rev) -> Dict[str, List[str]]:
         data = self._run_query(f"/project/{branch}/push/group_results/?revision={rev}")
+
         for task_id in data:
             data[task_id].pop("", None)
             data[task_id].pop("default", None)
@@ -74,7 +94,7 @@ class TreeherderDBSource(BaseTreeherderSource):
     supported_contracts = (
         "push_tasks",
         "push_tasks_classifications",
-        "push_test_groups",
+        "test_task_groups",
     )
 
     @classmethod
@@ -192,7 +212,7 @@ class TreeherderDBSource(BaseTreeherderSource):
 
         return result
 
-    def run_push_test_groups(self, branch, rev):
+    def get_push_test_groups(self, branch, rev) -> Dict[str, List[str]]:
         if not Push:
             raise ContractNotFilled(
                 self.name, "push_test_groups", "could not import Push model"

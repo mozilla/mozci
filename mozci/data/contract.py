@@ -86,25 +86,6 @@ _contracts: Tuple[Contract, ...] = (
         ),
     ),
     Contract(
-        name="push_test_groups",
-        description="Data about the test groups that ran on a given push.",
-        validate_in=Schema(
-            {
-                Required("branch"): str,
-                Required("rev"): str,
-            }
-        ),
-        validate_out=Schema(
-            {
-                Marker(All(str, Length(min=22, max=22)), description="task id"): {
-                    Marker(All(str, Length(min=1)), description="group name"): Marker(
-                        bool, description="group result"
-                    )
-                }
-            }
-        ),
-    ),
-    Contract(
         name="push_revisions",
         description="Data from the VCS about a given push.",
         validate_in=Schema(

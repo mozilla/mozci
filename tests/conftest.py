@@ -1,12 +1,26 @@
 # -*- coding: utf-8 -*-
 import json
+import os
 import re
 
 import pytest
 from responses import RequestsMock
 
+import mozci
+from mozci import data
+from mozci.configuration import Configuration
+from mozci.data.base import DataHandler
 from mozci.push import MAX_DEPTH, Push
 from mozci.util.hgmo import HGMO
+
+here = os.path.abspath(os.path.dirname(__file__))
+
+
+@pytest.fixture(autouse=True, scope="session")
+def set_config_path():
+    os.environ["MOZCI_CONFIG_PATH"] = os.path.join(here, "config.toml")
+    mozci.config = Configuration()
+    data.handler = DataHandler(*mozci.config.data_sources)
 
 
 @pytest.fixture(autouse=True)

@@ -7,6 +7,7 @@ from functools import lru_cache
 from typing import Dict, List
 
 from loguru import logger
+from lru import LRU
 
 from mozci.data.base import DataSource
 from mozci.errors import ContractNotFilled
@@ -23,7 +24,7 @@ except ImportError:
 
 class BaseTreeherderSource(DataSource, ABC):
     lock = threading.Lock()
-    groups_cache: Dict[str, List[str]] = {}
+    groups_cache: Dict[str, List[str]] = LRU(5000)
 
     @abstractmethod
     def get_push_test_groups(self, branch: str, rev: str) -> Dict[str, List[str]]:
@@ -38,7 +39,11 @@ class BaseTreeherderSource(DataSource, ABC):
                 self.groups_cache.update(
                     self.get_push_test_groups(task.push.branch, task.push.rev)
                 )
-        return self.groups_cache[task.id]
+
+        try:
+            return self.groups_cache.pop(task.id)
+        except KeyError:
+            raise ContractNotFilled(self.name, "test_task_groups", "groups are missing")
 
 
 class TreeherderClientSource(BaseTreeherderSource):
@@ -54,6 +59,7 @@ class TreeherderClientSource(BaseTreeherderSource):
         session.headers = {"User-Agent": "mozci"}
         return session
 
+    @lru_cache(maxsize=50)
     def _run_query(self, query, params=None):
         query = query.strip("/")
         url = f"{self.base_url}/{query}"
@@ -80,11 +86,7 @@ class TreeherderClientSource(BaseTreeherderSource):
 
     def get_push_test_groups(self, branch, rev) -> Dict[str, List[str]]:
         data = self._run_query(f"/project/{branch}/push/group_results/?revision={rev}")
-
-        for task_id in data:
-            data[task_id].pop("", None)
-            data[task_id].pop("default", None)
-        return {k: v for k, v in data.items() if v}
+        return {k: v for k, v in data.items() if v if k not in ("", "default")}
 
 
 class TreeherderDBSource(BaseTreeherderSource):

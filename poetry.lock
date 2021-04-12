@@ -692,7 +692,7 @@ test = ["pytest"]
 
 [[package]]
 name = "taskcluster"
-version = "42.1.1"
+version = "43.0.0"
 description = "Python client for Taskcluster"
 category = "main"
 optional = false
@@ -708,7 +708,7 @@ slugid = ">=2"
 taskcluster-urls = ">=12.1.0"
 
 [package.extras]
-test = ["pytest", "pytest-cov", "pytest-mock", "httmock", "mock", "setuptools-lint", "flake8", "psutil", "hypothesis", "tox", "coverage", "python-dateutil", "subprocess32"]
+test = ["pytest", "pytest-cov", "pytest-mock", "httmock", "mock", "setuptools-lint", "flake8", "psutil", "hypothesis", "tox", "coverage", "python-dateutil", "subprocess32", "pytest-asyncio", "aiofiles", "httptest"]
 
 [[package]]
 name = "taskcluster-urls"
@@ -1256,9 +1256,9 @@ sphinxcontrib-serializinghtml = [
     {file = "sphinxcontrib_serializinghtml-1.1.4-py2.py3-none-any.whl", hash = "sha256:f242a81d423f59617a8e5cf16f5d4d74e28ee9a66f9e5b637a18082991db5a9a"},
 ]
 taskcluster = [
-    {file = "taskcluster-42.1.1-py2-none-any.whl", hash = "sha256:6f8ed0e1ab2c8cfe038216572793a3611fe91de4d94f3ea3c2543c92c7111d0b"},
-    {file = "taskcluster-42.1.1-py3-none-any.whl", hash = "sha256:3443ded81c3bf324fbc9910624b221c3697478c0eed41a2bc5ddb417fa18e80a"},
-    {file = "taskcluster-42.1.1.tar.gz", hash = "sha256:f7aadd165b738a35da739dbf7d67dcc50b9290d937176ca020de3d88a5bd6226"},
+    {file = "taskcluster-43.0.0-py2-none-any.whl", hash = "sha256:0ff72593158b4104c66b83dc52e9b617bd0de2b18c4bfe018e6cbda0a25165ca"},
+    {file = "taskcluster-43.0.0-py3-none-any.whl", hash = "sha256:568e990a3c368c7cb54663aa7251fd4b515474577966f67fd3625b4040ce7be7"},
+    {file = "taskcluster-43.0.0.tar.gz", hash = "sha256:db1eb28047de28ea5fbb2e6246a36f69dc02fa58079132ac918f0ee6aab70ba2"},
 ]
 taskcluster-urls = [
     {file = "taskcluster-urls-13.0.1.tar.gz", hash = "sha256:b25e122ecec249c4299ac7b20b08db76e3e2025bdaeb699a9d444556de5fd367"},

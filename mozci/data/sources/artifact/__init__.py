@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import json
-from collections import defaultdict
 from typing import Any, Dict
 
 import requests
+from lru import LRU
 
 from mozci.data.base import DataSource
 from mozci.util.taskcluster import get_artifact, list_artifacts
@@ -14,18 +14,14 @@ class ErrorSummarySource(DataSource):
     name = "errorsummary"
     supported_contracts = ("test_task_groups", "test_task_errors")
 
-    TASK_CACHE: Dict[str, Any] = defaultdict(
-        lambda: {
-            "errors": [],
-            "groups": {},
-        }
-    )
+    TASK_GROUPS: Dict[str, Any] = LRU(2000)
+    TASK_ERRORS: Dict[str, Any] = LRU(2000)
 
     def _load_errorsummary(self, task_id) -> None:
         """Load the task's errorsummary.log.
 
-        We gather all data we can and store it in the TASK_CACHE so we don't have to load
-        it again for a different contract.
+        We gather all data we can and store it in the TASK_* caches so we don't
+        have to load it again for a different contract.
         """
         try:
             artifacts = [a["name"] for a in list_artifacts(task_id)]
@@ -58,20 +54,22 @@ class ErrorSummarySource(DataSource):
                     group_results[group] = line["status"]
 
             elif line["action"] == "log":
-                self.TASK_CACHE[task_id]["errors"].append(line["message"])
+                if task_id not in self.TASK_ERRORS:
+                    self.TASK_ERRORS[task_id] = []
+                self.TASK_ERRORS[task_id].append(line["message"])
 
-        self.TASK_CACHE[task_id]["groups"] = {
+        self.TASK_GROUPS[task_id] = {
             group: result == "OK"
             for group, result in group_results.items()
             if result != "SKIP"
         }
 
     def run_test_task_groups(self, task):
-        if task.id not in self.TASK_CACHE:
+        if task.id not in self.TASK_GROUPS:
             self._load_errorsummary(task.id)
-        return self.TASK_CACHE[task.id]["groups"]
+        return self.TASK_GROUPS.pop(task.id)
 
     def run_test_task_errors(self, task):
-        if task.id not in self.TASK_CACHE:
+        if task.id not in self.TASK_ERRORS:
             self._load_errorsummary(task.id)
-        return self.TASK_CACHE[task.id]["errors"]
+        return self.TASK_ERRORS.pop(task.id)

@@ -246,12 +246,14 @@ class Responses:
                 {"status": "FAIL", "subtest": "second value", "group": "toolkit/content/tests/browser/browser.ini", "action": "test_result", "known_intermittent": [], "test": "toolkit/content/tests/browser/browser_findbar_marks.js", "message": "got 1354, expected 1366 epsilon: +/- 10\nStack trace:\nchrome://mochikit/content/tests/SimpleTest/SimpleTest.js:SimpleTest.isfuzzy:513\nchrome://mochitests/content/browser/toolkit/content/tests/browser/browser_findbar_marks.js:test_findmarks:91", "line": 4136, "stack": null, "expected": "PASS"}
                 {"status": "OK", "duration": 12430, "line": 4465, "group": "layout/base/tests/browser.ini", "action": "group_result"}
                 {"status": "OK", "duration": 8906, "line": 4465, "group": "tools/profiler/tests/browser/browser.ini", "action": "group_result"}
+                {"action": "log", "level": "error", "message": "oh no!"}
                 {"status": "OK", "duration": 50884, "line": 4465, "group": "toolkit/components/certviewer/tests/browser/browser.ini", "action": "group_result"}
                 {"status": "OK", "duration": 227333, "line": 4465, "group": "browser/base/content/test/general/browser.ini", "action": "group_result"}
                 {"status": "OK", "duration": 405460, "line": 4465, "group": "browser/components/shell/test/browser.ini", "action": "group_result"}
                 {"status": "OK", "duration": 371201, "line": 4465, "group": "browser/components/customizableui/test/browser.ini", "action": "group_result"}
                 {"status": "OK", "duration": 44998, "line": 4465, "group": "browser/components/urlbar/tests/browser-tips/browser.ini", "action": "group_result"}
                 {"status": "OK", "duration": 686860, "line": 4465, "group": "toolkit/components/pictureinpicture/tests/browser.ini", "action": "group_result"}
+                {"action": "log", "level": "error", "message": "error!"}
                 {"status": "ERROR", "duration": 822508, "line": 4465, "group": "toolkit/content/tests/browser/browser.ini", "action": "group_result"}
                 {"status": "OK", "duration": 7657, "line": 4465, "group": "browser/base/content/test/sanitize/browser.ini", "action": "group_result"}
                 {"status": "OK", "duration": 351, "line": 4465, "group": "toolkit/components/nimbus/test/browser/browser.ini", "action": "group_result"}
@@ -389,6 +391,17 @@ class Responses:
                 "tools/profiler/tests/browser/browser.ini": True,
             },
             id="errorsummary.test_task_groups",
+        ),
+        pytest.param(
+            "errorsummary",
+            "test_task_errors",
+            # no responses due to cache
+            [],
+            # input
+            {"task": create_task("autoland", "abcdef", "1" * 22)},
+            # expected output
+            ["oh no!", "error!"],
+            id="errorsummary.test_task_errors",
         ),
     ),
 )

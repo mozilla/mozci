@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict
 
 import requests
+from loguru import logger
 from lru import LRU
 
 from mozci.data.base import DataSource
@@ -57,6 +58,12 @@ class ErrorSummarySource(DataSource):
                 if task_id not in self.TASK_ERRORS:
                     self.TASK_ERRORS[task_id] = []
                 self.TASK_ERRORS[task_id].append(line["message"])
+
+        missing_groups = groups - set(group_results)
+        if len(missing_groups) > 0:
+            logger.error(
+                f"Some groups in {task_id} are missing results: {missing_groups}"
+            )
 
         self.TASK_GROUPS[task_id] = {
             group: result == "OK"

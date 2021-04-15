@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from abc import ABC, abstractproperty
-from pprint import pprint
 from typing import Any, Dict, List, Tuple, Union
 
-import voluptuous
+import validx
 from loguru import logger
 
 from mozci.data.contract import all_contracts
@@ -82,21 +81,8 @@ class DataHandler:
         # Validate output.
         try:
             contract.validate_out(result)
-        except voluptuous.MultipleInvalid as e:
+        except validx.exc.SchemaError:
             print(f"Result from contract '{name}' does not conform to schema!")
-            for error in e.errors:
-                if not error.path:
-                    continue
-
-                problem = result
-                for i in error.path[:-1]:
-                    problem = problem[i]
-
-                print(
-                    f'\nProblem with item "{error.path[-1]}" in the following object:'
-                )
-                pprint(problem, indent=2, depth=2)
-                print()
             raise
         return result
 

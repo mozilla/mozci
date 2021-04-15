@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import pytest
-from voluptuous import MultipleInvalid, Required, Schema
+import validx as v
 
 from mozci import data
 from mozci.data.base import DataHandler, DataSource
@@ -16,26 +16,26 @@ FAKE_CONTRACTS = (
     Contract(
         name="foo",
         description="test",
-        validate_in=Schema({Required("label"): str}),
-        validate_out=Schema({Required("count"): int}),
+        validate_in=v.Dict({"label": v.Str()}),
+        validate_out=v.Dict({"count": v.Int()}),
     ),
     Contract(
         name="bar",
         description="test",
-        validate_in=Schema({Required("desc"): str}),
-        validate_out=Schema({Required("amount"): int}),
+        validate_in=v.Dict({"desc": v.Str()}),
+        validate_out=v.Dict({"amount": v.Int()}),
     ),
     Contract(
         name="baz",
         description="test",
-        validate_in=Schema({Required("id"): str}),
-        validate_out=Schema({Required("sum"): int}),
+        validate_in=v.Dict({"id": v.Str()}),
+        validate_out=v.Dict({"sum": v.Int()}),
     ),
     Contract(
         name="incomplete",
         description="test",
-        validate_in=Schema({}),
-        validate_out=Schema({}),
+        validate_in=v.Dict({}),
+        validate_out=v.Dict({}),
     ),
 )
 
@@ -67,7 +67,7 @@ def test_data_handler(monkeypatch):
     monkeypatch.setattr(DataHandler, "ALL_SOURCES", {"fake": FakeSource()})
     handler = DataHandler("fake")
 
-    with pytest.raises(MultipleInvalid):
+    with pytest.raises(v.exc.SchemaError):
         handler.get("baz")
 
     with pytest.raises(SourcesNotFound):
@@ -79,10 +79,10 @@ def test_data_handler(monkeypatch):
     with pytest.raises(ContractNotFound):
         handler.get("fleem")
 
-    with pytest.raises(MultipleInvalid):
+    with pytest.raises(v.exc.SchemaError):
         handler.get("foo")
 
-    with pytest.raises(MultipleInvalid):
+    with pytest.raises(v.exc.SchemaError):
         handler.get("foo", label="foo")
 
     assert handler.get("bar", desc="tada") == {"amount": 1}

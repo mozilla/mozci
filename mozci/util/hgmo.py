@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import Dict, Tuple
+from typing import Any, Dict, Tuple
 
 import requests
 from lru import LRU
 
 from mozci.errors import PushNotFound
-from mozci.util.memoize import memoize, memoized_property
+from mozci.util.memoize import memoized_property
 from mozci.util.req import get_session
 
 
-class HGMO:
+class HgRev:
     # urls
     BASE_URL = "https://hg.mozilla.org/"
     AUTOMATION_RELEVANCE_TEMPLATE = (
@@ -26,7 +26,8 @@ class HGMO:
     )
 
     # instance cache
-    CACHE: Dict[Tuple[str, str], HGMO] = LRU(1000)
+    CACHE: Dict[Tuple[str, str], HgRev] = LRU(1000)
+    JSON_PUSHES_CACHE: Dict[int, Dict[str, Any]] = LRU(1000)
 
     def __init__(self, rev, branch="autoland"):
         self.context = {
@@ -37,20 +38,66 @@ class HGMO:
     @staticmethod
     def create(rev, branch="autoland"):
         key = (branch, rev[:12])
-        if key in HGMO.CACHE:
-            return HGMO.CACHE[key]
-        instance = HGMO(rev, branch)
-        HGMO.CACHE[key] = instance
+        if key in HgRev.CACHE:
+            return HgRev.CACHE[key]
+        instance = HgRev(rev, branch)
+        HgRev.CACHE[key] = instance
         return instance
 
-    def _get_resource(self, url):
+    @staticmethod
+    def _get_and_cache_pushes(branch, url):
+        pushes = HgRev._get_resource(url, context={"branch": branch})["pushes"]
+        for push_id, value in pushes.items():
+            HgRev.JSON_PUSHES_CACHE[int(push_id)] = value
+        return pushes
+
+    @staticmethod
+    def load_json_pushes_between_ids(branch, push_id_start, push_id_end):
+        url = HgRev.JSON_PUSHES_TEMPLATE.format(
+            push_id_start=push_id_start,
+            push_id_end=push_id_end,
+            branch=f"integration/{branch}" if branch == "autoland" else branch,
+        )
+        return HgRev._get_and_cache_pushes(branch, url)
+
+    @staticmethod
+    def load_json_pushes_between_dates(branch, from_date, to_date):
+        url = HgRev.JSON_PUSHES_BETWEEN_DATES_TEMPLATE.format(
+            from_date=from_date,
+            to_date=to_date,
+            branch=f"integration/{branch}" if branch == "autoland" else branch,
+        )
+        return HgRev._get_and_cache_pushes(branch, url)
+
+    @staticmethod
+    def load_json_push(branch, push_id):
+        if push_id not in HgRev.JSON_PUSHES_CACHE:
+            url = HgRev.JSON_PUSHES_TEMPLATE.format(
+                push_id_start=push_id - 1,
+                push_id_end=push_id,
+                branch=f"integration/{branch}" if branch == "autoland" else branch,
+            )
+            HgRev._get_and_cache_pushes(branch, url)
+
+        if push_id not in HgRev.JSON_PUSHES_CACHE:
+            raise PushNotFound(
+                f"push id {push_id} does not exist", rev="unknown", branch=branch
+            )
+        return HgRev.JSON_PUSHES_CACHE[push_id]
+
+    @classmethod
+    def _get_resource(cls, url, context=None):
+        context = context or getattr(cls, "context", {})
+        context.setdefault("branch", "unknown branch")
+        context.setdefault("rev", "unknown")
+
         try:
             r = get_session().get(url)
         except requests.exceptions.RetryError as e:
-            raise PushNotFound(f"{e} error when getting {url}", **self.context)
+            raise PushNotFound(f"{e} error when getting {url}", **context)
 
         if r.status_code == 404:
-            raise PushNotFound(f"{r.status_code} response from {url}", **self.context)
+            raise PushNotFound(f"{r.status_code} response from {url}", **context)
 
         r.raise_for_status()
         return r.json()
@@ -59,23 +106,6 @@ class HGMO:
     def changesets(self):
         url = self.AUTOMATION_RELEVANCE_TEMPLATE.format(**self.context)
         return self._get_resource(url)["changesets"]
-
-    @memoize
-    def json_pushes(self, push_id_start, push_id_end):
-        url = self.JSON_PUSHES_TEMPLATE.format(
-            push_id_start=push_id_start,
-            push_id_end=push_id_end,
-            **self.context,
-        )
-        return self._get_resource(url)["pushes"]
-
-    def json_pushes_between_dates(self, from_date, to_date):
-        url = self.JSON_PUSHES_BETWEEN_DATES_TEMPLATE.format(
-            from_date=from_date,
-            to_date=to_date,
-            **self.context,
-        )
-        return self._get_resource(url)["pushes"]
 
     def _find_self(self):
         for changeset in self.changesets:
@@ -112,7 +142,7 @@ class HGMO:
         # Sometimes json-automationrelevance doesn't return all commits of a push.
         # https://bugzilla.mozilla.org/show_bug.cgi?id=1641729
         if self.pushhead not in {changeset["node"] for changeset in self.changesets}:
-            return HGMO.create(self.pushhead, branch=self.context["branch"]).backouts
+            return HgRev.create(self.pushhead, branch=self.context["branch"]).backouts
 
         return {
             changeset["node"]: [node["node"] for node in changeset["backsoutnodes"]]

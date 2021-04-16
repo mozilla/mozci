@@ -3,7 +3,7 @@ import requests
 
 from mozci.push import MAX_DEPTH
 from mozci.task import Task
-from mozci.util.hgmo import HGMO
+from mozci.util.hgmo import HgRev
 
 
 def fake_id(i=1):
@@ -765,9 +765,9 @@ def test_fixed_by_commit(monkeypatch, create_pushes):
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
-    monkeypatch.setattr(HGMO, "pushid", property(lambda cls: 1))
+    monkeypatch.setattr(HgRev, "pushid", property(lambda cls: 1))
 
     p[i - 1].tasks = [
         Task.create(id=fake_id(1), label="test-failure-current", result="passed"),
@@ -814,9 +814,9 @@ def test_fixed_by_commit_task_didnt_run_in_parents(monkeypatch, create_pushes):
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
-    monkeypatch.setattr(HGMO, "pushid", property(lambda cls: 1))
+    monkeypatch.setattr(HgRev, "pushid", property(lambda cls: 1))
 
     p[i].backedoutby = p[i + 2].rev
 
@@ -850,7 +850,7 @@ def test_fixed_by_commit_push_wasnt_backedout(monkeypatch, create_pushes):
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [
         Task.create(id=fake_id(1), label="test-failure-current", result="passed")
@@ -887,7 +887,7 @@ def test_fixed_by_commit_another_push_possible_classification(
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 4].rev
@@ -927,7 +927,7 @@ def test_fixed_by_commit_another_push_possible_classification2(
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 4].rev
@@ -978,7 +978,7 @@ def test_fixed_by_commit_another_push_possible_classification3(
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 4].rev
@@ -1021,7 +1021,7 @@ def test_fixed_by_commit_another_push_possible_classification4(
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 3].rev
@@ -1059,7 +1059,7 @@ def test_fixed_by_commit_another_push_possible_classification5(
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].backedoutby = "3rev2"
@@ -1089,14 +1089,14 @@ def test_fixed_by_commit_another_push_possible_classification6(
     i = 1  # the index of the push we are mainly interested in
 
     r = requests.get(
-        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+        HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(
             branch="integration/autoland", rev=p[i + 3].rev
         )
     )
 
     responses.add(
         responses.GET,
-        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+        HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(
             branch="integration/autoland", rev="3rev2"
         ),
         json=r.json(),
@@ -1111,7 +1111,7 @@ def test_fixed_by_commit_another_push_possible_classification6(
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 3].rev
@@ -1141,14 +1141,14 @@ def test_fixed_by_commit_another_push_possible_classification7(
     i = 1  # the index of the push we are mainly interested in
 
     r = requests.get(
-        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+        HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(
             branch="integration/autoland", rev=p[i + 3].rev
         )
     )
 
     responses.add(
         responses.GET,
-        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+        HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(
             branch="integration/autoland", rev="3rev2"
         ),
         json=r.json(),
@@ -1163,7 +1163,7 @@ def test_fixed_by_commit_another_push_possible_classification7(
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].backedoutby = "3rev2"
@@ -1200,7 +1200,7 @@ def test_fixed_by_commit_another_push_possible_classification8(
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i + 1].tasks = [
@@ -1248,7 +1248,7 @@ def test_fixed_by_commit_another_push_possible_classification9(
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
@@ -1331,7 +1331,7 @@ def test_fixed_by_commit_after_intermittent(monkeypatch, create_pushes):
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].tasks = [
@@ -1373,7 +1373,7 @@ def test_fixed_by_commit_after_success(monkeypatch, create_pushes):
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].tasks = [
@@ -1414,7 +1414,7 @@ def test_intermittent_after_fixed_by_commit(monkeypatch, create_pushes):
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].tasks = [
@@ -1456,7 +1456,7 @@ def test_success_after_fixed_by_commit(monkeypatch, create_pushes):
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].tasks = [
@@ -1503,7 +1503,7 @@ def test_success_after_fixed_by_commit_not_on_push_interest(monkeypatch, create_
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].tasks = []
@@ -1554,7 +1554,7 @@ def test_intermittent_after_fixed_by_commit_not_on_push_interest(
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].tasks = []
@@ -1599,7 +1599,7 @@ def test_fixed_by_commit_failure_on_another_push_possible_classification(
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 4].rev
@@ -1633,7 +1633,7 @@ def test_fixed_by_commit_another_push_wrong_classification(monkeypatch, create_p
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].tasks = [
@@ -1679,7 +1679,7 @@ def test_fixed_by_commit_another_push_wrong_classification_bustage_fixed(
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].tasks = []
@@ -1718,7 +1718,7 @@ def test_fixed_by_commit_another_push_wrong_classification_bustage_fixed2(
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].tasks = []
@@ -1757,7 +1757,7 @@ def test_fixed_by_commit_another_push_wrong_classification2(monkeypatch, create_
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
@@ -1803,7 +1803,7 @@ def test_fixed_by_commit_multiple_backout(monkeypatch, create_pushes):
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     def mock_pushid(cls):
         if cls.context["rev"] == "rev1.1":
@@ -1817,7 +1817,7 @@ def test_fixed_by_commit_multiple_backout(monkeypatch, create_pushes):
         else:
             raise Exception(cls.context["rev"])
 
-    monkeypatch.setattr(HGMO, "pushid", property(mock_pushid))
+    monkeypatch.setattr(HgRev, "pushid", property(mock_pushid))
 
     p[i - 1].tasks = [Task.create(id=fake_id(1), label="test-failure", result="passed")]
     p[i]._revs = ["rev1.1", "rev1.2"]
@@ -1856,9 +1856,9 @@ def test_fixed_by_commit_no_backout(monkeypatch, create_pushes):
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
-    monkeypatch.setattr(HGMO, "pushid", property(lambda cls: 1))
+    monkeypatch.setattr(HgRev, "pushid", property(lambda cls: 1))
 
     p[i - 1].tasks = [
         Task.create(id=fake_id(1), label="test-failure-current", result="passed"),
@@ -2010,7 +2010,7 @@ def test_intermittent_fixed_by_commit(monkeypatch, create_pushes):
 
         return {}
 
-    monkeypatch.setattr(HGMO, "backouts", property(mock_backouts))
+    monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
 
     p[i - 2].tasks = [
         Task.create(id=fake_id(1), label="test-intermittent", result="passed")

@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-from mozci.util.hgmo import HGMO
+from mozci.util.hgmo import HgRev
 
 
 def test_hgmo_cache():
-    # HGMO.create() uses a cache.
-    h1 = HGMO.create("abcdef", "autoland")
-    h2 = HGMO.create("abcdef", "autoland")
+    # HgRev.create() uses a cache.
+    h1 = HgRev.create("abcdef", "autoland")
+    h2 = HgRev.create("abcdef", "autoland")
     assert h1 == h2
 
     # Instantiating directly ignores the cache.
-    h1 = HGMO("abcdef", "autoland")
-    h2 = HGMO("abcdef", "autoland")
+    h1 = HgRev("abcdef", "autoland")
+    h2 = HgRev("abcdef", "autoland")
     assert h1 != h2
 
 
@@ -84,20 +84,20 @@ def test_hgmo_backouts(responses):
         status=200,
     )
 
-    h = HGMO("abcdef")
+    h = HgRev("abcdef")
     assert h.backouts == {}
     assert h.changesets[0]["backsoutnodes"] == []
 
-    h = HGMO("abcdef")
+    h = HgRev("abcdef")
     assert h.backouts == {"789": ["123456"]}
     assert h.changesets[0]["backsoutnodes"] == [{"node": "123456"}]
 
-    h = HGMO("abcdef")
+    h = HgRev("abcdef")
     assert h.backouts == {"789": ["123456"], "jkl": ["asd", "fgh"]}
     assert h.changesets[0]["backsoutnodes"] == [{"node": "123456"}]
     assert h.changesets[1]["backsoutnodes"] == [{"node": "asd"}, {"node": "fgh"}]
 
-    h = HGMO("abcdef")
+    h = HgRev("abcdef")
     assert h.backouts == {"789": ["123456"], "ghi": ["789"]}
     assert h.changesets[0]["backsoutnodes"] == [{"node": "123456"}]
 
@@ -134,8 +134,8 @@ def test_hgmo_backedoutby(responses):
         status=200,
     )
 
-    h = HGMO("abcdef")
+    h = HgRev("abcdef")
     assert h.backedoutby is None
 
-    h = HGMO("123456")
+    h = HgRev("123456")
     assert h.backedoutby == "abcdef"

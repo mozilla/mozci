@@ -11,7 +11,7 @@ from mozci import data
 from mozci.configuration import Configuration
 from mozci.data.base import DataHandler
 from mozci.push import MAX_DEPTH, Push
-from mozci.util.hgmo import HGMO
+from mozci.util.hgmo import HgRev
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -26,7 +26,7 @@ def set_config_path():
 @pytest.fixture(autouse=True)
 def reset_hgmo_cache():
     yield
-    HGMO.CACHE = {}
+    HgRev.CACHE = {}
 
 
 @pytest.fixture
@@ -51,12 +51,12 @@ def create_push(monkeypatch, responses):
     def mock_pushid(cls):
         return push_rev_to_id[cls.context["rev"]]
 
-    monkeypatch.setattr(HGMO, "pushid", property(mock_pushid))
+    monkeypatch.setattr(HgRev, "pushid", property(mock_pushid))
 
     def mock_node(cls):
         return cls.context["rev"]
 
-    monkeypatch.setattr(HGMO, "node", property(mock_node))
+    monkeypatch.setattr(HgRev, "node", property(mock_node))
 
     def inner(rev=None, branch="integration/autoland"):
         nonlocal prev_push, push_id
@@ -81,7 +81,7 @@ def create_push(monkeypatch, responses):
 
         responses.add_callback(
             responses.GET,
-            HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(branch=branch, rev=rev),
+            HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(branch=branch, rev=rev),
             callback=automationrelevance_callback,
             content_type="application/json",
         )

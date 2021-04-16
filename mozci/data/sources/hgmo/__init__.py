@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from mozci.data.base import DataSource
-from mozci.util.hgmo import HGMO
+from mozci.util.hgmo import HgRev
 
 
 class HGMOSource(DataSource):
@@ -11,9 +11,7 @@ class HGMOSource(DataSource):
     supported_contracts = ("push_revisions",)
 
     def run_push_revisions(self, from_date, to_date, branch):
-        hgmo = HGMO(None, branch)
-
-        result = hgmo.json_pushes_between_dates(from_date, to_date)
+        result = HgRev.load_json_pushes_between_dates(branch, from_date, to_date)
 
         return [
             {

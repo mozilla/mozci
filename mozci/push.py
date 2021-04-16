@@ -25,7 +25,7 @@ from mozci.task import (
     TestTask,
     get_configuration_from_label,
 )
-from mozci.util.hgmo import HGMO
+from mozci.util.hgmo import HgRev
 from mozci.util.memoize import memoize, memoized_property
 
 BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
@@ -57,7 +57,7 @@ class Push:
             self._revs = revs
 
         self.branch = branch
-        self._hgmo = HGMO.create(revs[0], branch=self.branch)
+        self._hgmo = HgRev.create(revs[0], branch=self.branch)
 
         self._id = None
         self._date = None
@@ -132,13 +132,8 @@ class Push:
         return self._id
 
     def create_push(self, push_id):
-        result = self._hgmo.json_pushes(push_id_start=push_id - 1, push_id_end=push_id)
-        if str(push_id) not in result:
-            raise PushNotFound(
-                f"push id {push_id} does not exist", rev=self.rev, branch=self.branch
-            )
+        result = HgRev.load_json_push(self.branch, push_id)
 
-        result = result[str(push_id)]
         push = Push(result["changesets"][::-1], branch=self.branch)
         # avoids the need to query hgmo to find this info
         push._id = push_id
@@ -182,7 +177,7 @@ class Push:
         parent_rev = parents[0]
         for branch in branches:
             try:
-                hgmo = HGMO.create(parent_rev, branch=branch)
+                hgmo = HgRev.create(parent_rev, branch=branch)
                 head = hgmo.pushhead
             except PushNotFound:
                 continue
@@ -477,7 +472,7 @@ class Push:
         # - the backout push also contains a commit backing out one of the commits of this push.
         for classification_note in fixed_by_commit_classification_notes:
             try:
-                fix_hgmo = HGMO.create(classification_note, branch=self.branch)
+                fix_hgmo = HgRev.create(classification_note, branch=self.branch)
                 if len(fix_hgmo.backouts) == 0:
                     continue
             except PushNotFound:
@@ -530,7 +525,7 @@ class Push:
                     continue
 
                 if any(
-                    HGMO.create(backedout, branch=self.branch).pushid
+                    HgRev.create(backedout, branch=self.branch).pushid
                     <= first_appareance_push.id
                     for backedout in backedouts
                 ):

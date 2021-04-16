@@ -6,7 +6,7 @@ import pytest
 
 from mozci.errors import ChildPushNotFound, ParentPushNotFound, PushNotFound
 from mozci.push import Push
-from mozci.util.hgmo import HGMO
+from mozci.util.hgmo import HgRev
 from mozci.util.taskcluster import get_artifact_url, get_index_url
 
 
@@ -47,7 +47,7 @@ def test_create_push(responses):
         responses.reset()
         responses.add(
             responses.GET,
-            HGMO.JSON_PUSHES_TEMPLATE.format(**ctx),
+            HgRev.JSON_PUSHES_TEMPLATE.format(**ctx),
             json={
                 "pushes": {
                     "123": {
@@ -61,7 +61,7 @@ def test_create_push(responses):
         )
         responses.add(
             responses.GET,
-            HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+            HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(
                 branch=ctx["branch"], rev="abcdef"
             ),
             json={"changesets": [{"node": "abcdef"}]},
@@ -69,7 +69,7 @@ def test_create_push(responses):
         )
         responses.add(
             responses.GET,
-            HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+            HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(
                 branch=ctx["branch"], rev="123456"
             ),
             json={"changesets": [{"node": "123456"}]},
@@ -104,7 +104,7 @@ def test_push_does_not_exist(responses):
     rev = "foobar"
     responses.add(
         responses.GET,
-        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+        HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(
             branch="integration/autoland", rev="foobar"
         ),
         json={"error": f"unknown revision '{rev}'"},
@@ -118,7 +118,7 @@ def test_push_does_not_exist(responses):
     rev = "a" * 40
     responses.add(
         responses.GET,
-        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(
+        HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(
             branch="integration/autoland", rev=rev
         ),
         json={"error": f"unknown revision '{rev}'"},
@@ -199,7 +199,7 @@ def test_push_parent_on_autoland(responses):
     }
     responses.add(
         responses.GET,
-        HGMO.JSON_PUSHES_TEMPLATE.format(**ctx),
+        HgRev.JSON_PUSHES_TEMPLATE.format(**ctx),
         json={
             "pushes": {
                 "122": {
@@ -239,7 +239,7 @@ def test_push_parent_on_try(responses, create_changesets):
     # We'll query the initial pushes' changesets first.
     responses.add(
         responses.GET,
-        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
+        HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
         json={"changesets": changesets},
         status=200,
     )
@@ -252,7 +252,7 @@ def test_push_parent_on_try(responses, create_changesets):
     ctx["branch"] = "mozilla-central"
     responses.add(
         responses.GET,
-        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
+        HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
         json={"error": f"unknown revision '{parent_rev}'"},
         status=404,
     )
@@ -262,7 +262,7 @@ def test_push_parent_on_try(responses, create_changesets):
     changesets = create_changesets(4, {"phase": "public"})
     responses.add(
         responses.GET,
-        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
+        HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
         json={"changesets": changesets},
         status=200,
     )
@@ -272,7 +272,7 @@ def test_push_parent_on_try(responses, create_changesets):
     changesets = create_changesets(2, {"phase": "public"}, head=3)
     responses.add(
         responses.GET,
-        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
+        HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
         json={"changesets": changesets},
         status=200,
     )
@@ -293,7 +293,7 @@ def test_push_parent_on_try_fails_with_merge_commit(responses, create_changesets
     # Finding parent fails on merge commits.
     responses.add(
         responses.GET,
-        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
+        HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
         json={"changesets": create_changesets(1, {"parents": ["b" * 40, "c" * 40]})},
         status=200,
     )
@@ -312,7 +312,7 @@ def test_push_parent_on_try_fails_when_not_a_push_head(responses, create_changes
     }
     responses.add(
         responses.GET,
-        HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
+        HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
         json={"changesets": changesets},
         status=200,
     )
@@ -328,7 +328,7 @@ def test_push_parent_on_try_fails_when_not_a_push_head(responses, create_changes
         ctx["branch"] = branch
         responses.add(
             responses.GET,
-            HGMO.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
+            HgRev.AUTOMATION_RELEVANCE_TEMPLATE.format(**ctx),
             json={"changesets": changesets},
             status=200,
         )
@@ -350,7 +350,7 @@ def test_push_child_raises(responses):
     # A push with no children raises.
     push = Push(rev, branch="integration/autoland")
     push._id = 100
-    url = HGMO.JSON_PUSHES_TEMPLATE.format(
+    url = HgRev.JSON_PUSHES_TEMPLATE.format(
         branch=push.branch,
         push_id_start=push.id,
         push_id_end=push.id + 1,

@@ -575,6 +575,15 @@ class Push:
         for i in itertools.count():
             yield other
 
+            # Optimization to load child json-pushes data in a single query (up
+            # to MAX_DEPTH at a time).
+            next_id = other.id + 1
+            if next_id not in HgRev.JSON_PUSHES_CACHE:
+                depth = max_depth or MAX_DEPTH
+                HgRev.load_json_pushes_between_ids(
+                    self.branch, other.id, next_id + depth - i
+                )
+
             try:
                 other = other.child
             except ChildPushNotFound:
@@ -587,6 +596,15 @@ class Push:
         other = self
         for i in itertools.count():
             yield other
+
+            # Optimization to load parent json-pushes data in a single query (up
+            # to max_depth at a time).
+            prev_id = other.id - 1
+            if prev_id not in HgRev.JSON_PUSHES_CACHE:
+                depth = max_depth or MAX_DEPTH
+                HgRev.load_json_pushes_between_ids(
+                    self.branch, max(prev_id - 1 - depth + i, 0), prev_id
+                )
 
             try:
                 other = other.parent

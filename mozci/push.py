@@ -535,15 +535,13 @@ class Push:
             # consider it as a regression of another push.
             if len(fix_hgmo.bugs_without_backouts) > 0:
                 other_parent = first_appareance_push
-                for i in range(MAX_DEPTH):
+                for other_parent in other_parent._iterate_parents(MAX_DEPTH):
                     if other_parent != self:
                         for bug in other_parent.bugs:
                             if bug in fix_hgmo.bugs_without_backouts:
                                 other_fixes.add(
                                     fix_hgmo.bugs_without_backouts[bug][:12]
                                 )
-
-                    other_parent = other_parent.parent
 
             if self_fix and other_fixes:
                 # If the classification points to a commit in the middle of the backout push and not the backout push head,
@@ -580,6 +578,19 @@ class Push:
             try:
                 other = other.child
             except ChildPushNotFound:
+                break
+
+            if max_depth is not None and i == max_depth:
+                break
+
+    def _iterate_parents(self, max_depth=None):
+        other = self
+        for i in itertools.count():
+            yield other
+
+            try:
+                other = other.parent
+            except ParentPushNotFound:
                 break
 
             if max_depth is not None and i == max_depth:
@@ -829,8 +840,10 @@ class Push:
                 or "test-coverage" not in name
             ):
                 found_in_parent = False
-                i = 0
-                while count >= 0 and i < MAX_DEPTH:
+                for other in other._iterate_parents(MAX_DEPTH):
+                    if count < 0:
+                        break
+
                     runnable_summaries = getattr(other, f"{runnable_type}_summaries")
 
                     if name in runnable_summaries:
@@ -859,10 +872,8 @@ class Push:
                             prior_regression = True
                             break
 
-                    other = other.parent
                     if not found_in_parent:
                         count += 1
-                    i += 1
 
             # Given that our "bustage fix" detection is a heuristic which might fail, we
             # penalize regressions for pushes which weren't backed-out by doubling their count

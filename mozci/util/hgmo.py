@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Dict, Tuple
 
 import requests
+from lru import LRU
 
 from mozci.errors import PushNotFound
 from mozci.util.memoize import memoize, memoized_property
@@ -25,7 +26,7 @@ class HGMO:
     )
 
     # instance cache
-    CACHE: Dict[Tuple[str, str], HGMO] = {}
+    CACHE: Dict[Tuple[str, str], HGMO] = LRU(1000)
 
     def __init__(self, rev, branch="autoland"):
         self.context = {

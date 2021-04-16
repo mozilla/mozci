@@ -95,6 +95,14 @@ def create_push(monkeypatch, responses):
             status=200,
         )
 
+        url = re.escape(HgRev.JSON_PUSHES_TEMPLATE_BASE.format(branch=branch))
+        responses.add(
+            responses.GET,
+            re.compile(url + ".*"),
+            json={"pushes": {}},
+            status=200,
+        )
+
         push = Push(rev, branch)
         push._id = push_id
         push_rev_to_id[rev] = push_id

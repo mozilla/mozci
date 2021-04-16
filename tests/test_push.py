@@ -503,3 +503,75 @@ def test_generate_all_shadow_scheduler_config_groups(responses):
         print(i, name, config_groups)
         assert name == shadow_schedulers[i][0]
         assert config_groups == shadow_schedulers[i][2]
+
+
+def test_iterate_children(responses):
+    rev = "a" * 40
+    branch = "integration/autoland"
+    push = Push(rev, branch)
+
+    push_id = 10
+    depth = 5
+
+    responses.add(
+        responses.GET,
+        f"https://hg.mozilla.org/{branch}/json-automationrelevance/{rev}",
+        json={
+            "changesets": [
+                {"pushid": push_id},
+            ]
+        },
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        f"https://hg.mozilla.org/{branch}/json-pushes?version=2&startID={push_id}&endID={push_id+depth+1}",
+        json={
+            "pushes": {
+                push_id + i: {"changesets": [chr(ord("a") + i) * 40], "date": 1}
+                for i in range(1, depth + 2)
+            }
+        },
+        status=200,
+    )
+
+    for other in push._iterate_children(depth):
+        assert other.id == push_id
+        push_id += 1
+
+
+def test_iterate_parents(responses):
+    rev = "a" * 40
+    branch = "integration/autoland"
+    push = Push(rev, branch)
+
+    push_id = 10
+    depth = 5
+
+    responses.add(
+        responses.GET,
+        f"https://hg.mozilla.org/{branch}/json-automationrelevance/{rev}",
+        json={
+            "changesets": [
+                {"pushid": push_id},
+            ]
+        },
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        f"https://hg.mozilla.org/{branch}/json-pushes?version=2&startID={push_id-2-depth}&endID={push_id-1}",
+        json={
+            "pushes": {
+                push_id - i: {"changesets": [chr(ord("a") + i) * 40], "date": 1}
+                for i in range(1, depth + 2)
+            }
+        },
+        status=200,
+    )
+
+    for other in push._iterate_parents(depth):
+        assert other.id == push_id
+        push_id -= 1

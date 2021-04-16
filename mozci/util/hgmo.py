@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, NewType, Tuple
 
 import requests
 from lru import LRU
@@ -9,6 +9,8 @@ from lru import LRU
 from mozci.errors import PushNotFound
 from mozci.util.memoize import memoized_property
 from mozci.util.req import get_session
+
+HgPush = NewType("HgPush", Dict[str, Any])
 
 
 class HgRev:
@@ -27,7 +29,7 @@ class HgRev:
 
     # instance cache
     CACHE: Dict[Tuple[str, str], HgRev] = LRU(1000)
-    JSON_PUSHES_CACHE: Dict[int, Dict[str, Any]] = LRU(1000)
+    JSON_PUSHES_CACHE: Dict[int, HgPush] = LRU(1000)
 
     def __init__(self, rev, branch="autoland"):
         self.context = {
@@ -45,14 +47,16 @@ class HgRev:
         return instance
 
     @staticmethod
-    def _get_and_cache_pushes(branch, url):
+    def _get_and_cache_pushes(branch: str, url: str) -> List[HgPush]:
         pushes = HgRev._get_resource(url, context={"branch": branch})["pushes"]
         for push_id, value in pushes.items():
             HgRev.JSON_PUSHES_CACHE[int(push_id)] = value
         return pushes
 
     @staticmethod
-    def load_json_pushes_between_ids(branch, push_id_start, push_id_end):
+    def load_json_pushes_between_ids(
+        branch: str, push_id_start: int, push_id_end: int
+    ) -> List[HgPush]:
         url = HgRev.JSON_PUSHES_TEMPLATE.format(
             push_id_start=push_id_start,
             push_id_end=push_id_end,
@@ -61,7 +65,9 @@ class HgRev:
         return HgRev._get_and_cache_pushes(branch, url)
 
     @staticmethod
-    def load_json_pushes_between_dates(branch, from_date, to_date):
+    def load_json_pushes_between_dates(
+        branch: str, from_date: str, to_date: str
+    ) -> List[HgPush]:
         url = HgRev.JSON_PUSHES_BETWEEN_DATES_TEMPLATE.format(
             from_date=from_date,
             to_date=to_date,
@@ -70,7 +76,7 @@ class HgRev:
         return HgRev._get_and_cache_pushes(branch, url)
 
     @staticmethod
-    def load_json_push(branch, push_id):
+    def load_json_push(branch: str, push_id: int) -> HgPush:
         if push_id not in HgRev.JSON_PUSHES_CACHE:
             url = HgRev.JSON_PUSHES_TEMPLATE.format(
                 push_id_start=push_id - 1,

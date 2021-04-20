@@ -71,7 +71,7 @@ class ErrorSummarySource(DataSource):
             if result != "SKIP"
         }
 
-    def run_test_task_groups(self, task):
+    def run_test_task_groups(self, branch, rev, task):
         if task.id not in self.TASK_GROUPS:
             self._load_errorsummary(task.id)
         return self.TASK_GROUPS.pop(task.id, {})

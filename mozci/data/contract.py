@@ -112,6 +112,8 @@ _contracts: Tuple[Contract, ...] = (
         description="A dict of test groups and their results for a given TestTask.",
         validate_in=v.Dict(
             {
+                "branch": v.Str(),
+                "rev": v.Str(),
                 "task": v.Type(TestTask),
             }
         ),

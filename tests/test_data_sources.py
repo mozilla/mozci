@@ -17,8 +17,8 @@ class FakePush:
         self.rev = rev
 
 
-def create_task(branch, rev, task_id):
-    return TestTask.create(id=task_id, label="test-foo", push=FakePush(branch, rev))
+def create_task(task_id):
+    return TestTask.create(id=task_id, label="test-foo")
 
 
 class Responses:
@@ -334,7 +334,11 @@ class Responses:
             # responses
             Responses.treeherder_push_test_groups,
             # input
-            {"task": create_task("autoland", "abcdef", "anz5vAGSTqOEDk9pjAxyxg")},
+            {
+                "branch": "autoland",
+                "rev": "abcdef",
+                "task": create_task("anz5vAGSTqOEDk9pjAxyxg"),
+            },
             # expected output
             {
                 "devtools/client/inspector/flexbox/test": True,
@@ -350,7 +354,11 @@ class Responses:
             # no responses due to cache from previous test
             [],
             # input
-            {"task": create_task("autoland", "abcdef", "AMHoZy9eRE2_l7xPabtwiw")},
+            {
+                "branch": "autoland",
+                "rev": "abcdef",
+                "task": create_task("AMHoZy9eRE2_l7xPabtwiw"),
+            },
             # expected output
             {"devtools/client/netmonitor/test": True},
             id="treeherder_client.test_task_groups",
@@ -363,7 +371,11 @@ class Responses:
             # responses should be generated here either
             [],
             # input
-            {"task": create_task("autoland", "abcdef", "amn79ZnzQbWAbrSvxJ-GBQ")},
+            {
+                "branch": "autoland",
+                "rev": "abcdef",
+                "task": create_task("amn79ZnzQbWAbrSvxJ-GBQ"),
+            },
             # expected output
             {"dom/media/test": False},
             id="treeherder_db.test_task_groups",
@@ -375,7 +387,7 @@ class Responses:
             # responses
             Responses.errorsummary_test_task_groups,
             # input
-            {"task": create_task("autoland", "abcdef", "1" * 22)},
+            {"branch": "autoland", "rev": "abcdef", "task": create_task("1" * 22)},
             # expected output
             {
                 "browser/base/content/test/general/browser.ini": True,
@@ -398,7 +410,7 @@ class Responses:
             # no responses due to cache
             [],
             # input
-            {"task": create_task("autoland", "abcdef", "1" * 22)},
+            {"task": create_task("1" * 22)},
             # expected output
             ["oh no!", "error!"],
             id="errorsummary.test_task_errors",

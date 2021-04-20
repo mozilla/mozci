@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from inspect import signature
 from statistics import median
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import requests
 from loguru import logger
@@ -16,9 +16,6 @@ from mozci import data
 from mozci.errors import ArtifactNotFound, TaskNotFound
 from mozci.util.memoize import memoized_property
 from mozci.util.taskcluster import find_task_id, get_artifact, list_artifacts
-
-if TYPE_CHECKING:
-    from mozci.push import Push
 
 
 class Status(Enum):
@@ -144,7 +141,6 @@ class Task:
     classification: Optional[str] = field(default="not classified")
     classification_note: Optional[str] = field(default=None)
     tags: Dict = field(default_factory=dict)
-    push: Optional[Push] = field(default=None)
 
     @staticmethod
     def create(index=None, **kwargs):
@@ -239,7 +235,7 @@ class TestTask(Task):
             for s in {"web-platform-tests", "test-verify-wpt", "test-coverage-wpt"}
         )
 
-    def __post_init__(self):
+    def retrieve_results(self, push):
         global slash_group_warned
 
         if is_no_groups_suite(self.label):
@@ -253,8 +249,14 @@ class TestTask(Task):
             ), f"{self.id} : {self.label} should have no results"
             self._results = []
 
-        if self._results is None:
             return
+
+        self._results = [
+            GroupResult(group, result)
+            for group, result in data.handler.get(
+                "test_task_groups", branch=push.branch, rev=push.rev, task=self
+            ).items()
+        ]
 
         # Apply WPT workaround, needed at least until bug 1632546 is fixed.
         if self.is_wpt:
@@ -285,15 +287,7 @@ class TestTask(Task):
 
     @property
     def results(self):
-        if self._results is None:
-            assert not is_no_groups_suite(self.label)
-            self._results = [
-                GroupResult(group, result)
-                for group, result in data.handler.get(
-                    "test_task_groups", task=self
-                ).items()
-            ]
-            self.__post_init__()
+        assert self._results is not None
         return self._results
 
     @property

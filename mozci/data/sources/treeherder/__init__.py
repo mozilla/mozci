@@ -30,15 +30,13 @@ class BaseTreeherderSource(DataSource, ABC):
     def get_push_test_groups(self, branch: str, rev: str) -> Dict[str, List[str]]:
         ...
 
-    def run_test_task_groups(self, task):
+    def run_test_task_groups(self, branch, rev, task):
         # Use a lock since push.py invokes this across many threads (which is
         # useful for the 'errorsummary' data source, but not here). This ensures
         # we don't make more than one request to Treeherder.
         with self.lock:
             if task.id not in self.groups_cache:
-                self.groups_cache.update(
-                    self.get_push_test_groups(task.push.branch, task.push.rev)
-                )
+                self.groups_cache.update(self.get_push_test_groups(branch, rev))
 
         try:
             return self.groups_cache.pop(task.id)

@@ -277,7 +277,7 @@ class Push:
 
         # Gather group data.
         logger.debug(f"Gathering test groups for {self.rev}...")
-        concurrent.futures.wait(
+        done, _ = concurrent.futures.wait(
             [
                 Push.THREAD_POOL_EXECUTOR.submit(
                     lambda task: task.retrieve_results(self), task
@@ -287,6 +287,8 @@ class Push:
             ],
             return_when=concurrent.futures.FIRST_EXCEPTION,
         )
+        for f in done:
+            f.result()
 
         logger.debug(f"Retrieved all tasks and groups which run on {self.rev}.")
 

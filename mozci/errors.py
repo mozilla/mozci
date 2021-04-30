@@ -90,8 +90,9 @@ class ContractNotFound(BaseDataException):
 class SourcesNotFound(BaseDataException):
     """Raised when no sources were able to fulfill a contract."""
 
-    def __init__(self, contract):
+    def __init__(self, contract, context):
         self.contract = contract
+        self.context = context
         self.msg = f"No registered sources were able to fulfill '{contract}'!"
 
 

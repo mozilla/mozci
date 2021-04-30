@@ -64,7 +64,7 @@ class TaskclusterSource(DataSource):
                 run = result["status"]["runs"][-1]
 
                 # Normalize the state to match treeherder's values.
-                if task["state"] in ("failed", "exception"):
+                if task["state"] == "failed":
                     task["state"] = "completed"
 
                 # Derive a result from the reasonResolved.
@@ -77,7 +77,7 @@ class TaskclusterSource(DataSource):
                     task["result"] = "exception"
                 else:
                     # Task is not finished, so there is no result yet.
-                    assert task["state"] in ("pending", "running")
+                    assert task["state"] in ("pending", "running", "exception")
 
                 # Compute duration.
                 if "started" in run and "resolved" in run:

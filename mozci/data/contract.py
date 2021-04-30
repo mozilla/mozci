@@ -33,7 +33,13 @@ _contracts: Tuple[Contract, ...] = (
                     "id": v.Str(),
                     "label": v.Str(),
                     "state": v.Str(
-                        options=["completed", "running", "pending", "unscheduled"]
+                        options=[
+                            "completed",
+                            "running",
+                            "pending",
+                            "unscheduled",
+                            "exception",
+                        ]
                     ),
                     "tags": v.Dict(extra=(v.Str(), v.Str())),
                     "duration": v.Int(),

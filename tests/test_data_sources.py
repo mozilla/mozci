@@ -104,6 +104,20 @@ class Responses:
                         "task": {
                             "extra": {},
                             "metadata": {
+                                "name": "task-B-2",
+                            },
+                            "tags": {},
+                        },
+                        "status": {
+                            "taskId": "task-id-B-2",
+                            "state": "exception",
+                            "runs": [{}],
+                        },
+                    },
+                    {
+                        "task": {
+                            "extra": {},
+                            "metadata": {
                                 "name": "task-C",
                             },
                             "tags": {"name": "tag-C"},
@@ -283,6 +297,12 @@ class Responses:
                     "tags": {"name": "tag-A"},
                 },
                 {"id": "task-id-B", "label": "task-B", "state": "pending", "tags": {}},
+                {
+                    "id": "task-id-B-2",
+                    "label": "task-B-2",
+                    "state": "exception",
+                    "tags": {},
+                },
                 {
                     "id": "task-id-C",
                     "label": "task-C",

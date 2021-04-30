@@ -76,7 +76,7 @@ class DataHandler:
                     continue
                 break
         else:
-            raise SourcesNotFound(name)
+            raise SourcesNotFound(name, context)
 
         # Validate output.
         try:

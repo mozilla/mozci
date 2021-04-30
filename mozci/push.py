@@ -15,6 +15,7 @@ from mozci.errors import (
     MissingDataError,
     ParentPushNotFound,
     PushNotFound,
+    SourcesNotFound,
 )
 from mozci.task import (
     GroupSummary,
@@ -287,8 +288,19 @@ class Push:
             ],
             return_when=concurrent.futures.FIRST_EXCEPTION,
         )
+        failed = set()
         for f in done:
-            f.result()
+            try:
+                f.result()
+            except SourcesNotFound as e:
+                task = e.context["task"]
+                failed.add(f"{task.id} - {task.label}")
+
+        if failed:
+            failed_str = "  \n".join(sorted(failed))
+            logger.warning(
+                f"Failed to get test groups from the following tasks:\n  {failed_str}"
+            )
 
         logger.debug(f"Retrieved all tasks and groups which run on {self.rev}.")
 

@@ -108,7 +108,7 @@ class Configuration(Mapping):
                 "treeherder_client",
                 "errorsummary",
             ],
-            "verbose": False,
+            "verbose": 0,
         },
     }
 

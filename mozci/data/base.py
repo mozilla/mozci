@@ -72,7 +72,7 @@ class DataHandler:
                 try:
                     result = src.get(name, **context)
                 except ContractNotFilled as e:
-                    logger.debug(f"{e.msg}.. trying next source.")
+                    logger.trace(f"{e.msg}.. trying next source.")
                     continue
                 break
         else:

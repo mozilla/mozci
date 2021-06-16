@@ -9,6 +9,12 @@ from mozci.task import GroupResult, GroupSummary, Task
 from mozci.util.taskcluster import get_artifact_url, get_index_url
 
 
+class FakePush:
+    def __init__(self, branch, rev):
+        self.branch = branch
+        self.rev = rev
+
+
 @pytest.fixture
 def create_task():
     id = 0
@@ -188,4 +194,46 @@ def test_GroupSummary_classifications():
     assert GroupSummary("group2", [task1, task2]).classifications == [
         ("fixed by commit", "xxx"),
         ("intermittent", None),
+    ]
+
+
+def test_results_for_incomplete_task(responses):
+    push = FakePush("autoland", "rev")
+
+    for state in ["running", "pending", "unscheduled", "exception"]:
+        task = Task.create(
+            id=1,
+            label="test-task",
+            state="running",
+        )
+        task.retrieve_results(push)
+        assert task.results == []
+
+    responses.add(
+        responses.GET,
+        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/1/artifacts",
+        json={
+            "artifacts": [{"name": "errorsummary.log"}],
+        },
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/1/artifacts/errorsummary.log",
+        body=r"""
+            {"action": "test_groups", "line": 3, "groups": ["layout/base/tests/browser.ini"]}
+            {"status": "OK", "duration": 12430, "line": 4465, "group": "layout/base/tests/browser.ini", "action": "group_result"}
+        """.strip(),
+        status=200,
+    )
+
+    task = Task.create(
+        id=1,
+        label="test-task",
+        state="completed",
+    )
+    task.retrieve_results(push)
+    assert task.results == [
+        GroupResult(group="layout/base/tests/browser.ini", ok=True),
     ]

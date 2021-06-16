@@ -285,7 +285,6 @@ class Push:
                 )
                 for task in tasks
                 if isinstance(task, TestTask)
-                if task.state == "completed"
             ],
             return_when=concurrent.futures.FIRST_EXCEPTION,
         )

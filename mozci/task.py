@@ -251,12 +251,15 @@ class TestTask(Task):
 
             return
 
-        self._results = [
-            GroupResult(group, result)
-            for group, result in data.handler.get(
-                "test_task_groups", branch=push.branch, rev=push.rev, task=self
-            ).items()
-        ]
+        if self.state == "completed":
+            self._results = [
+                GroupResult(group, result)
+                for group, result in data.handler.get(
+                    "test_task_groups", branch=push.branch, rev=push.rev, task=self
+                ).items()
+            ]
+        else:
+            self._results = []
 
         # Apply WPT workaround, needed at least until bug 1632546 is fixed.
         if self.is_wpt:

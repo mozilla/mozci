@@ -29,18 +29,17 @@ Pre-seeding the Cache via Bugbug
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There's a service called bugbug that runs ``mozci`` against all of the pushes on `autoland`_. This
-service uploads its cache publicly for others to use. You can benefit by using this uploaded cache
-to "pre-seed" your own local cache. To do so, add the following to your
-``~/.config/adr/config.toml``:
+service uploads its cache on S3 for others to use. You can benefit by using this uploaded cache
+to "pre-seed" your own local cache, if you have the necessary scopes. To do so, add the following to your
+``~/.config/mozci/config.toml``:
 
 .. code-block:: toml
 
-    [adr.cache.stores.file]
-    driver = "seeded-file"
-    path = "/path/to/cache"
-    url = "https://s3-us-west-2.amazonaws.com/communitytc-bugbug/data/adr_cache.tar.zst"
-    archive_relpath = "data/adr_cache"
-    reseed_interval = 10080
+    [mozci.cache]
+    serializer = "compressedpickle"
+
+    [mozci.cache.stores]
+    s3 = { driver = "s3", bucket = "communitytc-bugbug", prefix = "data/adr_cache/" }
 
 
 .. _autoland: https://treeherder.mozilla.org/#/jobs?repo=autoland

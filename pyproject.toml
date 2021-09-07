@@ -31,7 +31,7 @@ ValidX = "^0.7"
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.13"
 pytest = "^6.2"
-tox = "^3.23"
+tox = "^3.24"
 responses = "^0.13"
 sphinx = "^4.1.2"
 

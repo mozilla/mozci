@@ -42,6 +42,7 @@ _contracts: Tuple[Contract, ...] = (
                         ]
                     ),
                     "tags": v.Dict(extra=(v.Str(), v.Str())),
+                    "tier": v.Int(),
                     "duration": v.Int(),
                     "result": v.Str(
                         options=[

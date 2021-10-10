@@ -141,6 +141,7 @@ class Task:
     classification: Optional[str] = field(default="not classified")
     classification_note: Optional[str] = field(default=None)
     tags: Dict = field(default_factory=dict)
+    tier: Optional[int] = field(default=None)
 
     @staticmethod
     def create(index=None, **kwargs):

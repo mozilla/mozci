@@ -109,6 +109,7 @@ class Configuration(Mapping):
                 "errorsummary",
             ],
             "verbose": 0,
+            "tier": 2,
         },
     }
 

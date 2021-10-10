@@ -148,7 +148,6 @@ class TreeherderDBSource(BaseTreeherderSource):
         jobs = (
             Job.objects.filter(push__revision=rev, repository__name=branch)
             .exclude(
-                tier=3,
                 result="retry",
                 job_type__name="Gecko Decision Task",
                 job_type__name__startswith="Action",

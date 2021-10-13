@@ -37,6 +37,11 @@ sphinx = "^4.2.0"
 
 [tool.poetry.extras]
 adr = ["adr"]
+cache = ["boto3", "python3-memcached", "redis", "zstandard"]
+cache-s3 = ["boto3"]
+cache-memcached = ["python3-memcached"]
+cache-redis = ["redis"]
+cache-seeded-file = ["zstandard"]
 
 [build-system]
 requires = ["poetry>=1.0.2"]

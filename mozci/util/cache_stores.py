@@ -7,10 +7,7 @@ import tempfile
 import threading
 from distutils.dir_util import copy_tree
 
-import boto3
-import botocore
 import taskcluster
-import zstandard
 from cachy.contracts.store import Store
 from cachy.serializers import Serializer
 from cachy.stores import FileStore, NullStore  # noqa
@@ -159,6 +156,7 @@ S3_CLIENTS = {}
 
 
 def get_s3_client(bucket, prefix):
+    import boto3
     with S3_CLIENTS_LOCK:
         if (bucket, prefix) not in S3_CLIENTS:
             credentials = get_s3_credentials(bucket, prefix)
@@ -191,6 +189,7 @@ class S3Store(Store):
         return os.path.join(self._prefix, key)
 
     def _retry_if_expired(self, op):
+        import botocore
         try:
             return op()
         except botocore.exceptions.ClientError:
@@ -207,6 +206,7 @@ class S3Store(Store):
         return self._retry_if_expired(lambda: self._forget(key))
 
     def _get(self, key):
+        import botocore
         # Copy the object onto itself to extend its expiration.
         try:
             head = self._client.head_object(Bucket=self._bucket, Key=self._key(key))
@@ -250,6 +250,7 @@ class S3Store(Store):
 
 class CompressedPickleSerializer(Serializer):
     def __init__(self):
+        import zstandard
         self.compressor = zstandard.ZstdCompressor(
             level=zstandard.MAX_COMPRESSION_LEVEL
         )

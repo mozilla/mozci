@@ -1051,49 +1051,36 @@ class Push:
         ), "interval should be of type int and greater than 0"
         assert api_key and isinstance(api_key, str), "api_key should be of type str"
 
-        s = requests.Session()
-
         # First, we try to fetch schedules from Firefox CI cache.
         # If it fails, we'll contact bugbug HTTP service.
-        cache_url = (
-            FIREFOX_CI_API_BASE_URL
-            + "/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision/artifacts/public/bugbug-push-schedules.json".format(
-                branch=self.branch, rev=self.rev
-            )
-        )
-        r = s.get(cache_url)
+        cache_url = f"{FIREFOX_CI_API_BASE_URL}/task/gecko.v2.{self.branch}.revision.{self.rev}.taskgraph.decision/artifacts/public/bugbug-push-schedules.json"
+        r = requests.get(cache_url)
 
-        if r.status_code == 404:
-            url = BUGBUG_BASE_URL + "/push/{branch}/{rev}/schedules".format(
-                branch=self.branch, rev=self.rev
-            )
-            session = get_session(session=s)
-            session.headers.update({"X-API-KEY": api_key})
+        if r.ok:
+            return r.json()
 
-            # On try there is no fallback and pulling is slower, so we allow bugbug more
-            # time to compute the results.
-            # See https://github.com/mozilla/bugbug/issues/1673.
-            if self.branch == "try":
-                timeout += int(timeout / 3)
+        url = f"{BUGBUG_BASE_URL}/push/{self.branch}/{self.rev}/schedules"
+        session = get_session()
+        session.headers.update({"X-API-KEY": api_key})
 
-            attempts = timeout / interval
-            i = 0
-            while i < attempts:
-                r = session.get(url)
-                r.raise_for_status()
+        # On try there is no fallback and pulling is slower, so we allow bugbug more
+        # time to compute the results.
+        # See https://github.com/mozilla/bugbug/issues/1673.
+        if self.branch == "try":
+            timeout += int(timeout / 3)
 
-                if r.status_code != 202:
-                    break
+        attempts = int(round(timeout / interval))
+        for _ in range(0, attempts):
+            r = session.get(url)
 
-                time.sleep(interval)
-                i += 1
+            if r.ok and r.status_code != 202:
+                return r.json()
 
-            if r.status_code == 202:
-                raise BugbugTimeoutException(
-                    f"Timed out waiting for result from '{url}'"
-                )
+            time.sleep(interval)
 
-        return r.json()
+        # Reaching this code means that either the last attempt ended with an error or timed out
+        r.raise_for_status()
+        raise BugbugTimeoutException(f"Timed out waiting for result from '{url}'")
 
     def __repr__(self):
         return f"{super(Push, self).__repr__()} rev='{self.rev}'"

@@ -3,11 +3,45 @@
 from itertools import count
 
 import pytest
+import requests
 
 from mozci.errors import ChildPushNotFound, ParentPushNotFound, PushNotFound
-from mozci.push import Push
+from mozci.push import (
+    BUGBUG_BASE_URL,
+    FIREFOX_CI_API_BASE_URL,
+    BugbugTimeoutException,
+    Push,
+)
 from mozci.util.hgmo import HgRev
 from mozci.util.taskcluster import get_artifact_url, get_index_url
+
+SCHEDULES_EXTRACT = {
+    "tasks": {
+        "test-android-em-7.0-x86_64-lite-qr/debug-geckoview-junit-fis-e10s": 0.51,
+        "test-linux1804-64-qr/opt-telemetry-tests-client-fis-e10s": 0.52,
+    },
+    "groups": {
+        "toolkit/modules/tests/browser/browser.ini": 0.68,
+        "devtools/client/framework/test/browser.ini": 0.99,
+    },
+    "config_groups": {
+        "toolkit/modules/tests/browser/browser.ini": [
+            "test-linux1804-64-qr/opt-*-swr-e10s"
+        ],
+        "devtools/client/framework/test/browser.ini": [
+            "test-linux1804-64-qr/opt-*-e10s"
+        ],
+    },
+    "reduced_tasks": {
+        "test-android-em-7.0-x86_64-lite-qr/opt-geckoview-junit-fis-e10s": 0.88,
+        "test-linux1804-64-qr/debug-reftest-swr-e10s-2": 0.83,
+    },
+    "reduced_tasks_higher": {},
+    "known_tasks": [
+        "test-windows10-64-2004-qr/debug-web-platform-tests-swr-e10s-9",
+        "test-windows10-64-2004-qr/debug-mochitest-devtools-chrome-fis-e10s-1",
+    ],
+}
 
 
 @pytest.fixture
@@ -575,3 +609,117 @@ def test_iterate_parents(responses):
     for other in push._iterate_parents(depth):
         assert other.id == push_id
         push_id -= 1
+
+
+@pytest.mark.parametrize(
+    "params, error_message",
+    [
+        ({"timeout": None}, "timeout should be of type int and greater or equal to 0"),
+        (
+            {"timeout": "invalid type"},
+            "timeout should be of type int and greater or equal to 0",
+        ),
+        ({"timeout": -1}, "timeout should be of type int and greater or equal to 0"),
+        ({"interval": None}, "interval should be of type int and greater than 0"),
+        (
+            {"interval": "invalid type"},
+            "interval should be of type int and greater than 0",
+        ),
+        ({"interval": 0}, "interval should be of type int and greater than 0"),
+        ({"api_key": None}, "api_key should be of type str"),
+        ({"api_key": 0}, "api_key should be of type str"),
+    ],
+)
+def test_get_bugbug_schedules_invalid_parameters(params, error_message):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    with pytest.raises(AssertionError) as e:
+        push.get_bugbug_schedules(**params)
+    assert str(e.value) == error_message
+
+
+def test_get_bugbug_schedules_from_cache(responses):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    cache_url = f"{FIREFOX_CI_API_BASE_URL}/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision/artifacts/public/bugbug-push-schedules.json"
+    responses.add(responses.GET, cache_url, status=200, json=SCHEDULES_EXTRACT)
+
+    data = push.get_bugbug_schedules()
+    assert data == SCHEDULES_EXTRACT
+
+    assert len(responses.calls) == 1
+    assert [(call.request.method, call.request.url) for call in responses.calls] == [
+        ("GET", cache_url),
+    ]
+
+
+def test_get_bugbug_schedules_from_bugbug_handle_errors(responses):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    cache_url = f"{FIREFOX_CI_API_BASE_URL}/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision/artifacts/public/bugbug-push-schedules.json"
+    responses.add(responses.GET, cache_url, status=404)
+
+    url = f"{BUGBUG_BASE_URL}/push/{branch}/{rev}/schedules"
+    responses.add(responses.GET, url, status=500)
+
+    with pytest.raises(requests.exceptions.HTTPError) as e:
+        push.get_bugbug_schedules()
+    assert str(e.value) == f"500 Server Error: Internal Server Error for url: {url}"
+
+    assert len(responses.calls) == 2
+    assert [(call.request.method, call.request.url) for call in responses.calls] == [
+        ("GET", cache_url),
+        ("GET", url),
+    ]
+
+
+def test_get_bugbug_schedules_from_bugbug_handle_exceeded_timeout(responses):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    cache_url = f"{FIREFOX_CI_API_BASE_URL}/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision/artifacts/public/bugbug-push-schedules.json"
+    responses.add(responses.GET, cache_url, status=404)
+
+    url = f"{BUGBUG_BASE_URL}/push/{branch}/{rev}/schedules"
+    responses.add(responses.GET, url, status=202)
+
+    with pytest.raises(BugbugTimeoutException) as e:
+        push.get_bugbug_schedules(timeout=3, interval=1)
+    assert str(e.value) == f"Timed out waiting for result from '{url}'"
+
+    assert len(responses.calls) == 4
+    assert [(call.request.method, call.request.url) for call in responses.calls] == [
+        ("GET", cache_url),
+        # We retry 3 times the call to the Bugbug HTTP service
+        ("GET", url),
+        ("GET", url),
+        ("GET", url),
+    ]
+
+
+def test_get_bugbug_schedules_from_bugbug(responses):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    cache_url = f"{FIREFOX_CI_API_BASE_URL}/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision/artifacts/public/bugbug-push-schedules.json"
+    responses.add(responses.GET, cache_url, status=404)
+
+    url = f"{BUGBUG_BASE_URL}/push/{branch}/{rev}/schedules"
+    responses.add(responses.GET, url, status=200, json=SCHEDULES_EXTRACT)
+
+    data = push.get_bugbug_schedules()
+    assert data == SCHEDULES_EXTRACT
+
+    assert len(responses.calls) == 2
+    assert [(call.request.method, call.request.url) for call in responses.calls] == [
+        ("GET", cache_url),
+        ("GET", url),
+    ]

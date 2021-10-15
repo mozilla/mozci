@@ -1067,8 +1067,8 @@ class Push:
             url = BUGBUG_BASE_URL + "/push/{branch}/{rev}/schedules".format(
                 branch=self.branch, rev=self.rev
             )
-            s.headers.update({"X-API-KEY": api_key})
-            session = get_session(s)
+            session = get_session(session=s)
+            session.headers.update({"X-API-KEY": api_key})
 
             # On try there is no fallback and pulling is slower, so we allow bugbug more
             # time to compute the results.

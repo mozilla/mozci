@@ -669,12 +669,15 @@ def test_get_bugbug_schedules_from_bugbug_handle_errors(responses):
     responses.add(responses.GET, url, status=500)
 
     with pytest.raises(requests.exceptions.HTTPError) as e:
-        push.get_bugbug_schedules()
+        push.get_bugbug_schedules(timeout=3, interval=1)
     assert str(e.value) == f"500 Server Error: Internal Server Error for url: {url}"
 
-    assert len(responses.calls) == 2
+    assert len(responses.calls) == 4
     assert [(call.request.method, call.request.url) for call in responses.calls] == [
         ("GET", cache_url),
+        # We retry 3 times the call to the Bugbug HTTP service
+        ("GET", url),
+        ("GET", url),
         ("GET", url),
     ]
 

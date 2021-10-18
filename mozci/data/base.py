@@ -90,7 +90,7 @@ class DataHandler:
 
 
 def register_sources():
-    from mozci.data.sources import artifact, hgmo, taskcluster, treeherder
+    from mozci.data.sources import artifact, bugbug, hgmo, taskcluster, treeherder
 
     sources = [
         artifact.ErrorSummarySource(),
@@ -98,6 +98,9 @@ def register_sources():
         taskcluster.TaskclusterSource(),
         treeherder.TreeherderClientSource(),
         treeherder.TreeherderDBSource(),
+        # Bugbug source needs to be after taskcluster in this list
+        # as we have to try fetching schedules from cache first.
+        bugbug.BugbugSource(),
     ]
 
     DataHandler.ALL_SOURCES = {src.name: src for src in sources}

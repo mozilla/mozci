@@ -3,12 +3,10 @@ import concurrent.futures
 import copy
 import itertools
 import math
-import time
 from argparse import Namespace
 from collections import defaultdict
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
-import requests
 from loguru import logger
 
 from mozci import config, data
@@ -30,7 +28,6 @@ from mozci.task import (
 )
 from mozci.util.hgmo import HgRev
 from mozci.util.memoize import memoize, memoized_property
-from mozci.util.req import get_session
 
 BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
 
@@ -40,15 +37,6 @@ when the task did not run on the currently considered push.
 """
 
 FAILURE_CLASSES = ("not classified", "fixed by commit")
-
-FIREFOX_CI_API_BASE_URL = "https://firefox-ci-tc.services.mozilla.com/api/index/v1"
-BUGBUG_BASE_URL = "https://bugbug.herokuapp.com"
-DEFAULT_RETRY_TIMEOUT = 9 * 60  # seconds
-DEFAULT_RETRY_INTERVAL = 10  # seconds
-
-
-class BugbugTimeoutException(Exception):
-    pass
 
 
 class Push:
@@ -1037,50 +1025,10 @@ class Push:
                 yield name, e
 
     @memoize
-    def get_bugbug_schedules(
-        self,
-        timeout=DEFAULT_RETRY_TIMEOUT,
-        interval=DEFAULT_RETRY_INTERVAL,
-        api_key="gecko-taskgraph",
-    ):
-        assert (
-            timeout and isinstance(timeout, int) and timeout >= 0
-        ), "timeout should be of type int and greater or equal to 0"
-        assert (
-            interval and isinstance(interval, int) and interval > 0
-        ), "interval should be of type int and greater than 0"
-        assert api_key and isinstance(api_key, str), "api_key should be of type str"
-
-        # First, we try to fetch schedules from Firefox CI cache.
-        # If it fails, we'll contact bugbug HTTP service.
-        cache_url = f"{FIREFOX_CI_API_BASE_URL}/task/gecko.v2.{self.branch}.revision.{self.rev}.taskgraph.decision/artifacts/public/bugbug-push-schedules.json"
-        r = requests.get(cache_url)
-
-        if r.ok:
-            return r.json()
-
-        url = f"{BUGBUG_BASE_URL}/push/{self.branch}/{self.rev}/schedules"
-        session = get_session()
-        session.headers.update({"X-API-KEY": api_key})
-
-        # On try there is no fallback and pulling is slower, so we allow bugbug more
-        # time to compute the results.
-        # See https://github.com/mozilla/bugbug/issues/1673.
-        if self.branch == "try":
-            timeout += int(timeout / 3)
-
-        attempts = int(round(timeout / interval))
-        for _ in range(0, attempts):
-            r = session.get(url)
-
-            if r.ok and r.status_code != 202:
-                return r.json()
-
-            time.sleep(interval)
-
-        # Reaching this code means that either the last attempt ended with an error or timed out
-        r.raise_for_status()
-        raise BugbugTimeoutException(f"Timed out waiting for result from '{url}'")
+    def get_bugbug_schedules(self):
+        return data.handler.get(
+            "push_test_selection_data", branch=self.branch, rev=self.rev
+        )
 
     def __repr__(self):
         return f"{super(Push, self).__repr__()} rev='{self.rev}'"

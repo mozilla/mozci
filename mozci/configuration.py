@@ -107,6 +107,7 @@ class Configuration(Mapping):
                 "taskcluster",
                 "treeherder_client",
                 "errorsummary",
+                "bugbug",
             ],
             "verbose": 0,
         },

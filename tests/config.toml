@@ -1,6 +1,6 @@
 [mozci]
 verbose = 1
-data_sources = ["hgmo", "errorsummary", "taskcluster", "treeherder_client"]
+data_sources = ["hgmo", "errorsummary", "taskcluster", "treeherder_client", "bugbug"]
 
 [mozci.cache]
 default = "file"

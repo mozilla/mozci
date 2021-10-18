@@ -60,6 +60,7 @@ class DataHandler:
         Returns:
             dict: The output of the contract as defined by `Contract.schema_out`.
         """
+        logger.trace(f"Handling contract '{name}'")
         if name not in all_contracts:
             raise ContractNotFound(name)
 
@@ -69,6 +70,7 @@ class DataHandler:
 
         for src in self.sources:
             if name in src.supported_contracts:
+                logger.trace(f"Fulfilling with '{src.name}' source")
                 try:
                     result = src.get(name, **context)
                 except ContractNotFilled as e:
@@ -82,7 +84,7 @@ class DataHandler:
         try:
             contract.validate_out(result)
         except validx.exc.SchemaError:
-            print(f"Result from contract '{name}' does not conform to schema!")
+            logger.error(f"Result from contract '{name}' does not conform to schema!")
             raise
         return result
 

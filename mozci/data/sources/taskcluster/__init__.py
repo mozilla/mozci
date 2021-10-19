@@ -43,10 +43,6 @@ class TaskclusterSource(DataSource):
 
         tasks = []
         for result in results:
-            # Skip tier 3 tasks.
-            if result["task"]["extra"].get("treeherder", {}).get("tier") == 3:
-                continue
-
             # Skip the decision task.
             if result["status"]["taskId"] == decision_task_id:
                 continue
@@ -60,6 +56,7 @@ class TaskclusterSource(DataSource):
                 "label": result["task"]["metadata"]["name"],
                 "tags": result["task"]["tags"],
                 "state": result["status"]["state"],
+                "tier": result["task"]["extra"]["treeherder"]["tier"],
             }
 
             # Use the latest run (earlier ones likely had exceptions that

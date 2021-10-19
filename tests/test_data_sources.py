@@ -47,10 +47,13 @@ class Responses:
                                 "treeherder": {"tier": 3},
                             },
                         },
+                        "status": {
+                            "taskId": "abc123",
+                        },
                     },
                     {
                         "task": {
-                            "extra": {},
+                            "extra": {"treeherder": {}},
                         },
                         "status": {
                             "taskId": "abc123",
@@ -58,7 +61,7 @@ class Responses:
                     },
                     {
                         "task": {
-                            "extra": {},
+                            "extra": {"treeherder": {}},
                             "metadata": {
                                 "name": "ActionTask",
                             },
@@ -69,7 +72,9 @@ class Responses:
                     },
                     {
                         "task": {
-                            "extra": {},
+                            "extra": {
+                                "treeherder": {"tier": 3},
+                            },
                             "metadata": {
                                 "name": "task-A",
                             },
@@ -82,7 +87,9 @@ class Responses:
                     },
                     {
                         "task": {
-                            "extra": {},
+                            "extra": {
+                                "treeherder": {"tier": 3},
+                            },
                             "metadata": {
                                 "name": "task-B",
                             },
@@ -96,7 +103,9 @@ class Responses:
                     },
                     {
                         "task": {
-                            "extra": {},
+                            "extra": {
+                                "treeherder": {"tier": 3},
+                            },
                             "metadata": {
                                 "name": "task-B-2",
                             },
@@ -110,7 +119,9 @@ class Responses:
                     },
                     {
                         "task": {
-                            "extra": {},
+                            "extra": {
+                                "treeherder": {"tier": 3},
+                            },
                             "metadata": {
                                 "name": "task-C",
                             },
@@ -129,7 +140,9 @@ class Responses:
                     },
                     {
                         "task": {
-                            "extra": {},
+                            "extra": {
+                                "treeherder": {"tier": 3},
+                            },
                             "metadata": {
                                 "name": "task-D",
                             },
@@ -147,7 +160,9 @@ class Responses:
                     },
                     {
                         "task": {
-                            "extra": {},
+                            "extra": {
+                                "treeherder": {"tier": 3},
+                            },
                             "metadata": {
                                 "name": "task-E",
                             },
@@ -167,7 +182,9 @@ class Responses:
                     },
                     {
                         "task": {
-                            "extra": {},
+                            "extra": {
+                                "treeherder": {"tier": 3},
+                            },
                             "metadata": {
                                 "name": "task-F",
                             },
@@ -289,13 +306,21 @@ class Responses:
                     "label": "task-A",
                     "state": "unscheduled",
                     "tags": {"name": "tag-A"},
+                    "tier": 3,
                 },
-                {"id": "task-id-B", "label": "task-B", "state": "pending", "tags": {}},
+                {
+                    "id": "task-id-B",
+                    "label": "task-B",
+                    "state": "pending",
+                    "tags": {},
+                    "tier": 3,
+                },
                 {
                     "id": "task-id-B-2",
                     "label": "task-B-2",
                     "state": "exception",
                     "tags": {},
+                    "tier": 3,
                 },
                 {
                     "id": "task-id-C",
@@ -303,8 +328,15 @@ class Responses:
                     "result": "exception",
                     "state": "pending",
                     "tags": {"name": "tag-C"},
+                    "tier": 3,
                 },
-                {"id": "task-id-D", "label": "task-D", "state": "running", "tags": {}},
+                {
+                    "id": "task-id-D",
+                    "label": "task-D",
+                    "state": "running",
+                    "tags": {},
+                    "tier": 3,
+                },
                 {
                     "duration": 60000,
                     "id": "task-id-E",
@@ -312,6 +344,7 @@ class Responses:
                     "result": "failed",
                     "state": "completed",
                     "tags": {},
+                    "tier": 3,
                 },
                 {
                     "duration": 60000,
@@ -320,6 +353,7 @@ class Responses:
                     "result": "passed",
                     "state": "completed",
                     "tags": {},
+                    "tier": 3,
                 },
             ],
             id="taskcluster.push_tasks",

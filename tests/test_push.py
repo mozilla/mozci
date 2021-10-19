@@ -4,6 +4,8 @@ from itertools import count
 
 import pytest
 
+
+from mozci import config
 from mozci.data.sources import bugbug
 from mozci.errors import (
     ChildPushNotFound,
@@ -135,6 +137,92 @@ def test_create_push(responses):
     assert p2.id == 123
     assert p2.date == 1213174092
     assert p2.branch in ctx["branch"]
+
+
+def test_push_tasks_with_tier(responses):
+    cache = config.cache
+    rev = "abcdef"
+    branch = "autoland"
+
+    TASKS_KEY = "{}/{}/tasks".format(branch, rev)
+
+    # Making sure there's nothing left in the cache
+    if cache.get(TASKS_KEY):
+        cache.forget(TASKS_KEY)
+    assert cache.get(TASKS_KEY) is None
+
+    responses.add(
+        responses.GET,
+        f"https://hg.mozilla.org/integration/autoland/json-automationrelevance/{rev}",
+        json={"changesets": [{"node": rev}]},
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.v2.autoland.revision.abcdef.taskgraph.decision",
+        json={"taskId": 1},
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/1",
+        json={"taskGroupId": "xyz789"},
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task-group/xyz789/list",
+        json={
+            "tasks": [
+                {
+                    "task": {
+                        "extra": {
+                            "treeherder": {"tier": 3},
+                        },
+                        "metadata": {
+                            "name": "task-A",
+                        },
+                        "tags": {"name": "tag-A"},
+                    },
+                    "status": {
+                        "taskId": "abc13",
+                        "state": "unscheduled",
+                    },
+                },
+                {
+                    "task": {
+                        "extra": {
+                            "treeherder": {"tier": 1},
+                        },
+                        "metadata": {
+                            "name": "task-B",
+                        },
+                        "tags": {"name": "tag-A"},
+                    },
+                    "status": {
+                        "taskId": "abc123",
+                        "state": "unscheduled",
+                    },
+                },
+            ]
+        },
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://treeherder.mozilla.org/api/project/autoland/note/push_notes/?revision=abcdef&format=json",
+        json={},
+        status=200,
+    )
+
+    push = Push(rev, branch)
+    tasks = push.tasks
+    print(len(tasks))
+    assert len(tasks) == 1
 
 
 def test_push_does_not_exist(responses):

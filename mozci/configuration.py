@@ -110,6 +110,7 @@ class Configuration(Mapping):
                 "bugbug",
             ],
             "verbose": 0,
+            "tier": 2,
         },
     }
 

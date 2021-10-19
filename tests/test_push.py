@@ -4,6 +4,7 @@ from itertools import count
 
 import pytest
 
+from mozci.data.sources import bugbug
 from mozci.errors import (
     ChildPushNotFound,
     ParentPushNotFound,
@@ -11,8 +12,6 @@ from mozci.errors import (
     SourcesNotFound,
 )
 from mozci.push import Push
-from mozci.util import bugbug
-from mozci.util.bugbug import BUGBUG_BASE_URL, BugbugTimeoutException
 from mozci.util.hgmo import HgRev
 from mozci.util.taskcluster import (
     PRODUCTION_TASKCLUSTER_ROOT_URL,
@@ -616,7 +615,7 @@ def test_iterate_parents(responses):
         push_id -= 1
 
 
-def test_get_bugbug_schedules_from_cache(responses):
+def test_get_test_selection_data_from_cache(responses):
     rev = "a" * 40
     branch = "autoland"
     push = Push(rev, branch)
@@ -627,7 +626,7 @@ def test_get_bugbug_schedules_from_cache(responses):
     cache_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/queue/v1/task/aaaaaaaaaa/artifacts/public/bugbug-push-schedules.json"
     responses.add(responses.GET, cache_url, status=200, json=SCHEDULES_EXTRACT)
 
-    data = push.get_bugbug_schedules()
+    data = push.get_test_selection_data()
     assert data == SCHEDULES_EXTRACT
 
     assert len(responses.calls) == 2
@@ -637,7 +636,7 @@ def test_get_bugbug_schedules_from_cache(responses):
     ]
 
 
-def test_get_bugbug_schedules_from_bugbug_handle_errors(responses, monkeypatch):
+def test_get_test_selection_data_from_bugbug_handle_errors(responses, monkeypatch):
     rev = "a" * 40
     branch = "autoland"
     push = Push(rev, branch)
@@ -648,13 +647,13 @@ def test_get_bugbug_schedules_from_bugbug_handle_errors(responses, monkeypatch):
     cache_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/queue/v1/task/aaaaaaaaaa/artifacts/public/bugbug-push-schedules.json"
     responses.add(responses.GET, cache_url, status=404)
 
-    url = f"{BUGBUG_BASE_URL}/push/{branch}/{rev}/schedules"
+    url = f"{bugbug.BUGBUG_BASE_URL}/push/{branch}/{rev}/schedules"
     responses.add(responses.GET, url, status=500)
 
     monkeypatch.setattr(bugbug, "DEFAULT_RETRY_TIMEOUT", 3)
     monkeypatch.setattr(bugbug, "DEFAULT_RETRY_INTERVAL", 1)
     with pytest.raises(SourcesNotFound) as e:
-        push.get_bugbug_schedules()
+        push.get_test_selection_data()
     assert (
         e.value.msg
         == "No registered sources were able to fulfill 'push_test_selection_data'!"
@@ -671,7 +670,7 @@ def test_get_bugbug_schedules_from_bugbug_handle_errors(responses, monkeypatch):
     ]
 
 
-def test_get_bugbug_schedules_from_bugbug_handle_exceeded_timeout(
+def test_get_test_selection_data_from_bugbug_handle_exceeded_timeout(
     responses, monkeypatch
 ):
     rev = "a" * 40
@@ -684,13 +683,13 @@ def test_get_bugbug_schedules_from_bugbug_handle_exceeded_timeout(
     cache_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/queue/v1/task/aaaaaaaaaa/artifacts/public/bugbug-push-schedules.json"
     responses.add(responses.GET, cache_url, status=404)
 
-    url = f"{BUGBUG_BASE_URL}/push/{branch}/{rev}/schedules"
+    url = f"{bugbug.BUGBUG_BASE_URL}/push/{branch}/{rev}/schedules"
     responses.add(responses.GET, url, status=202)
 
     monkeypatch.setattr(bugbug, "DEFAULT_RETRY_TIMEOUT", 3)
     monkeypatch.setattr(bugbug, "DEFAULT_RETRY_INTERVAL", 1)
-    with pytest.raises(BugbugTimeoutException) as e:
-        push.get_bugbug_schedules()
+    with pytest.raises(bugbug.BugbugTimeoutException) as e:
+        push.get_test_selection_data()
     assert str(e.value) == "Timed out waiting for result from Bugbug HTTP Service"
 
     assert len(responses.calls) == 5
@@ -704,7 +703,7 @@ def test_get_bugbug_schedules_from_bugbug_handle_exceeded_timeout(
     ]
 
 
-def test_get_bugbug_schedules_from_bugbug(responses):
+def test_get_test_selection_data_from_bugbug(responses):
     rev = "a" * 40
     branch = "autoland"
     push = Push(rev, branch)
@@ -715,10 +714,10 @@ def test_get_bugbug_schedules_from_bugbug(responses):
     cache_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/queue/v1/task/aaaaaaaaaa/artifacts/public/bugbug-push-schedules.json"
     responses.add(responses.GET, cache_url, status=404)
 
-    url = f"{BUGBUG_BASE_URL}/push/{branch}/{rev}/schedules"
+    url = f"{bugbug.BUGBUG_BASE_URL}/push/{branch}/{rev}/schedules"
     responses.add(responses.GET, url, status=200, json=SCHEDULES_EXTRACT)
 
-    data = push.get_bugbug_schedules()
+    data = push.get_test_selection_data()
     assert data == SCHEDULES_EXTRACT
 
     assert len(responses.calls) == 3

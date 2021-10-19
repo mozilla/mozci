@@ -1025,7 +1025,13 @@ class Push:
                 yield name, e
 
     @memoize
-    def get_bugbug_schedules(self):
+    def get_test_selection_data(self):
+        """Retrieves Push schedules from various data sources.
+
+        As for now, the 'push_test_selection_data' contract is fulfilled by two data sources:
+        bugbug -> The call will be retried until we receive data or it times out/fails.
+        taskcluster -> The call will be made one time.
+        """
         return data.handler.get(
             "push_test_selection_data", branch=self.branch, rev=self.rev
         )

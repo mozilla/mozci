@@ -60,6 +60,7 @@ class DataHandler:
         Returns:
             dict: The output of the contract as defined by `Contract.schema_out`.
         """
+        logger.trace(f"Handling contract '{name}'")
         if name not in all_contracts:
             raise ContractNotFound(name)
 
@@ -69,6 +70,7 @@ class DataHandler:
 
         for src in self.sources:
             if name in src.supported_contracts:
+                logger.trace(f"Fulfilling with '{src.name}' source")
                 try:
                     result = src.get(name, **context)
                 except ContractNotFilled as e:
@@ -82,13 +84,13 @@ class DataHandler:
         try:
             contract.validate_out(result)
         except validx.exc.SchemaError:
-            print(f"Result from contract '{name}' does not conform to schema!")
+            logger.error(f"Result from contract '{name}' does not conform to schema!")
             raise
         return result
 
 
 def register_sources():
-    from mozci.data.sources import artifact, hgmo, taskcluster, treeherder
+    from mozci.data.sources import artifact, bugbug, hgmo, taskcluster, treeherder
 
     sources = [
         artifact.ErrorSummarySource(),
@@ -96,6 +98,9 @@ def register_sources():
         taskcluster.TaskclusterSource(),
         treeherder.TreeherderClientSource(),
         treeherder.TreeherderDBSource(),
+        # By default, we set the "bugbug" source after taskcluster in this list
+        # as we prefer to try fetching schedules from cache first.
+        bugbug.BugbugSource(),
     ]
 
     DataHandler.ALL_SOURCES = {src.name: src for src in sources}

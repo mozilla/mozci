@@ -4,11 +4,50 @@ from itertools import count
 
 import pytest
 
+
 from mozci import config
-from mozci.errors import ChildPushNotFound, ParentPushNotFound, PushNotFound
+from mozci.data.sources import bugbug
+from mozci.errors import (
+    ChildPushNotFound,
+    ParentPushNotFound,
+    PushNotFound,
+    SourcesNotFound,
+)
 from mozci.push import Push
 from mozci.util.hgmo import HgRev
-from mozci.util.taskcluster import get_artifact_url, get_index_url
+from mozci.util.taskcluster import (
+    PRODUCTION_TASKCLUSTER_ROOT_URL,
+    get_artifact_url,
+    get_index_url,
+)
+
+SCHEDULES_EXTRACT = {
+    "tasks": {
+        "test-android-em-7.0-x86_64-lite-qr/debug-geckoview-junit-fis-e10s": 0.51,
+        "test-linux1804-64-qr/opt-telemetry-tests-client-fis-e10s": 0.52,
+    },
+    "groups": {
+        "toolkit/modules/tests/browser/browser.ini": 0.68,
+        "devtools/client/framework/test/browser.ini": 0.99,
+    },
+    "config_groups": {
+        "toolkit/modules/tests/browser/browser.ini": [
+            "test-linux1804-64-qr/opt-*-swr-e10s"
+        ],
+        "devtools/client/framework/test/browser.ini": [
+            "test-linux1804-64-qr/opt-*-e10s"
+        ],
+    },
+    "reduced_tasks": {
+        "test-android-em-7.0-x86_64-lite-qr/opt-geckoview-junit-fis-e10s": 0.88,
+        "test-linux1804-64-qr/debug-reftest-swr-e10s-2": 0.83,
+    },
+    "reduced_tasks_higher": {},
+    "known_tasks": [
+        "test-windows10-64-2004-qr/debug-web-platform-tests-swr-e10s-9",
+        "test-windows10-64-2004-qr/debug-mochitest-devtools-chrome-fis-e10s-1",
+    ],
+}
 
 
 @pytest.fixture
@@ -662,3 +701,116 @@ def test_iterate_parents(responses):
     for other in push._iterate_parents(depth):
         assert other.id == push_id
         push_id -= 1
+
+
+def test_get_test_selection_data_from_cache(responses):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    task_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision"
+    responses.add(responses.GET, task_url, status=200, json={"taskId": "a" * 10})
+
+    cache_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/queue/v1/task/aaaaaaaaaa/artifacts/public/bugbug-push-schedules.json"
+    responses.add(responses.GET, cache_url, status=200, json=SCHEDULES_EXTRACT)
+
+    data = push.get_test_selection_data()
+    assert data == SCHEDULES_EXTRACT
+
+    assert len(responses.calls) == 2
+    assert [(call.request.method, call.request.url) for call in responses.calls] == [
+        ("GET", task_url),
+        ("GET", cache_url),
+    ]
+
+
+def test_get_test_selection_data_from_bugbug_handle_errors(responses, monkeypatch):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    task_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision"
+    responses.add(responses.GET, task_url, status=200, json={"taskId": "a" * 10})
+
+    cache_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/queue/v1/task/aaaaaaaaaa/artifacts/public/bugbug-push-schedules.json"
+    responses.add(responses.GET, cache_url, status=404)
+
+    url = f"{bugbug.BUGBUG_BASE_URL}/push/{branch}/{rev}/schedules"
+    responses.add(responses.GET, url, status=500)
+
+    monkeypatch.setattr(bugbug, "DEFAULT_RETRY_TIMEOUT", 3)
+    monkeypatch.setattr(bugbug, "DEFAULT_RETRY_INTERVAL", 1)
+    with pytest.raises(SourcesNotFound) as e:
+        push.get_test_selection_data()
+    assert (
+        e.value.msg
+        == "No registered sources were able to fulfill 'push_test_selection_data'!"
+    )
+
+    assert len(responses.calls) == 5
+    assert [(call.request.method, call.request.url) for call in responses.calls] == [
+        ("GET", task_url),
+        ("GET", cache_url),
+        # We retry 3 times the call to the Bugbug HTTP service
+        ("GET", url),
+        ("GET", url),
+        ("GET", url),
+    ]
+
+
+def test_get_test_selection_data_from_bugbug_handle_exceeded_timeout(
+    responses, monkeypatch
+):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    task_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision"
+    responses.add(responses.GET, task_url, status=200, json={"taskId": "a" * 10})
+
+    cache_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/queue/v1/task/aaaaaaaaaa/artifacts/public/bugbug-push-schedules.json"
+    responses.add(responses.GET, cache_url, status=404)
+
+    url = f"{bugbug.BUGBUG_BASE_URL}/push/{branch}/{rev}/schedules"
+    responses.add(responses.GET, url, status=202)
+
+    monkeypatch.setattr(bugbug, "DEFAULT_RETRY_TIMEOUT", 3)
+    monkeypatch.setattr(bugbug, "DEFAULT_RETRY_INTERVAL", 1)
+    with pytest.raises(bugbug.BugbugTimeoutException) as e:
+        push.get_test_selection_data()
+    assert str(e.value) == "Timed out waiting for result from Bugbug HTTP Service"
+
+    assert len(responses.calls) == 5
+    assert [(call.request.method, call.request.url) for call in responses.calls] == [
+        ("GET", task_url),
+        ("GET", cache_url),
+        # We retry 3 times the call to the Bugbug HTTP service
+        ("GET", url),
+        ("GET", url),
+        ("GET", url),
+    ]
+
+
+def test_get_test_selection_data_from_bugbug(responses):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    task_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision"
+    responses.add(responses.GET, task_url, status=200, json={"taskId": "a" * 10})
+
+    cache_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/queue/v1/task/aaaaaaaaaa/artifacts/public/bugbug-push-schedules.json"
+    responses.add(responses.GET, cache_url, status=404)
+
+    url = f"{bugbug.BUGBUG_BASE_URL}/push/{branch}/{rev}/schedules"
+    responses.add(responses.GET, url, status=200, json=SCHEDULES_EXTRACT)
+
+    data = push.get_test_selection_data()
+    assert data == SCHEDULES_EXTRACT
+
+    assert len(responses.calls) == 3
+    assert [(call.request.method, call.request.url) for call in responses.calls] == [
+        ("GET", task_url),
+        ("GET", cache_url),
+        ("GET", url),
+    ]

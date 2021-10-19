@@ -10,6 +10,7 @@ from mozci.util import yaml
 from mozci.util.req import get_session
 
 PRODUCTION_TASKCLUSTER_ROOT_URL = "https://firefox-ci-tc.services.mozilla.com"
+queue = taskcluster.Queue({"rootUrl": PRODUCTION_TASKCLUSTER_ROOT_URL})
 
 
 def _do_request(url, force_get=False, **kwargs):
@@ -58,8 +59,7 @@ def get_artifact(task_id, path):
 
 
 def list_artifacts(task_id):
-    response = _do_request(get_artifact_url(task_id, "").rstrip("/"))
-    return response.json()["artifacts"]
+    return queue.listLatestArtifacts(task_id)["artifacts"]
 
 
 def get_index_url(index_path):
@@ -80,8 +80,7 @@ def get_task_url(task_id):
 
 
 def get_task(task_id, use_proxy=False):
-    response = _do_request(get_task_url(task_id))
-    return response.json()
+    return queue.task(task_id)
 
 
 def get_tasks_in_group(group_id):
@@ -90,7 +89,6 @@ def get_tasks_in_group(group_id):
     def _save_tasks(response):
         tasks.extend(response["tasks"])
 
-    queue = taskcluster.Queue({"rootUrl": PRODUCTION_TASKCLUSTER_ROOT_URL})
     queue.listTaskGroup(group_id, paginationHandler=_save_tasks)
 
     return tasks

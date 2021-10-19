@@ -9,7 +9,7 @@ The config is a `TOML`_ file, which looks something like:
 .. code-block:: toml
 
     [mozci]
-    verbose = true
+    verbose = 1
 
 
 List of Options
@@ -106,7 +106,8 @@ Available sources are defined in the :class:`~mozci.data.DataHandler` class.
 verbose
 ```````
 
-Enable verbose mode (default: ``false``). This enables debug logging.
+Enable verbose logging (default: ``0``). Setting this to ``1`` enables debug
+logging, while setting it to ``2`` enables trace logging.
 
 .. _TOML: http://github.com/toml-lang/toml
 .. _cachy: https://github.com/sdispater/cachy

@@ -19,7 +19,7 @@ zstandard = {version = "~0", optional = true}
 python3-memcached = {version = "~1", optional = true}
 redis = {version = "~3", optional = true}
 requests = "~2"
-flake8 = "~3"
+flake8 = ">=3,<5"
 pyyaml = "~5"
 taskcluster = ">=38"
 lru-dict = "^1.1.7"
@@ -29,14 +29,19 @@ adr = { version = "~0", optional = true }
 ValidX = "^0.7"
 
 [tool.poetry.dev-dependencies]
-pre-commit = "^2.13"
+pre-commit = "^2.15"
 pytest = "^6.2"
-tox = "^3.23"
-responses = "^0.13"
-sphinx = "^4.1.2"
+tox = "^3.24"
+responses = "^0.14"
+sphinx = "^4.2.0"
 
 [tool.poetry.extras]
 adr = ["adr"]
+cache = ["boto3", "python3-memcached", "redis", "zstandard"]
+cache-s3 = ["boto3"]
+cache-memcached = ["python3-memcached"]
+cache-redis = ["redis"]
+cache-seeded-file = ["zstandard"]
 
 [build-system]
 requires = ["poetry>=1.0.2"]

@@ -136,6 +136,36 @@ _contracts: Tuple[Contract, ...] = (
         ),
         validate_out=v.List(v.Str(minlen=1)),
     ),
+    Contract(
+        name="push_test_selection_data",
+        description="Test and build CI Tasks that should be scheduled for a given push",
+        validate_in=v.Dict(
+            {
+                "branch": v.Str(),
+                "rev": v.Str(),
+            }
+        ),
+        validate_out=v.Dict(
+            {
+                "config_groups": v.Dict(
+                    extra=(v.Str(), v.List(v.Str(minlen=1))),
+                ),
+                "groups": v.Dict(
+                    extra=(v.Str(), v.Float()),
+                ),
+                "known_tasks": v.List(v.Str(minlen=1)),
+                "reduced_tasks": v.Dict(
+                    extra=(v.Str(), v.Float()),
+                ),
+                "reduced_tasks_higher": v.Dict(
+                    extra=(v.Str(), v.Float()),
+                ),
+                "tasks": v.Dict(
+                    extra=(v.Str(), v.Float()),
+                ),
+            }
+        ),
+    ),
 )
 
 

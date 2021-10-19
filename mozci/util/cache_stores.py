@@ -157,6 +157,7 @@ S3_CLIENTS = {}
 
 def get_s3_client(bucket, prefix):
     import boto3
+
     with S3_CLIENTS_LOCK:
         if (bucket, prefix) not in S3_CLIENTS:
             credentials = get_s3_credentials(bucket, prefix)
@@ -190,6 +191,7 @@ class S3Store(Store):
 
     def _retry_if_expired(self, op):
         import botocore
+
         try:
             return op()
         except botocore.exceptions.ClientError:
@@ -207,6 +209,7 @@ class S3Store(Store):
 
     def _get(self, key):
         import botocore
+
         # Copy the object onto itself to extend its expiration.
         try:
             head = self._client.head_object(Bucket=self._bucket, Key=self._key(key))
@@ -251,6 +254,7 @@ class S3Store(Store):
 class CompressedPickleSerializer(Serializer):
     def __init__(self):
         import zstandard
+
         self.compressor = zstandard.ZstdCompressor(
             level=zstandard.MAX_COMPRESSION_LEVEL
         )

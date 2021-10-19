@@ -11,7 +11,6 @@ from mozci.data.sources.treeherder import TreeherderClientSource
 from mozci.task import TestTask
 
 
-
 def create_task(task_id):
     return TestTask.create(id=task_id, label="test-foo")
 

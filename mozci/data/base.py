@@ -98,8 +98,8 @@ def register_sources():
         taskcluster.TaskclusterSource(),
         treeherder.TreeherderClientSource(),
         treeherder.TreeherderDBSource(),
-        # Bugbug source needs to be after taskcluster in this list
-        # as we have to try fetching schedules from cache first.
+        # By default, we set the "bugbug" source after taskcluster in this list
+        # as we prefer to try fetching schedules from cache first.
         bugbug.BugbugSource(),
     ]
 

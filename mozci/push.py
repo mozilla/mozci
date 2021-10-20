@@ -959,6 +959,60 @@ class Push:
             if count == 0
         )
 
+    def classify_regressions(self):
+        cache_prefix = f"{self.push_uuid}/test_bastien/"
+
+        # Preset confidence thresholds from MC
+        # CT_LOW = 0.7
+        CT_MEDIUM = 0.8
+        CT_HIGH = 0.9
+
+        # Retrieve test selection data for that push, from cache or bugbug
+        select = config.cache.get(cache_prefix + "test_selection")
+        if select is None:
+            select = self.get_test_selection_data()
+
+            config.cache.put(
+                cache_prefix + "test_selection",
+                select,
+                config["cache"]["retention"],
+            )
+
+        # Fetch likely group regressions for that push from cache or treeherder + Taskcluster
+        group_regressions = config.cache.get(cache_prefix + "group_regressions")
+        if group_regressions is None:
+            group_regressions = self.get_likely_regressions("group")
+
+            config.cache.put(
+                cache_prefix + "group_regressions",
+                group_regressions,
+                config["cache"]["retention"],
+            )
+
+        groups_high = [
+            g for g, confidence in select["groups"].items() if confidence >= CT_HIGH
+        ]
+        groups_low = [
+            g for g, confidence in select["groups"].items() if confidence < CT_MEDIUM
+        ]
+        logger.info(f"Got {len(groups_high)} groups with high confidence")
+        logger.info(f"Got {len(groups_low)} groups with low confidence")
+
+        from pprint import pprint
+
+        pprint(group_regressions)
+
+        if group_regressions.intersection(groups_high):
+            # Bad push: check if any high confidence group is failing across configurations
+            logger.info("BAD push")
+
+        elif not group_regressions or group_regressions.intersection(groups_low):
+            # Good push: check if there are no failures or if there are only low confidence groups failing on single configurations
+            logger.info("GOOD push")
+        else:
+            # Fallback to unknown
+            logger.warn("UNKNOWN")
+
     @memoize
     def get_shadow_scheduler_tasks(self, name: str) -> List[dict]:
         """Returns all tasks the given shadow scheduler would have scheduled,

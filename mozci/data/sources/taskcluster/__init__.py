@@ -56,8 +56,10 @@ class TaskclusterSource(DataSource):
                 "label": result["task"]["metadata"]["name"],
                 "tags": result["task"]["tags"],
                 "state": result["status"]["state"],
-                "tier": result["task"]["extra"]["treeherder"]["tier"],
             }
+            tier = result["task"]["extra"].get("treeherder", {}).get("tier")
+            if tier:
+                task["tier"] = tier
 
             # Use the latest run (earlier ones likely had exceptions that
             # caused an automatic retry).

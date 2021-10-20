@@ -54,7 +54,7 @@ _contracts: Tuple[Contract, ...] = (
                         ]
                     ),
                 },
-                optional=["duration", "result"],
+                optional=["duration", "result", "tier"],
             )
         ),
     ),

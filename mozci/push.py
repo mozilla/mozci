@@ -305,9 +305,7 @@ class Push:
         logger.debug(f"Retrieved all tasks and groups which run on {self.rev}.")
 
         # Skip tier tasks greater than the tier passed in config
-        # Note: Default tier is 2
-        logger.info(f"{tasks[0]}")
-        tasks = [task for task in tasks if task.tier <= config.tier]
+        tasks = [task for task in tasks if not task.tier or task.tier <= config.tier]
 
         # Now we can cache the results.
         # cachy's put() overwrites the value in the cache; add() would only add if its empty

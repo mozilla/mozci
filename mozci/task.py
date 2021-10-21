@@ -410,6 +410,26 @@ class GroupSummary(RunnableSummary):
         # Otherwise, the manifest passed in all tasks, so we consider it a pass.
         return Status.PASS
 
+    @memoized_property
+    def is_cross_config_failure(self):
+        states = [
+            result.ok
+            for task in self.tasks
+            for result in task.results
+            if result.group == self.name
+        ]
+
+        nb = len(states)
+        nb_passed = sum(states)  # Number of True booleans in the states list
+        nb_failed = nb - nb_passed
+
+        if nb_passed and nb_failed:
+            # Tasks both passed and failed, this isn't a cross failure
+            return False
+
+        # If there are failures, this is a cross failure, else not
+        return nb_failed > 0
+
 
 @dataclass
 class LabelSummary(RunnableSummary):

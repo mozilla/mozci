@@ -979,13 +979,13 @@ class Push:
             )
 
         # Fetch likely group regressions for that push from cache or treeherder + Taskcluster
-        group_regressions = config.cache.get(cache_prefix + "group_regressions")
-        if group_regressions is None:
-            group_regressions = self.get_likely_regressions("group")
+        groups_likely_regressions = config.cache.get(cache_prefix + "group_regressions")
+        if groups_likely_regressions is None:
+            groups_likely_regressions = self.get_likely_regressions("group")
 
             config.cache.put(
                 cache_prefix + "group_regressions",
-                group_regressions,
+                groups_likely_regressions,
                 config["cache"]["retention"],
             )
 
@@ -998,20 +998,59 @@ class Push:
         logger.info(f"Got {len(groups_high)} groups with high confidence")
         logger.info(f"Got {len(groups_low)} groups with low confidence")
 
+        groups = [group for _, group in self.group_summaries.items()]
+        groups_cross_config_failure = set(
+            g.name for g in groups if g.is_cross_config_failure
+        )
+        groups_non_cross_config_failure = set(g.name for g in groups).difference(
+            groups_cross_config_failure
+        )
+        groups_failing_in_the_push = set(
+            g.name for g in groups if g.status == Status.FAIL
+        )
+
         from pprint import pprint
 
-        pprint(group_regressions)
+        print("-" * 30)
+        print("GROUPS LIKELY REGRESSIONS")
+        pprint(groups_likely_regressions)
+        print("GROUPS CROSS-CONFIG FAILURE")
+        pprint(groups_cross_config_failure)
+        print("GROUPS NON CROSS-CONFIG FAILURE")
+        pprint(groups_non_cross_config_failure)
+        print("GROUPS FAILING IN THE PUSH")
+        pprint(groups_failing_in_the_push)
 
-        if group_regressions.intersection(groups_high):
+        real_failures = groups_likely_regressions.intersection(
+            groups_cross_config_failure
+        ).intersection(groups_high)
+        intermittent_failures = groups_failing_in_the_push.intersection(
+            groups_non_cross_config_failure
+        ).intersection(groups_low)
+        unknown_failures = groups_failing_in_the_push.difference(
+            real_failures
+        ).difference(intermittent_failures)
+
+        print("-" * 30)
+        print("REAL FAILURES")
+        pprint(real_failures)
+        print("INTERMITTENT FAILURES")
+        pprint(intermittent_failures)
+        print("UNKNOWN FAILURES")
+        pprint(unknown_failures)
+
+        if groups_likely_regressions.intersection(groups_high):
             # Bad push: check if any high confidence group is failing across configurations
             logger.info("BAD push")
 
-        elif not group_regressions or group_regressions.intersection(groups_low):
+        elif not groups_likely_regressions or groups_likely_regressions.intersection(
+            groups_low
+        ):
             # Good push: check if there are no failures or if there are only low confidence groups failing on single configurations
             logger.info("GOOD push")
         else:
             # Fallback to unknown
-            logger.warn("UNKNOWN")
+            logger.warning("UNKNOWN")
 
     @memoize
     def get_shadow_scheduler_tasks(self, name: str) -> List[dict]:

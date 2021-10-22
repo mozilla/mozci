@@ -5,6 +5,7 @@ import itertools
 import math
 from argparse import Namespace
 from collections import defaultdict
+from enum import Enum
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
 from loguru import logger
@@ -37,6 +38,12 @@ when the task did not run on the currently considered push.
 """
 
 FAILURE_CLASSES = ("not classified", "fixed by commit")
+
+
+class PushStatus(Enum):
+    GOOD = 0
+    BAD = 1
+    UNKNOWN = 2
 
 
 class Push:
@@ -960,7 +967,16 @@ class Push:
         )
 
     def classify_regressions(self):
-        cache_prefix = f"{self.push_uuid}/test_bastien/"
+        """
+        Use group classification data from bugbug to classify all likely
+        regressions into three categories: real, intermittent or unknown failures
+
+        Output: a dict with several lists of task groups:
+        - real: set of tasks that are definitely real failures
+        - intermittent: set of tasks that are definitely intermittents
+        - unknown: set of tasks we don't have enough information about
+        """
+        cache_prefix = f"{self.push_uuid}/classify_group_tasks/"
 
         # Preset confidence thresholds from MC
         # CT_LOW = 0.7
@@ -968,13 +984,13 @@ class Push:
         CT_HIGH = 0.9
 
         # Retrieve test selection data for that push, from cache or bugbug
-        select = config.cache.get(cache_prefix + "test_selection")
-        if select is None:
-            select = self.get_test_selection_data()
+        bugbug_selection = config.cache.get(cache_prefix + "test_selection")
+        if bugbug_selection is None:
+            bugbug_selection = self.get_test_selection_data()
 
             config.cache.put(
                 cache_prefix + "test_selection",
-                select,
+                bugbug_selection,
                 config["cache"]["retention"],
             )
 
@@ -989,68 +1005,87 @@ class Push:
                 config["cache"]["retention"],
             )
 
-        groups_high = [
-            g for g, confidence in select["groups"].items() if confidence >= CT_HIGH
-        ]
-        groups_low = [
-            g for g, confidence in select["groups"].items() if confidence < CT_MEDIUM
-        ]
-        logger.info(f"Got {len(groups_high)} groups with high confidence")
-        logger.info(f"Got {len(groups_low)} groups with low confidence")
+        # Get task groups with high and low confidence from bugbug scheduling
+        groups_high = {
+            g
+            for g, confidence in bugbug_selection["groups"].items()
+            if confidence >= CT_HIGH
+        }
+        groups_low = {
+            g
+            for g, confidence in bugbug_selection["groups"].items()
+            if confidence < CT_MEDIUM
+        }
+        logger.debug(f"Got {len(groups_high)} groups with high confidence")
+        logger.debug(f"Got {len(groups_low)} groups with low confidence")
 
-        groups = [group for _, group in self.group_summaries.items()]
-        groups_cross_config_failure = set(
-            g.name for g in groups if g.is_cross_config_failure
+        # Classify task groups regarding cross config failure and overall failure
+        # - if a group is failing in all tasks, then it is a "cross-config" failure
+        # - if a group is failing only in some tasks but not all, then it is not a "cross-config" failure
+        all_groups = self.group_summaries.values()
+        groups_cross_config_failure = {
+            g.name for g in all_groups if g.is_cross_config_failure
+        }
+        groups_non_cross_config_failure = {
+            g.name for g in all_groups if not g.is_cross_config_failure
+        }
+        groups_failing_in_the_push = {
+            g.name for g in all_groups if g.status == Status.FAIL
+        }
+        logger.debug(
+            f"Got {len(groups_cross_config_failure)} groups with cross-config failures"
         )
-        groups_non_cross_config_failure = set(g.name for g in groups).difference(
-            groups_cross_config_failure
+        logger.debug(
+            f"Got {len(groups_non_cross_config_failure)} groups with no cross-config failures"
         )
-        groups_failing_in_the_push = set(
-            g.name for g in groups if g.status == Status.FAIL
+        logger.debug(
+            f"Got {len(groups_failing_in_the_push)} groups failing in the push"
         )
 
-        from pprint import pprint
+        # Real failure are groups with likely regressions that were selected with high confidence
+        # AND failing across config
+        real_failures = (
+            groups_likely_regressions & groups_cross_config_failure & groups_high
+        )
+        logger.debug(f"Got {len(real_failures)} real failures")
 
-        print("-" * 30)
-        print("GROUPS LIKELY REGRESSIONS")
-        pprint(groups_likely_regressions)
-        print("GROUPS CROSS-CONFIG FAILURE")
-        pprint(groups_cross_config_failure)
-        print("GROUPS NON CROSS-CONFIG FAILURE")
-        pprint(groups_non_cross_config_failure)
-        print("GROUPS FAILING IN THE PUSH")
-        pprint(groups_failing_in_the_push)
+        # Intermittent failures are groups that were NOT selected (low confidence)
+        # AND are not failing across config
+        intermittent_failures = groups_non_cross_config_failure & groups_low
+        logger.debug(f"Got {len(intermittent_failures)} intermittent failures")
 
-        real_failures = groups_likely_regressions.intersection(
-            groups_cross_config_failure
-        ).intersection(groups_high)
-        intermittent_failures = groups_failing_in_the_push.intersection(
-            groups_non_cross_config_failure
-        ).intersection(groups_low)
-        unknown_failures = groups_failing_in_the_push.difference(
-            real_failures
-        ).difference(intermittent_failures)
+        # Unknown failures all the remaining failing groups that are not real nor intermittent
+        unknown_failures = (
+            groups_failing_in_the_push - real_failures - intermittent_failures
+        )
+        logger.debug(f"Got {len(unknown_failures)} unknown failures")
 
-        print("-" * 30)
-        print("REAL FAILURES")
-        pprint(real_failures)
-        print("INTERMITTENT FAILURES")
-        pprint(intermittent_failures)
-        print("UNKNOWN FAILURES")
-        pprint(unknown_failures)
+        return {
+            "real": real_failures,
+            "intermittent": intermittent_failures,
+            "unknown": unknown_failures,
+        }
 
-        if groups_likely_regressions.intersection(groups_high):
-            # Bad push: check if any high confidence group is failing across configurations
-            logger.info("BAD push")
+    def classify(self):
+        """
+        Classify the overall push state using its group tasks states
+        from classify_regressions:
+        - bad push: when there are any task group with real failures
+        - good push: when there are only intermittent failures
+        - unknown state: when other tasks are failing
+        """
+        regressions = self.classify_regressions()
 
-        elif not groups_likely_regressions or groups_likely_regressions.intersection(
-            groups_low
-        ):
-            # Good push: check if there are no failures or if there are only low confidence groups failing on single configurations
-            logger.info("GOOD push")
-        else:
-            # Fallback to unknown
-            logger.warning("UNKNOWN")
+        # If there are any real failures, it's a bad push
+        if regressions["real"]:
+            return PushStatus.BAD
+
+        # If all failures are intermittent, it's a good push
+        if not regressions["intermittent"]:
+            return PushStatus.GOOD
+
+        # Fallback to unknown
+        return PushStatus.UNKNOWN
 
     @memoize
     def get_shadow_scheduler_tasks(self, name: str) -> List[dict]:

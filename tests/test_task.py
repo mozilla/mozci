@@ -257,7 +257,7 @@ def test_results_for_incomplete_task(responses):
                     for i in range(1, 11)
                 ],
             ),
-            True,
+            False,
         ),  # All related tasks failed
         (
             GroupSummary(
@@ -275,7 +275,7 @@ def test_results_for_incomplete_task(responses):
                     for i in range(1, 11)
                 ],
             ),
-            False,
+            True,
         ),  # Related tasks both failed and passed
         (
             GroupSummary(

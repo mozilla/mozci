@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import itertools
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -409,6 +410,15 @@ class GroupSummary(RunnableSummary):
 
         # Otherwise, the manifest passed in all tasks, so we consider it a pass.
         return Status.PASS
+
+    @memoized_property
+    def failing_configurations(self):
+
+        # Group all tasks by configurations
+        confs = itertools.groupby(self.tasks, lambda t: t.configuration)
+
+        # List configurations where some tasks are failing
+        return [name for name, tasks in confs if any(t.failed for t in tasks)]
 
     @memoized_property
     def is_cross_config_failure(self):

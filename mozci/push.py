@@ -49,9 +49,11 @@ class PushStatus(Enum):
 
 @dataclass
 class Regressions:
-    real: Set[str]
-    intermittent: Set[str]
-    unknown: Set[str]
+    # These 3 attributes are dicts of list of configurations
+    # each item being a single group, with its failing configurations
+    real: Dict[str, List[str]]
+    intermittent: Dict[str, List[str]]
+    unknown: Dict[str, List[str]]
 
 
 class Push:
@@ -1076,10 +1078,19 @@ class Push:
         )
         logger.debug(f"Got {len(unknown_failures)} unknown failures")
 
+        def _map_failing_configurations(groups):
+            # Link all the failing configurations on the given groups
+            return {
+                name: self.group_summaries[name].failing_configurations
+                for name in groups
+            }
+
+        # Output real, intermittent and unknown groupfailures
+        # along with their failing configurations
         return Regressions(
-            real=real_failures,
-            intermittent=intermittent_failures,
-            unknown=unknown_failures,
+            real=_map_failing_configurations(real_failures),
+            intermittent=_map_failing_configurations(intermittent_failures),
+            unknown=_map_failing_configurations(unknown_failures),
         )
 
     def classify(

@@ -5,6 +5,7 @@ import itertools
 import math
 from argparse import Namespace
 from collections import defaultdict
+from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
@@ -44,6 +45,13 @@ class PushStatus(Enum):
     GOOD = 0
     BAD = 1
     UNKNOWN = 2
+
+
+@dataclass
+class Regressions:
+    real: Set[str]
+    intermittent: Set[str]
+    unknown: Set[str]
 
 
 class Push:
@@ -966,7 +974,9 @@ class Push:
             if count == 0
         )
 
-    def classify_regressions(self):
+    def classify_regressions(
+        self, confidence_medium: float = 0.8, confidence_high: float = 0.9
+    ) -> Regressions:
         """
         Use group classification data from bugbug to classify all likely
         regressions into three categories: real, intermittent or unknown failures
@@ -977,11 +987,6 @@ class Push:
         - unknown: set of tasks we don't have enough information about
         """
         cache_prefix = f"{self.push_uuid}/classify_group_tasks/"
-
-        # Preset confidence thresholds from MC
-        # CT_LOW = 0.7
-        CT_MEDIUM = 0.8
-        CT_HIGH = 0.9
 
         # Retrieve test selection data for that push, from cache or bugbug
         bugbug_selection = config.cache.get(cache_prefix + "test_selection")
@@ -1009,12 +1014,12 @@ class Push:
         groups_high = {
             g
             for g, confidence in bugbug_selection["groups"].items()
-            if confidence >= CT_HIGH
+            if confidence >= confidence_high
         }
         groups_low = {
             g
             for g, confidence in bugbug_selection["groups"].items()
-            if confidence < CT_MEDIUM
+            if confidence < confidence_medium
         }
         logger.debug(f"Got {len(groups_high)} groups with high confidence")
         logger.debug(f"Got {len(groups_low)} groups with low confidence")
@@ -1032,6 +1037,11 @@ class Push:
         groups_failing_in_the_push = {
             g.name for g in all_groups if g.status == Status.FAIL
         }
+        groups_no_confidence = {
+            g.name
+            for g in all_groups
+            if g.name not in list(bugbug_selection["groups"].keys())
+        }
         logger.debug(
             f"Got {len(groups_cross_config_failure)} groups with cross-config failures"
         )
@@ -1040,6 +1050,9 @@ class Push:
         )
         logger.debug(
             f"Got {len(groups_failing_in_the_push)} groups failing in the push"
+        )
+        logger.debug(
+            f"Got {len(groups_no_confidence)} groups without bugbug confidence"
         )
 
         # Real failure are groups with likely regressions that were selected with high confidence
@@ -1050,8 +1063,11 @@ class Push:
         logger.debug(f"Got {len(real_failures)} real failures")
 
         # Intermittent failures are groups that were NOT selected (low confidence)
+        # OR without any confidence from bugbug (too low confidence)
         # AND are not failing across config
-        intermittent_failures = groups_non_cross_config_failure & groups_low
+        intermittent_failures = groups_non_cross_config_failure & groups_low.union(
+            groups_no_confidence
+        )
         logger.debug(f"Got {len(intermittent_failures)} intermittent failures")
 
         # Unknown failures all the remaining failing groups that are not real nor intermittent
@@ -1060,13 +1076,15 @@ class Push:
         )
         logger.debug(f"Got {len(unknown_failures)} unknown failures")
 
-        return {
-            "real": real_failures,
-            "intermittent": intermittent_failures,
-            "unknown": unknown_failures,
-        }
+        return Regressions(
+            real=real_failures,
+            intermittent=intermittent_failures,
+            unknown=unknown_failures,
+        )
 
-    def classify(self):
+    def classify(
+        self, confidence_medium: float = 0.8, confidence_high: float = 0.9
+    ) -> PushStatus:
         """
         Classify the overall push state using its group tasks states
         from classify_regressions:
@@ -1077,11 +1095,11 @@ class Push:
         regressions = self.classify_regressions()
 
         # If there are any real failures, it's a bad push
-        if regressions["real"]:
+        if len(regressions.real) > 0:
             return PushStatus.BAD
 
         # If all failures are intermittent, it's a good push
-        if not regressions["intermittent"]:
+        if len(regressions.unknown) == 0 and len(regressions.intermittent) >= 0:
             return PushStatus.GOOD
 
         # Fallback to unknown

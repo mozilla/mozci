@@ -1103,7 +1103,7 @@ class Push:
         - good push: when there are only intermittent failures
         - unknown state: when other tasks are failing
         """
-        regressions = self.classify_regressions()
+        regressions = self.classify_regressions(confidence_medium, confidence_high)
 
         # If there are any real failures, it's a bad push
         if len(regressions.real) > 0:

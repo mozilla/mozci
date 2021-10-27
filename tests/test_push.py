@@ -4,7 +4,6 @@ from itertools import count
 
 import pytest
 
-
 from mozci import config
 from mozci.data.sources import bugbug
 from mozci.errors import (
@@ -13,7 +12,8 @@ from mozci.errors import (
     PushNotFound,
     SourcesNotFound,
 )
-from mozci.push import Push
+from mozci.push import Push, PushStatus, Regressions
+from mozci.task import GroupResult, GroupSummary, Task
 from mozci.util.hgmo import HgRev
 from mozci.util.taskcluster import (
     PRODUCTION_TASKCLUSTER_ROOT_URL,
@@ -48,6 +48,26 @@ SCHEDULES_EXTRACT = {
         "test-windows10-64-2004-qr/debug-mochitest-devtools-chrome-fis-e10s-1",
     ],
 }
+
+GROUP_SUMMARIES_DEFAULT = {
+    group.name: group
+    for group in [
+        GroupSummary(
+            f"group{i}",
+            [
+                Task.create(
+                    id=j,
+                    label=f"test-task{j}",
+                    result="failed",
+                    _results=[GroupResult(group=f"group{i}", ok=False)],
+                )
+                for j in range(1, 4)
+            ],
+        )
+        for i in range(1, 6)
+    ]
+}
+CONFIGS = [f"test-task{j}" for j in range(1, 4)]
 
 
 @pytest.fixture
@@ -814,3 +834,252 @@ def test_get_test_selection_data_from_bugbug(responses):
         ("GET", cache_url),
         ("GET", url),
     ]
+
+
+@pytest.mark.parametrize(
+    "classify_regressions_return_value, expected_result",
+    [
+        (Regressions(real={"group1": []}, intermittent={}, unknown={}), PushStatus.BAD),
+        (Regressions(real={}, intermittent={}, unknown={}), PushStatus.GOOD),
+        (
+            Regressions(real={}, intermittent={"group1": []}, unknown={}),
+            PushStatus.GOOD,
+        ),
+        (
+            Regressions(real={}, intermittent={"group1": [], "group2": []}, unknown={}),
+            PushStatus.GOOD,
+        ),
+        (
+            Regressions(real={}, intermittent={}, unknown={"group1": []}),
+            PushStatus.UNKNOWN,
+        ),
+        (
+            Regressions(real={}, intermittent={"group1": []}, unknown={"group2": []}),
+            PushStatus.UNKNOWN,
+        ),
+    ],
+)
+def test_classify(monkeypatch, classify_regressions_return_value, expected_result):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    def mock_return(self, *args, **kwargs):
+        return classify_regressions_return_value
+
+    monkeypatch.setattr(Push, "classify_regressions", mock_return)
+    assert push.classify() == expected_result
+
+
+def generate_mocks(
+    monkeypatch,
+    push,
+    get_test_selection_data_value,
+    get_likely_regressions_value,
+    cross_config_values,
+):
+    monkeypatch.setattr(config.cache, "get", lambda x: None)
+
+    def mock_return_get_test_selection_data(*args, **kwargs):
+        return get_test_selection_data_value
+
+    monkeypatch.setattr(
+        Push, "get_test_selection_data", mock_return_get_test_selection_data
+    )
+
+    def mock_return_get_likely_regressions(*args, **kwargs):
+        return get_likely_regressions_value
+
+    monkeypatch.setattr(
+        Push, "get_likely_regressions", mock_return_get_likely_regressions
+    )
+
+    push.group_summaries = GROUP_SUMMARIES_DEFAULT
+    for index, group in enumerate(push.group_summaries.values()):
+        group.is_cross_config_failure = cross_config_values[index]
+
+
+@pytest.mark.parametrize(
+    "test_selection_data, are_cross_config",
+    [
+        (
+            {"groups": {"group1": 0.7, "group2": 0.3}},
+            [True for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
+        ),  # groups_non_cross_config_failure will be empty
+        (
+            {
+                "groups": {
+                    "group1": 0.85,
+                    "group2": 0.85,
+                    "group3": 0.85,
+                    "group4": 0.85,
+                    "group5": 0.85,
+                }
+            },
+            [False for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
+        ),  # groups_low.union(groups_no_confidence) will be empty
+        (
+            {
+                "groups": {
+                    "group1": 0.7,
+                    "group2": 0.85,
+                    "group3": 0.3,
+                    "group4": 0.85,
+                    "group5": 0.3,
+                }
+            },
+            [False if i % 2 else True for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
+        ),  # groups_non_cross_config_failure and groups_low.union(groups_no_confidence) have no entry in common
+    ],
+)
+def test_classify_almost_good_push(monkeypatch, test_selection_data, are_cross_config):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+    generate_mocks(
+        monkeypatch,
+        push,
+        test_selection_data,
+        set(),
+        are_cross_config,
+    )
+
+    assert push.classify_regressions() == Regressions(
+        real={},
+        intermittent={},
+        unknown={
+            "group1": CONFIGS,
+            "group2": CONFIGS,
+            "group3": CONFIGS,
+            "group4": CONFIGS,
+            "group5": CONFIGS,
+        },
+    )
+    assert push.classify() == PushStatus.UNKNOWN
+
+
+def test_classify_good_push_only_intermittent_failures(monkeypatch):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    test_selection_data = {"groups": {"group1": 0.7, "group2": 0.3}}
+    likely_regressions = {"group3", "group4"}
+    are_cross_config = [False for i in range(0, len(GROUP_SUMMARIES_DEFAULT))]
+    generate_mocks(
+        monkeypatch,
+        push,
+        test_selection_data,
+        likely_regressions,
+        are_cross_config,
+    )
+
+    assert push.classify_regressions() == Regressions(
+        real={},
+        # All groups aren't cross config failures and were either selected by bugbug
+        # with low confidence or not at all (no confidence)
+        intermittent={
+            "group1": CONFIGS,
+            "group2": CONFIGS,
+            "group3": CONFIGS,
+            "group4": CONFIGS,
+            "group5": CONFIGS,
+        },
+        unknown={},
+    )
+    assert push.classify() == PushStatus.GOOD
+
+
+@pytest.mark.parametrize(
+    "test_selection_data, likely_regressions, are_cross_config",
+    [
+        (
+            {"groups": {}},
+            {"group1", "group2", "group3", "group4", "group5"},
+            [True for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
+        ),  # groups_high will be empty
+        (
+            {
+                "groups": {
+                    "group1": 0.92,
+                    "group2": 0.92,
+                    "group3": 0.92,
+                    "group4": 0.92,
+                    "group5": 0.92,
+                }
+            },
+            set(),
+            [True for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
+        ),  # groups_likely_regressions will be empty
+        (
+            {
+                "groups": {
+                    "group1": 0.92,
+                    "group2": 0.92,
+                    "group3": 0.92,
+                    "group4": 0.92,
+                    "group5": 0.92,
+                }
+            },
+            {"group1", "group2", "group3", "group4", "group5"},
+            [False for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
+        ),  # groups_cross_config_failure will be empty
+    ],
+)
+def test_classify_almost_bad_push(
+    monkeypatch, test_selection_data, likely_regressions, are_cross_config
+):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+    generate_mocks(
+        monkeypatch,
+        push,
+        test_selection_data,
+        likely_regressions,
+        are_cross_config,
+    )
+
+    assert push.classify_regressions() == Regressions(
+        real={},
+        intermittent={},
+        unknown={
+            "group1": CONFIGS,
+            "group2": CONFIGS,
+            "group3": CONFIGS,
+            "group4": CONFIGS,
+            "group5": CONFIGS,
+        },
+    )
+    assert push.classify() == PushStatus.UNKNOWN
+
+
+def test_classify_bad_push_some_real_failures(monkeypatch):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    test_selection_data = {"groups": {"group1": 0.99, "group2": 0.95, "group3": 0.91}}
+    likely_regressions = {"group1", "group2", "group3"}
+    are_cross_config = [
+        False if i % 2 else True for i in range(0, len(GROUP_SUMMARIES_DEFAULT))
+    ]
+    generate_mocks(
+        monkeypatch,
+        push,
+        test_selection_data,
+        likely_regressions,
+        are_cross_config,
+    )
+
+    assert push.classify_regressions() == Regressions(
+        # group1 & group3 were both selected by bugbug with high confidence, likely to regress
+        # and are cross config failures
+        real={"group1": CONFIGS, "group3": CONFIGS},
+        # group4 isn't a cross config failure and was not selected by bugbug (no confidence)
+        intermittent={"group4": CONFIGS},
+        # group2 isn't a cross config failure but was selected with high confidence by bugbug
+        # group5 is a cross config failure but was not selected by bugbug nor likely to regress
+        unknown={"group2": CONFIGS, "group5": CONFIGS},
+    )
+    assert push.classify() == PushStatus.BAD

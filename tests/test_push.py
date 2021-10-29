@@ -840,6 +840,14 @@ def test_get_test_selection_data_from_bugbug(responses):
     "classify_regressions_return_value, expected_result",
     [
         (Regressions(real={"group1": []}, intermittent={}, unknown={}), PushStatus.BAD),
+        (
+            Regressions(real={"group1": []}, intermittent={"group2": []}, unknown={}),
+            PushStatus.BAD,
+        ),
+        (
+            Regressions(real={"group1": []}, intermittent={}, unknown={"group2": []}),
+            PushStatus.BAD,
+        ),
         (Regressions(real={}, intermittent={}, unknown={}), PushStatus.GOOD),
         (
             Regressions(real={}, intermittent={"group1": []}, unknown={}),
@@ -905,7 +913,7 @@ def generate_mocks(
         (
             {"groups": {"group1": 0.7, "group2": 0.3}},
             [True for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
-        ),  # groups_non_cross_config_failure will be empty
+        ),  # There are only cross-config failures with low confidence
         (
             {
                 "groups": {
@@ -917,7 +925,7 @@ def generate_mocks(
                 }
             },
             [False for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
-        ),  # groups_low.union(groups_no_confidence) will be empty
+        ),  # There are only non cross-config failures with medium confidence
         (
             {
                 "groups": {
@@ -929,7 +937,7 @@ def generate_mocks(
                 }
             },
             [False if i % 2 else True for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
-        ),  # groups_non_cross_config_failure and groups_low.union(groups_no_confidence) have no entry in common
+        ),  # There are some non cross-config failures and some low confidence groups but they don't match
     ],
 )
 def test_classify_almost_good_push(monkeypatch, test_selection_data, are_cross_config):
@@ -997,7 +1005,8 @@ def test_classify_good_push_only_intermittent_failures(monkeypatch):
             {"groups": {}},
             {"group1", "group2", "group3", "group4", "group5"},
             [True for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
-        ),  # groups_high will be empty
+        ),  # There are only cross-config failures likely to regress
+        # but they weren't selected by bugbug (no confidence)
         (
             {
                 "groups": {
@@ -1010,7 +1019,8 @@ def test_classify_good_push_only_intermittent_failures(monkeypatch):
             },
             set(),
             [True for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
-        ),  # groups_likely_regressions will be empty
+        ),  # There are only cross-config failures that were selected
+        # with high confidence by bugbug but weren't likely to regress
         (
             {
                 "groups": {
@@ -1023,7 +1033,8 @@ def test_classify_good_push_only_intermittent_failures(monkeypatch):
             },
             {"group1", "group2", "group3", "group4", "group5"},
             [False for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
-        ),  # groups_cross_config_failure will be empty
+        ),  # There are only groups that were selected with high confidence by
+        # bugbug and also likely to regress but they aren't cross-config failures
     ],
 )
 def test_classify_almost_bad_push(

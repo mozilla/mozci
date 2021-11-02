@@ -1001,16 +1001,10 @@ class Push:
                 config["cache"]["retention"],
             )
 
-        # Fetch likely group regressions for that push from cache or treeherder + Taskcluster
-        groups_likely_regressions = config.cache.get(cache_prefix + "group_regressions")
-        if groups_likely_regressions is None:
-            groups_likely_regressions = self.get_likely_regressions("group")
-
-            config.cache.put(
-                cache_prefix + "group_regressions",
-                groups_likely_regressions,
-                config["cache"]["retention"],
-            )
+        # Fetch likely group regressions for that push from treeherder + Taskcluster
+        # We do not cache these results as we might want to analyze in-progress
+        # pushes and keep updating these values
+        groups_likely_regressions = self.get_likely_regressions("group")
 
         # Get task groups with high and low confidence from bugbug scheduling
         groups_high = {

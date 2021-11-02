@@ -13,7 +13,7 @@ from mozci.errors import (
     SourcesNotFound,
 )
 from mozci.push import Push, PushStatus, Regressions
-from mozci.task import GroupResult, GroupSummary, Task
+from mozci.task import GroupResult, GroupSummary, Task, TestTask
 from mozci.util.hgmo import HgRev
 from mozci.util.taskcluster import (
     PRODUCTION_TASKCLUSTER_ROOT_URL,
@@ -67,7 +67,18 @@ GROUP_SUMMARIES_DEFAULT = {
         for i in range(1, 6)
     ]
 }
-CONFIGS = [f"test-task{j}" for j in range(1, 4)]
+
+
+def make_tasks(group_id):
+    return [
+        TestTask(
+            id=j,
+            label=f"test-task{j}",
+            result="failed",
+            _results=[GroupResult(group=group_id, ok=False)],
+        )
+        for j in range(1, 4)
+    ]
 
 
 @pytest.fixture
@@ -956,11 +967,11 @@ def test_classify_almost_good_push(monkeypatch, test_selection_data, are_cross_c
         real={},
         intermittent={},
         unknown={
-            "group1": CONFIGS,
-            "group2": CONFIGS,
-            "group3": CONFIGS,
-            "group4": CONFIGS,
-            "group5": CONFIGS,
+            "group1": make_tasks("group1"),
+            "group2": make_tasks("group2"),
+            "group3": make_tasks("group3"),
+            "group4": make_tasks("group4"),
+            "group5": make_tasks("group5"),
         },
     )
     assert push.classify() == PushStatus.UNKNOWN
@@ -987,11 +998,11 @@ def test_classify_good_push_only_intermittent_failures(monkeypatch):
         # All groups aren't cross config failures and were either selected by bugbug
         # with low confidence or not at all (no confidence)
         intermittent={
-            "group1": CONFIGS,
-            "group2": CONFIGS,
-            "group3": CONFIGS,
-            "group4": CONFIGS,
-            "group5": CONFIGS,
+            "group1": make_tasks("group1"),
+            "group2": make_tasks("group2"),
+            "group3": make_tasks("group3"),
+            "group4": make_tasks("group4"),
+            "group5": make_tasks("group5"),
         },
         unknown={},
     )
@@ -1055,11 +1066,11 @@ def test_classify_almost_bad_push(
         real={},
         intermittent={},
         unknown={
-            "group1": CONFIGS,
-            "group2": CONFIGS,
-            "group3": CONFIGS,
-            "group4": CONFIGS,
-            "group5": CONFIGS,
+            "group1": make_tasks("group1"),
+            "group2": make_tasks("group2"),
+            "group3": make_tasks("group3"),
+            "group4": make_tasks("group4"),
+            "group5": make_tasks("group5"),
         },
     )
     assert push.classify() == PushStatus.UNKNOWN
@@ -1086,11 +1097,11 @@ def test_classify_bad_push_some_real_failures(monkeypatch):
     assert push.classify_regressions() == Regressions(
         # group1 & group3 were both selected by bugbug with high confidence, likely to regress
         # and are cross config failures
-        real={"group1": CONFIGS, "group3": CONFIGS},
+        real={"group1": make_tasks("group1"), "group3": make_tasks("group3")},
         # group4 isn't a cross config failure and was not selected by bugbug (no confidence)
-        intermittent={"group4": CONFIGS},
+        intermittent={"group4": make_tasks("group4")},
         # group2 isn't a cross config failure but was selected with high confidence by bugbug
         # group5 is a cross config failure but was not selected by bugbug nor likely to regress
-        unknown={"group2": CONFIGS, "group5": CONFIGS},
+        unknown={"group2": make_tasks("group2"), "group5": make_tasks("group5")},
     )
     assert push.classify() == PushStatus.BAD

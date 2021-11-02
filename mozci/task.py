@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import itertools
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -412,13 +411,15 @@ class GroupSummary(RunnableSummary):
         return Status.PASS
 
     @memoized_property
-    def failing_configurations(self):
-
-        # Group all tasks by configurations
-        confs = itertools.groupby(self.tasks, lambda t: t.configuration)
-
-        # List configurations where some tasks are failing
-        return [name for name, tasks in confs if any(t.failed for t in tasks)]
+    def failing_tasks(self):
+        # List all tasks with some test results failing for that group
+        return [
+            task
+            for task in self.tasks
+            if any(
+                not result.ok and result.group == self.name for result in task.results
+            )
+        ]
 
     @memoized_property
     def is_cross_config_failure(self):

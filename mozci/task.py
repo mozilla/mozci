@@ -433,10 +433,10 @@ class GroupSummary(RunnableSummary):
         nb_passed = sum(states)  # Number of True booleans in the states list
         nb_failed = nb - nb_passed
 
-        # Given that a group is NOT a cross config failure
-        # when all tasks passed OR failed, we can explicitly
-        # write the decision by its opposite
-        return not (nb_passed == nb or nb_failed == nb)
+        # A group is a cross config failure when
+        # - some (not all) tasks have failed
+        # - AND some (not all) tasks have succeeded
+        return nb_passed != nb and nb_failed != nb
 
 
 @dataclass

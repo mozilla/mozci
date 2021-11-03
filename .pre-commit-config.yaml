@@ -64,6 +64,7 @@ repos:
         additional_dependencies:
           - types-PyYAML==5.4.0
           - types-requests==0.1.11
+          - types-tabulate==0.8.3
   - repo: meta
     hooks:
       - id: check-useless-excludes

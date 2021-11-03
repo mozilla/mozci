@@ -8,6 +8,9 @@ from mozci.errors import ArtifactNotFound, TaskNotFound
 from mozci.task import GroupResult, GroupSummary, Task
 from mozci.util.taskcluster import get_artifact_url, get_index_url
 
+GR_2 = GroupResult(group="group2", ok=True)
+GR_3 = GroupResult(group="group2", ok=True)
+
 
 class FakePush:
     def __init__(self, branch, rev):
@@ -237,3 +240,58 @@ def test_results_for_incomplete_task(responses):
     assert task.results == [
         GroupResult(group="layout/base/tests/browser.ini", ok=True),
     ]
+
+
+@pytest.mark.parametrize(
+    "group_summary, expected_result",
+    [
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=i,
+                        label=f"test-task{i}",
+                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                    )
+                    for i in range(1, 11)
+                ],
+            ),
+            False,
+        ),  # All related tasks failed
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=i,
+                        label=f"test-task{i}",
+                        _results=[
+                            GroupResult(group="group1", ok=False if i % 2 else True),
+                            GR_2,
+                            GR_3,
+                        ],
+                    )
+                    for i in range(1, 11)
+                ],
+            ),
+            True,
+        ),  # Related tasks both failed and passed
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=i,
+                        label=f"test-task{i}",
+                        _results=[GroupResult(group="group1", ok=True), GR_2, GR_3],
+                    )
+                    for i in range(1, 11)
+                ],
+            ),
+            False,
+        ),  # All related tasks passed
+    ],
+)
+def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
+    assert group_summary.is_cross_config_failure == expected_result

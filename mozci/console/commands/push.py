@@ -11,6 +11,7 @@ class PushTasksCommand(Command):
     List the tasks that ran on a push.
 
     tasks
+        {branch : Branch the push belongs to (e.g autoland, try, etc).}
     """
 
     def handle(self):
@@ -23,16 +24,32 @@ class PushTasksCommand(Command):
         self.line(tabulate(table, headers=["Label", "Result"]))
 
 
+class ClassifyCommand(Command):
+    """
+    Display the classification for a given push as GOOD, BAD or UNKNOWN.
+
+    classify
+        {branch=mozilla-central : Branch the push belongs to (e.g autoland, try, etc).}
+    """
+
+    def handle(self):
+        push = Push(self.argument("rev"), self.argument("branch"))
+        classification = push.classify()
+        self.line(
+            f'Push associated with the head revision {self.argument("rev")} on the branch '
+            f'{self.argument("branch")} is classified as {classification.name}'
+        )
+
+
 class PushCommands(Command):
     """
     Contains commands that operate on a single push.
 
     push
-        {branch : Branch the push belongs to (e.g autoland, try, etc).}
         {rev : Head revision of the push.}
     """
 
-    commands = [PushTasksCommand()]
+    commands = [PushTasksCommand(), ClassifyCommand()]
 
     def handle(self):
         return self.call("help", self._config.name)

@@ -59,15 +59,27 @@ tasks:
         features:
           dind: true
         maxRunTime: 3600
-        image: docker:19.03
+        image: mozilla/taskboot:0.2.2
+        env:
+          GIT_REPOSITORY: ${repository}
+          GIT_REVISION: ${head_rev}
         command:
-          - "/bin/sh"
-          - "-lcx"
-          - "apk add git &&
-            git clone --quiet ${repository} &&
-            cd mozci &&
-            git -c advice.detachedHead=false checkout ${head_rev} &&
-            docker build . -t mozilla/mozci"
+          - taskboot
+          - build
+          - --build-tool
+          - dind
+          - --image
+          - mozilla/mozci
+          - --tag
+          - "${head_rev}"
+          - --write
+          - /mozci.tar
+          - Dockerfile
+        artifacts:
+          public/mozci.tar:
+            expires: { $fromNow: "1 month" }
+            path: /mozci.tar
+            type: file
       metadata:
         name: mozci docker build
         description: mozci docker build

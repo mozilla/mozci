@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import json
+import os
 
 from cleo import Command
 from tabulate import tabulate
@@ -30,15 +32,77 @@ class ClassifyCommand(Command):
 
     classify
         {branch=mozilla-central : Branch the push belongs to (e.g autoland, try, etc).}
+        {--medium-confidence=0.8 : Medium confidence threshold used to classify the regressions.}
+        {--high-confidence=0.9 : High confidence threshold used to classify the regressions.}
+        {--output= : Path towards a directory to save a JSON file containing classification and regressions details in.}
     """
 
     def handle(self):
+        try:
+            medium_conf = float(self.option("medium-confidence"))
+        except ValueError:
+            self.line("<error>Provided --medium-confidence should be a float.</error>")
+            return
+        try:
+            high_conf = float(self.option("high-confidence"))
+        except ValueError:
+            self.line("<error>Provided --high-confidence should be a float.</error>")
+            return
+
+        output = self.option("output")
+        if output and not os.path.isdir(output):
+            os.makedirs(output)
+            self.line(
+                "<comment>Provided --output pointed to a inexistent directory that is now created.</comment>"
+            )
+
         push = Push(self.argument("rev"), self.argument("branch"))
-        classification = push.classify()
+        classification, regressions = push.classify(
+            confidence_medium=medium_conf, confidence_high=high_conf
+        )
         self.line(
             f'Push associated with the head revision {self.argument("rev")} on the branch '
             f'{self.argument("branch")} is classified as {classification.name}'
         )
+
+        if output:
+            to_save = {
+                "push": {
+                    "id": push.push_uuid,
+                    "classification": classification.name,
+                },
+                "failures": {
+                    "real": {
+                        group: [
+                            {"task_id": task.id, "label": task.label}
+                            for task in failing_tasks
+                        ]
+                        for group, failing_tasks in regressions.real.items()
+                    },
+                    "intermittent": {
+                        group: [
+                            {"task_id": task.id, "label": task.label}
+                            for task in failing_tasks
+                        ]
+                        for group, failing_tasks in regressions.intermittent.items()
+                    },
+                    "unknown": {
+                        group: [
+                            {"task_id": task.id, "label": task.label}
+                            for task in failing_tasks
+                        ]
+                        for group, failing_tasks in regressions.unknown.items()
+                    },
+                },
+            }
+
+            filename = f"{output}/classify_output_{self.argument('branch')}_{self.argument('rev')}.json"
+            with open(filename, "w") as file:
+                json.dump(to_save, file, indent=2)
+
+            self.line(
+                f"Classification and regressions details were saved in {filename} JSON file"
+            )
 
 
 class PushCommands(Command):

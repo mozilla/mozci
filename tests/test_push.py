@@ -887,7 +887,7 @@ def test_classify(monkeypatch, classify_regressions_return_value, expected_resul
         return classify_regressions_return_value
 
     monkeypatch.setattr(Push, "classify_regressions", mock_return)
-    assert push.classify() == expected_result
+    assert push.classify()[0] == expected_result
 
 
 def generate_mocks(
@@ -963,18 +963,20 @@ def test_classify_almost_good_push(monkeypatch, test_selection_data, are_cross_c
         are_cross_config,
     )
 
-    assert push.classify_regressions() == Regressions(
-        real={},
-        intermittent={},
-        unknown={
-            "group1": make_tasks("group1"),
-            "group2": make_tasks("group2"),
-            "group3": make_tasks("group3"),
-            "group4": make_tasks("group4"),
-            "group5": make_tasks("group5"),
-        },
+    assert push.classify() == (
+        PushStatus.UNKNOWN,
+        Regressions(
+            real={},
+            intermittent={},
+            unknown={
+                "group1": make_tasks("group1"),
+                "group2": make_tasks("group2"),
+                "group3": make_tasks("group3"),
+                "group4": make_tasks("group4"),
+                "group5": make_tasks("group5"),
+            },
+        ),
     )
-    assert push.classify() == PushStatus.UNKNOWN
 
 
 def test_classify_good_push_only_intermittent_failures(monkeypatch):
@@ -993,20 +995,22 @@ def test_classify_good_push_only_intermittent_failures(monkeypatch):
         are_cross_config,
     )
 
-    assert push.classify_regressions() == Regressions(
-        real={},
-        # All groups aren't cross config failures and were either selected by bugbug
-        # with low confidence or not at all (no confidence)
-        intermittent={
-            "group1": make_tasks("group1"),
-            "group2": make_tasks("group2"),
-            "group3": make_tasks("group3"),
-            "group4": make_tasks("group4"),
-            "group5": make_tasks("group5"),
-        },
-        unknown={},
+    assert push.classify() == (
+        PushStatus.GOOD,
+        Regressions(
+            real={},
+            # All groups aren't cross config failures and were either selected by bugbug
+            # with low confidence or not at all (no confidence)
+            intermittent={
+                "group1": make_tasks("group1"),
+                "group2": make_tasks("group2"),
+                "group3": make_tasks("group3"),
+                "group4": make_tasks("group4"),
+                "group5": make_tasks("group5"),
+            },
+            unknown={},
+        ),
     )
-    assert push.classify() == PushStatus.GOOD
 
 
 @pytest.mark.parametrize(
@@ -1062,18 +1066,20 @@ def test_classify_almost_bad_push(
         are_cross_config,
     )
 
-    assert push.classify_regressions() == Regressions(
-        real={},
-        intermittent={},
-        unknown={
-            "group1": make_tasks("group1"),
-            "group2": make_tasks("group2"),
-            "group3": make_tasks("group3"),
-            "group4": make_tasks("group4"),
-            "group5": make_tasks("group5"),
-        },
+    assert push.classify() == (
+        PushStatus.UNKNOWN,
+        Regressions(
+            real={},
+            intermittent={},
+            unknown={
+                "group1": make_tasks("group1"),
+                "group2": make_tasks("group2"),
+                "group3": make_tasks("group3"),
+                "group4": make_tasks("group4"),
+                "group5": make_tasks("group5"),
+            },
+        ),
     )
-    assert push.classify() == PushStatus.UNKNOWN
 
 
 def test_classify_bad_push_some_real_failures(monkeypatch):
@@ -1094,14 +1100,16 @@ def test_classify_bad_push_some_real_failures(monkeypatch):
         are_cross_config,
     )
 
-    assert push.classify_regressions() == Regressions(
-        # group1 & group3 were both selected by bugbug with high confidence, likely to regress
-        # and are cross config failures
-        real={"group1": make_tasks("group1"), "group3": make_tasks("group3")},
-        # group4 isn't a cross config failure and was not selected by bugbug (no confidence)
-        intermittent={"group4": make_tasks("group4")},
-        # group2 isn't a cross config failure but was selected with high confidence by bugbug
-        # group5 is a cross config failure but was not selected by bugbug nor likely to regress
-        unknown={"group2": make_tasks("group2"), "group5": make_tasks("group5")},
+    assert push.classify() == (
+        PushStatus.BAD,
+        Regressions(
+            # group1 & group3 were both selected by bugbug with high confidence, likely to regress
+            # and are cross config failures
+            real={"group1": make_tasks("group1"), "group3": make_tasks("group3")},
+            # group4 isn't a cross config failure and was not selected by bugbug (no confidence)
+            intermittent={"group4": make_tasks("group4")},
+            # group2 isn't a cross config failure but was selected with high confidence by bugbug
+            # group5 is a cross config failure but was not selected by bugbug nor likely to regress
+            unknown={"group2": make_tasks("group2"), "group5": make_tasks("group5")},
+        ),
     )
-    assert push.classify() == PushStatus.BAD

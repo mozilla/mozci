@@ -1085,11 +1085,8 @@ class Push:
         )
 
     def classify(
-        self,
-        confidence_medium: float = 0.8,
-        confidence_high: float = 0.9,
-        output_regressions: bool = False,
-    ) -> Tuple[PushStatus, Optional[Regressions]]:
+        self, confidence_medium: float = 0.8, confidence_high: float = 0.9
+    ) -> Tuple[PushStatus, Regressions]:
         """
         Classify the overall push state using its group tasks states
         from classify_regressions:
@@ -1101,14 +1098,14 @@ class Push:
 
         # If there are any real failures, it's a bad push
         if len(regressions.real) > 0:
-            return PushStatus.BAD, regressions if output_regressions else None
+            return PushStatus.BAD, regressions
 
         # If all failures are intermittent, it's a good push
         if len(regressions.unknown) == 0 and len(regressions.intermittent) >= 0:
-            return PushStatus.GOOD, regressions if output_regressions else None
+            return PushStatus.GOOD, regressions
 
         # Fallback to unknown
-        return PushStatus.UNKNOWN, regressions if output_regressions else None
+        return PushStatus.UNKNOWN, regressions
 
     @memoize
     def get_shadow_scheduler_tasks(self, name: str) -> List[dict]:

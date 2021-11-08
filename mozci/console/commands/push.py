@@ -51,16 +51,14 @@ class ClassifyCommand(Command):
 
         output = self.option("output")
         if output and not os.path.isdir(output):
+            os.makedirs(output)
             self.line(
-                "<error>Provided --output should be a valid path towards a writable directory.</error>"
+                "<comment>Provided --output pointed to a inexistent directory that is now created.</comment>"
             )
-            return
 
         push = Push(self.argument("rev"), self.argument("branch"))
         classification, regressions = push.classify(
-            confidence_medium=medium_conf,
-            confidence_high=high_conf,
-            output_regressions=True if output else False,
+            confidence_medium=medium_conf, confidence_high=high_conf
         )
         self.line(
             f'Push associated with the head revision {self.argument("rev")} on the branch '

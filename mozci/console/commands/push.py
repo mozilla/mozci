@@ -96,7 +96,7 @@ class ClassifyCommand(Command):
                 },
             }
 
-            filename = f"{output}/classify_output.json"
+            filename = f"{output}/classify_output_{self.argument('branch')}_{self.argument('rev')}.json"
             with open(filename, "w") as file:
                 json.dump(to_save, file, indent=2)
 

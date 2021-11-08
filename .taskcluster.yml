@@ -59,7 +59,7 @@ tasks:
         features:
           dind: true
         maxRunTime: 3600
-        image: docker:20.10
+        image: docker:19.03
         command:
           - "/bin/sh"
           - "-lcx"

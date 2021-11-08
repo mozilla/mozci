@@ -51,8 +51,8 @@ tasks:
     - taskId: { $eval: as_slugid("docker_build") }
       created: { $fromNow: "" }
       deadline: { $fromNow: "1 hour" }
-      dependencies:
-        - { $eval: as_slugid("tests_task") }
+      #dependencies:
+      #  - { $eval: as_slugid("tests_task") }
       provisionerId: proj-relman
       workerType: ci
       payload:
@@ -61,7 +61,7 @@ tasks:
         maxRunTime: 3600
         image: docker:20.10
         command:
-          - "/bin/bash"
+          - "/bin/sh"
           - "-lcx"
           - "apk add git &&
             git clone --quiet ${repository} &&

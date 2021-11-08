@@ -18,7 +18,7 @@ loguru = "~0"
 cachy = "~0"
 tomlkit = "~0"
 boto3 = {version = "~1", optional = true}
-zstandard = {version = "~0", optional = true}
+zstandard = {version = "~0"}
 python3-memcached = {version = "~1", optional = true}
 redis = {version = "~3", optional = true}
 requests = "~2"

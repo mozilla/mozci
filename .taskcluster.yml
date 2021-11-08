@@ -47,3 +47,29 @@ tasks:
         description: mozci linting and tests
         owner: mcastelluccio@mozilla.com
         source: ${repository}/raw/${head_rev}/.taskcluster.yml
+
+    - taskId: { $eval: as_slugid("docker_build") }
+      created: { $fromNow: "" }
+      deadline: { $fromNow: "1 hour" }
+      dependencies:
+        - { $eval: as_slugid("tests_task") }
+      provisionerId: proj-relman
+      workerType: ci
+      payload:
+        features:
+          dind: true
+        maxRunTime: 3600
+        image: docker:20.10
+        command:
+          - "/bin/bash"
+          - "-lcx"
+          - "apk add git &&
+            git clone --quiet ${repository} &&
+            cd mozci &&
+            git -c advice.detachedHead=false checkout ${head_rev} &&
+            docker build . -t mozilla/mozci"
+      metadata:
+        name: mozci docker build
+        description: mozci docker build
+        owner: mcastelluccio@mozilla.com
+        source: ${repository}/raw/${head_rev}/.taskcluster.yml

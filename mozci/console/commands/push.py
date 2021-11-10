@@ -40,6 +40,7 @@ class ClassifyCommand(Command):
         {--medium-confidence=0.8 : Medium confidence threshold used to classify the regressions.}
         {--high-confidence=0.9 : High confidence threshold used to classify the regressions.}
         {--output= : Path towards a directory to save a JSON file containing classification and regressions details in.}
+        {--show-intermittents : If set, print tasks that should be marked as intermittent.}
     """
 
     def handle(self):
@@ -114,6 +115,15 @@ class ClassifyCommand(Command):
                     f"<error>Couldn't classify push {push.push_uuid}: {e}.</error>"
                 )
                 continue
+
+            if self.option("show-intermittents"):
+                self.line("-" * 50)
+                self.line(
+                    "Printing tasks that should be marked as intermittent failures:"
+                )
+                for task in regressions.intermittent:
+                    self.line(task)
+                self.line("-" * 50)
 
             if output:
                 to_save = {

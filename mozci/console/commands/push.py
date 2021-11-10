@@ -44,37 +44,43 @@ class ClassifyCommand(Command):
 
     def handle(self):
         branch = self.argument("branch")
+        from_date = self.option("from-date")
+        to_date = self.option("to-date")
 
-        if not self.option("rev"):
-            from_date = self.option("from-date")
-            to_date = self.option("to-date")
+        if not (bool(self.option("rev")) ^ bool(from_date or to_date)):
+            self.line(
+                "<error>You must either provide a single push revision with --rev or define --from-date AND --to-date options to classify a range of pushes.</error>"
+            )
+            return
+
+        if self.option("rev"):
+            pushes = [Push(self.option("rev"), branch)]
+        else:
             if not from_date or not to_date:
                 self.line(
-                    "<error>You must either provide a single push revision with --rev or define --from-date AND --to-date options to classify a range of pushes.</error>"
+                    "<error>You must provide --from-date AND --to-date options to classify a range of pushes.</error>"
                 )
                 return
-            else:
-                try:
-                    datetime.datetime.strptime(from_date, "%Y-%m-%d")
-                except ValueError:
-                    self.line(
-                        "<error>Provided --from-date should be a date in yyyy-mm-dd format.</error>"
-                    )
-                    return
 
-                try:
-                    datetime.datetime.strptime(to_date, "%Y-%m-%d")
-                except ValueError:
-                    self.line(
-                        "<error>Provided --to-date should be a date in yyyy-mm-dd format.</error>"
-                    )
-                    return
+            try:
+                datetime.datetime.strptime(from_date, "%Y-%m-%d")
+            except ValueError:
+                self.line(
+                    "<error>Provided --from-date should be a date in yyyy-mm-dd format.</error>"
+                )
+                return
+
+            try:
+                datetime.datetime.strptime(to_date, "%Y-%m-%d")
+            except ValueError:
+                self.line(
+                    "<error>Provided --to-date should be a date in yyyy-mm-dd format.</error>"
+                )
+                return
 
             pushes = make_push_objects(
                 from_date=from_date, to_date=to_date, branch=branch
             )
-        else:
-            pushes = [Push(self.option("rev"), branch)]
 
         try:
             medium_conf = float(self.option("medium-confidence"))

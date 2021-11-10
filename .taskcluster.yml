@@ -59,7 +59,7 @@ tasks:
         features:
           dind: true
         maxRunTime: 3600
-        image: mozilla/taskboot:0.2.2
+        image: mozilla/taskboot:0.3.3
         env:
           GIT_REPOSITORY: ${repository}
           GIT_REVISION: ${head_rev}
@@ -76,9 +76,9 @@ tasks:
           - /mozci.tar
           - Dockerfile
         artifacts:
-          public/mozci.tar:
+          public/mozci.tar.zst:
             expires: { $fromNow: "1 month" }
-            path: /mozci.tar
+            path: /mozci.tar.zst
             type: file
       routes:
         $if: 'tasks_for == "github-pull-request"'
@@ -107,7 +107,7 @@ tasks:
         maxRunTime: 3600
         image:
           type: task-image
-          path: public/mozci.tar
+          path: public/mozci.tar.zst
           taskId: { $eval: as_slugid("docker_build") }
         env:
           GIT_REPOSITORY: ${repository}

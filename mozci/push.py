@@ -1200,7 +1200,11 @@ def make_push_objects(**kwargs):
     pushes = []
 
     for push_data in pushes_data:
-        cur = Push(push_data["revs"])
+        extra = {}
+        if "branch" in kwargs:
+            extra = {"branch": kwargs["branch"]}
+
+        cur = Push(push_data["revs"], **extra)
 
         # avoids the need to query hgmo to find this info
         cur._id = push_data["pushid"]

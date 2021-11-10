@@ -84,10 +84,10 @@ tasks:
         $if: 'tasks_for == "github-pull-request"'
         then:
           - "index.project.mozci.docker-pr.revision.${head_rev}"
-          - "index.project.mozci.docker-pr.revision.${head_branch}"
+          - "index.project.mozci.docker-pr.branch.${head_branch}"
         else:
           - "index.project.mozci.docker.revision.${head_rev}"
-          - "index.project.mozci.docker.revision.${head_branch}"
+          - "index.project.mozci.docker.branch.${head_branch}"
       metadata:
         name: mozci docker build
         description: mozci docker build

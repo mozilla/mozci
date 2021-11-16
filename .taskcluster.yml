@@ -47,3 +47,75 @@ tasks:
         description: mozci linting and tests
         owner: mcastelluccio@mozilla.com
         source: ${repository}/raw/${head_rev}/.taskcluster.yml
+
+    - taskId: { $eval: as_slugid("docker_build") }
+      created: { $fromNow: "" }
+      deadline: { $fromNow: "1 hour" }
+      dependencies:
+        - { $eval: as_slugid("tests_task") }
+      provisionerId: proj-relman
+      workerType: ci
+      payload:
+        features:
+          dind: true
+        maxRunTime: 3600
+        image: mozilla/taskboot:0.3.3
+        env:
+          GIT_REPOSITORY: ${repository}
+          GIT_REVISION: ${head_rev}
+        command:
+          - taskboot
+          - build
+          - --build-tool
+          - dind
+          - --image
+          - mozilla/mozci
+          - --tag
+          - "${head_rev}"
+          - --write
+          - /mozci.tar
+          - Dockerfile
+        artifacts:
+          public/mozci.tar.zst:
+            expires: { $fromNow: "1 month" }
+            path: /mozci.tar.zst
+            type: file
+      routes:
+        $if: 'tasks_for == "github-pull-request"'
+        then:
+          - "index.project.mozci.docker-pr.revision.${head_rev}"
+          - "index.project.mozci.docker-pr.branch.${head_branch}"
+        else:
+          - "index.project.mozci.docker.revision.${head_rev}"
+          - "index.project.mozci.docker.branch.${head_branch}"
+      metadata:
+        name: mozci docker build
+        description: mozci docker build
+        owner: mcastelluccio@mozilla.com
+        source: ${repository}/raw/${head_rev}/.taskcluster.yml
+
+    - taskId: { $eval: as_slugid("docker_test") }
+      created: { $fromNow: "" }
+      deadline: { $fromNow: "1 hour" }
+      dependencies:
+        - { $eval: as_slugid("docker_build") }
+      provisionerId: proj-relman
+      workerType: ci
+      payload:
+        features:
+          dind: true
+        maxRunTime: 3600
+        image:
+          type: task-image
+          path: public/mozci.tar.zst
+          taskId: { $eval: as_slugid("docker_build") }
+        env:
+          GIT_REPOSITORY: ${repository}
+          GIT_REVISION: ${head_rev}
+        command:
+          - help
+      metadata:
+        name: mozci docker test
+        description: mozci docker test
+        owner: mcastelluccio@mozilla.com
+        source: ${repository}/raw/${head_rev}/.taskcluster.yml

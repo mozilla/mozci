@@ -6,6 +6,7 @@ from typing import Tuple, Union
 
 import validx as v
 
+from mozci.push import Push
 from mozci.task import TestTask
 
 
@@ -165,6 +166,16 @@ _contracts: Tuple[Contract, ...] = (
                 ),
             }
         ),
+    ),
+    Contract(
+        name="pushes",
+        description="List available pushes",
+        validate_in=v.Dict(
+            {
+                "branch": v.Str(),
+            }
+        ),
+        validate_out=v.List(v.Type(Push)),
     ),
 )
 

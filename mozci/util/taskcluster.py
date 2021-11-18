@@ -3,6 +3,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import os
+
 import taskcluster
 import taskcluster_urls as liburls
 
@@ -92,3 +94,17 @@ def get_tasks_in_group(group_id):
     queue.listTaskGroup(group_id, paginationHandler=_save_tasks)
 
     return tasks
+
+
+def get_proxy_queue():
+    """Configure taskcluster queue through internal proxy"""
+
+    root_url = os.environ.get("TASKCLUSTER_PROXY_URL")
+    if not root_url:
+        raise Exception("Missing taskcluster proxy")
+    root_url = 'https://community-tc.services.mozilla.com'
+    return taskcluster.Queue(
+        {
+            "rootUrl": root_url,
+        }
+    )

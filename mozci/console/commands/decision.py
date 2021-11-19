@@ -91,8 +91,22 @@ class DecisionCommand(Command):
                     "classify",
                     push.branch,
                     f"--rev={push.rev}",
+                    "--output=/tmp",
                 ],
+                "artifacts": {
+                    "public/classification.json": {
+                        "expires": taskcluster.stringDate(
+                            taskcluster.fromNow("3 months")
+                        ),
+                        "path": f"/tmp/classify_output_{push.branch}_{push.rev}.json",
+                        "type": "file",
+                    }
+                },
             },
+            "routes": [
+                f"project.mozci.classification.{push.branch}.revision.{push.rev}",
+                f"project.mozci.classification.{push.branch}.push.{push.id}",
+            ],
             "provisionerId": self.current_task["provisionerId"],
             "workerType": self.current_task["workerType"],
         }

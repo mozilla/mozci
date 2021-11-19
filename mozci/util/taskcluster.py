@@ -102,7 +102,6 @@ def get_proxy_queue():
     root_url = os.environ.get("TASKCLUSTER_PROXY_URL")
     if not root_url:
         raise Exception("Missing taskcluster proxy")
-    root_url = 'https://community-tc.services.mozilla.com'
     return taskcluster.Queue(
         {
             "rootUrl": root_url,

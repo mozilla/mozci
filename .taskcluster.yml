@@ -108,7 +108,6 @@ tasks:
       payload:
         features:
           dind: true
-          taskclusterProxy: true
         maxRunTime: 3600
         image:
           type: task-image
@@ -118,8 +117,7 @@ tasks:
           GIT_REPOSITORY: ${repository}
           GIT_REVISION: ${head_rev}
         command:
-          # TODO: restore to help
-          - decision
+          - help
       metadata:
         name: mozci docker test
         description: mozci docker test

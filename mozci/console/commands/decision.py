@@ -37,9 +37,6 @@ class DecisionCommand(Command):
 
         for push in pushes:
 
-            # TODO: detect if a classification is already available
-            # and can be skipped
-
             if dry_run:
                 self.line(f"Would classify {push.branch}@{push.rev}")
                 continue
@@ -72,6 +69,7 @@ class DecisionCommand(Command):
         """
         task_id = taskcluster.slugId()
         task = {
+            "taskGroupId": self.current_task["taskGroupId"],
             "created": taskcluster.stringDate(datetime.utcnow()),
             "deadline": taskcluster.stringDate(taskcluster.fromNow("1 hour")),
             "dependencies": [

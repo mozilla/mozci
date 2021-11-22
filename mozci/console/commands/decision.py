@@ -6,8 +6,7 @@ from datetime import datetime
 import taskcluster
 from cleo import Command
 
-from mozci import data
-from mozci.push import Push
+from mozci.push import Push, make_push_objects
 from mozci.util.memoize import memoized_property
 from mozci.util.taskcluster import get_proxy_queue
 
@@ -18,24 +17,21 @@ class DecisionCommand(Command):
 
     decision
         {branch=mozilla-central : Branch the push belongs to (e.g autoland, try, etc).}
+        {--nb-pushes=15 : Do not create tasks on taskcluster, simply output actions.}
         {--dry-run : Do not create tasks on taskcluster, simply output actions.}
     """
 
     def handle(self):
         branch = self.argument("branch")
         dry_run = self.option("dry-run")
+        nb_pushes = int(self.option("nb-pushes"))
 
         self.queue = not dry_run and get_proxy_queue() or None
 
         self.line(f"Process pushes from {branch}")
 
-        # List pushes
-        pushes = data.handler.get(
-            "pushes",
-            branch=branch,
-        )
-
-        for push in pushes:
+        # List most recent pushes
+        for push in make_push_objects(nb=nb_pushes, branch=branch):
 
             if dry_run:
                 self.line(f"Would classify {push.branch}@{push.rev}")

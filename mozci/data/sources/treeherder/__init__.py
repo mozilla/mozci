@@ -11,7 +11,6 @@ from lru import LRU
 
 from mozci.data.base import DataSource
 from mozci.errors import ContractNotFilled
-from mozci.push import Push as MozCiPush
 from mozci.util.memoize import memoized_property
 from mozci.util.req import get_session
 
@@ -87,10 +86,15 @@ class TreeherderClientSource(BaseTreeherderSource):
         data = self._run_query(f"/project/{branch}/push/group_results/?revision={rev}")
         return {k: v for k, v in data.items() if v if k not in ("", "default")}
 
-    def run_pushes(self, branch) -> List[MozCiPush]:
+    def run_pushes(self, branch, nb=15) -> List[Dict]:
+        response = self._run_query(f"/project/{branch}/push/?count={nb}")
         return [
-            MozCiPush(p["revision"], branch)
-            for p in self._run_query(f"/project/{branch}/push/")["results"]
+            {
+                "pushid": p["id"],
+                "date": p["push_timestamp"],
+                "revs": [r["revision"] for r in p["revisions"]],
+            }
+            for p in response["results"]
         ]
 
 

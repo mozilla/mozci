@@ -1193,7 +1193,16 @@ class Push:
 
 def make_push_objects(**kwargs):
     try:
-        pushes_data = data.handler.get("push_revisions", **kwargs)
+        if "from_date" in kwargs and "to_date" in kwargs:
+            # Load by date range
+            pushes_data = data.handler.get("push_revisions", **kwargs)
+        elif "nb" in kwargs:
+            # Load latest pushes
+            pushes_data = data.handler.get("pushes", **kwargs)
+        else:
+            raise Exception(
+                "Unsupported parameters (either from_date and to_date or nb are required"
+            )
     except MissingDataError:
         return []
 

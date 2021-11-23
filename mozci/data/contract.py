@@ -166,6 +166,25 @@ _contracts: Tuple[Contract, ...] = (
             }
         ),
     ),
+    Contract(
+        name="pushes",
+        description="List available pushes",
+        validate_in=v.Dict(
+            {
+                "branch": v.Str(),
+                "nb": v.Int(),
+            }
+        ),
+        validate_out=v.List(
+            v.Dict(
+                {
+                    "pushid": v.Int(),
+                    "date": v.Int(),
+                    "revs": v.List(v.Str()),
+                }
+            )
+        ),
+    ),
 )
 
 

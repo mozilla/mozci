@@ -48,7 +48,7 @@ class TreeherderClientSource(BaseTreeherderSource):
     """Uses the public API to query Treeherder."""
 
     name = "treeherder_client"
-    supported_contracts = ("push_tasks_classifications", "test_task_groups")
+    supported_contracts = ("push_tasks_classifications", "test_task_groups", "pushes")
     base_url = "https://treeherder.mozilla.org/api"
 
     @memoized_property
@@ -59,7 +59,7 @@ class TreeherderClientSource(BaseTreeherderSource):
 
     @lru_cache(maxsize=50)
     def _run_query(self, query, params=None):
-        query = query.strip("/")
+        query = query.lstrip("/")
         url = f"{self.base_url}/{query}"
 
         params = params or {}
@@ -85,6 +85,17 @@ class TreeherderClientSource(BaseTreeherderSource):
     def get_push_test_groups(self, branch, rev) -> Dict[str, List[str]]:
         data = self._run_query(f"/project/{branch}/push/group_results/?revision={rev}")
         return {k: v for k, v in data.items() if v if k not in ("", "default")}
+
+    def run_pushes(self, branch, nb=15) -> List[Dict]:
+        response = self._run_query(f"/project/{branch}/push/?count={nb}")
+        return [
+            {
+                "pushid": p["id"],
+                "date": p["push_timestamp"],
+                "revs": [r["revision"] for r in p["revisions"]],
+            }
+            for p in response["results"]
+        ]
 
 
 class TreeherderDBSource(BaseTreeherderSource):

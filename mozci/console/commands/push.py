@@ -6,7 +6,8 @@ import os
 from cleo import Command
 from tabulate import tabulate
 
-from mozci.push import Push, make_push_objects
+from mozci.push import Push, PushStatus, make_push_objects
+from mozci.task import Task
 
 
 class PushTasksCommand(Command):
@@ -175,6 +176,9 @@ class ClassifyEvalCommand(Command):
         {--rev= : Head revision of the push.}
         {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format).}
         {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format).}
+        {--medium-confidence=0.8 : If recalculate parameter is set, medium confidence threshold used to classify the regressions.}
+        {--high-confidence=0.9 : If recalculate parameter is set, high confidence threshold used to classify the regressions.}
+        {--recalculate : If set, recalculate the classification instead of fetching an artifact.}
     """
 
     def handle(self):
@@ -187,19 +191,79 @@ class ClassifyEvalCommand(Command):
             self.line(f"<error>{error}</error>")
             return
 
-        backedout_pushes = []
-        non_backedout_pushes = []
+        if self.option("recalculate"):
+            try:
+                medium_conf = float(self.option("medium-confidence"))
+            except ValueError:
+                self.line(
+                    "<error>Provided --medium-confidence should be a float.</error>"
+                )
+                return
+            try:
+                high_conf = float(self.option("high-confidence"))
+            except ValueError:
+                self.line(
+                    "<error>Provided --high-confidence should be a float.</error>"
+                )
+                return
+
+        classification_failed = []
+        bad_backedout_pushes = []
+        bad_non_backedout_pushes = []
+        good_backedout_pushes = []
+        good_non_backedout_pushes = []
+        unknown_pushes = []
         for push in pushes:
-            if push.backedout:
-                backedout_pushes.append(push)
+            classification = None
+            if self.option("recalculate"):
+                try:
+                    classification, _ = push.classify(
+                        confidence_medium=medium_conf, confidence_high=high_conf
+                    )
+                except Exception:
+                    classification_failed.append(push)
+                    continue
             else:
-                non_backedout_pushes.append(push)
+                try:
+                    index = f"project.mozci.classification.{branch}.push.{push.id}"
+                    task = Task.create(index=index)
+
+                    artifact = task.get_artifact("public/classification.json")
+                    classification = artifact["push"]["classification"]
+                except Exception:
+                    classification_failed.append(push)
+                    continue
+
+            if classification == PushStatus.BAD:
+                if push.backedout:
+                    bad_backedout_pushes.append(push)
+                else:
+                    bad_non_backedout_pushes.append(push)
+            elif classification == PushStatus.GOOD:
+                if push.backedout:
+                    good_backedout_pushes.append(push)
+                else:
+                    good_non_backedout_pushes.append(push)
+            else:
+                unknown_pushes.append(push)
 
         self.line(
-            f"{len(backedout_pushes)} out of {len(pushes)} pushes were backed-out by a sheriff."
+            f"<error>Failed to fetch or recalculate classification for {len(classification_failed)} out of {len(pushes)} pushes.</error>"
         )
         self.line(
-            f"{len(non_backedout_pushes)} out of {len(pushes)} pushes weren't backed-out by a sheriff."
+            f"{len(bad_backedout_pushes)} out of {len(pushes)} pushes were backed-out by a sheriff and were classify as BAD."
+        )
+        self.line(
+            f"{len(bad_non_backedout_pushes)} out of {len(pushes)} pushes weren't backed-out by a sheriff and were classify as BAD."
+        )
+        self.line(
+            f"{len(good_backedout_pushes)} out of {len(pushes)} pushes were backed-out by a sheriff and were classify as GOOD."
+        )
+        self.line(
+            f"{len(good_non_backedout_pushes)} out of {len(pushes)} pushes weren't backed-out by a sheriff and were classify as GOOD."
+        )
+        self.line(
+            f"{len(unknown_pushes)} out of {len(pushes)} pushes were classify as UNKNOWN."
         )
 
 

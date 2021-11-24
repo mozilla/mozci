@@ -28,6 +28,37 @@ class PushTasksCommand(Command):
         self.line(tabulate(table, headers=["Label", "Result"]))
 
 
+def classify_commands_pushes(branch, from_date, to_date, rev):
+    if not (bool(rev) ^ bool(from_date or to_date)):
+        return (
+            [],
+            "You must either provide a single push revision with --rev or define --from-date AND --to-date options to classify a range of pushes.",
+        )
+
+    if rev:
+        pushes = [Push(rev, branch)]
+    else:
+        if not from_date or not to_date:
+            return (
+                [],
+                "You must provide --from-date AND --to-date options to classify a range of pushes.",
+            )
+
+        try:
+            datetime.datetime.strptime(from_date, "%Y-%m-%d")
+        except ValueError:
+            return [], "Provided --from-date should be a date in yyyy-mm-dd format."
+
+        try:
+            datetime.datetime.strptime(to_date, "%Y-%m-%d")
+        except ValueError:
+            return [], "Provided --to-date should be a date in yyyy-mm-dd format."
+
+        pushes = make_push_objects(from_date=from_date, to_date=to_date, branch=branch)
+
+    return pushes, None
+
+
 class ClassifyCommand(Command):
     """
     Display the classification for a given push (or a range of pushes) as GOOD, BAD or UNKNOWN.
@@ -45,43 +76,13 @@ class ClassifyCommand(Command):
 
     def handle(self):
         branch = self.argument("branch")
-        from_date = self.option("from-date")
-        to_date = self.option("to-date")
 
-        if not (bool(self.option("rev")) ^ bool(from_date or to_date)):
-            self.line(
-                "<error>You must either provide a single push revision with --rev or define --from-date AND --to-date options to classify a range of pushes.</error>"
-            )
+        pushes, error = classify_commands_pushes(
+            branch, self.option("from-date"), self.option("to-date"), self.option("rev")
+        )
+        if error:
+            self.line(f"<error>{error}</error>")
             return
-
-        if self.option("rev"):
-            pushes = [Push(self.option("rev"), branch)]
-        else:
-            if not from_date or not to_date:
-                self.line(
-                    "<error>You must provide --from-date AND --to-date options to classify a range of pushes.</error>"
-                )
-                return
-
-            try:
-                datetime.datetime.strptime(from_date, "%Y-%m-%d")
-            except ValueError:
-                self.line(
-                    "<error>Provided --from-date should be a date in yyyy-mm-dd format.</error>"
-                )
-                return
-
-            try:
-                datetime.datetime.strptime(to_date, "%Y-%m-%d")
-            except ValueError:
-                self.line(
-                    "<error>Provided --to-date should be a date in yyyy-mm-dd format.</error>"
-                )
-                return
-
-            pushes = make_push_objects(
-                from_date=from_date, to_date=to_date, branch=branch
-            )
 
         try:
             medium_conf = float(self.option("medium-confidence"))
@@ -165,6 +166,43 @@ class ClassifyCommand(Command):
                 )
 
 
+class ClassifyEvalCommand(Command):
+    """
+    Evaluate the classification results for a given push (or a range of pushes) by comparing them with reality.
+
+    classify-eval
+        {branch=mozilla-central : Branch the push belongs to (e.g autoland, try, etc).}
+        {--rev= : Head revision of the push.}
+        {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format).}
+        {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format).}
+    """
+
+    def handle(self):
+        branch = self.argument("branch")
+
+        pushes, error = classify_commands_pushes(
+            branch, self.option("from-date"), self.option("to-date"), self.option("rev")
+        )
+        if error:
+            self.line(f"<error>{error}</error>")
+            return
+
+        backedout_pushes = []
+        non_backedout_pushes = []
+        for push in pushes:
+            if push.backedout:
+                backedout_pushes.append(push)
+            else:
+                non_backedout_pushes.append(push)
+
+        self.line(
+            f"{len(backedout_pushes)} out of {len(pushes)} pushes were backed-out by a sheriff."
+        )
+        self.line(
+            f"{len(non_backedout_pushes)} out of {len(pushes)} pushes weren't backed-out by a sheriff."
+        )
+
+
 class PushCommands(Command):
     """
     Contains commands that operate on a single push.
@@ -172,7 +210,7 @@ class PushCommands(Command):
     push
     """
 
-    commands = [PushTasksCommand(), ClassifyCommand()]
+    commands = [PushTasksCommand(), ClassifyCommand(), ClassifyEvalCommand()]
 
     def handle(self):
         return self.call("help", self._config.name)

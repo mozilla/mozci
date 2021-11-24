@@ -98,8 +98,8 @@ class DecisionCommand(Command):
                 },
             },
             "routes": [
-                f"project.mozci.classification.{push.branch}.revision.{push.rev}",
-                f"project.mozci.classification.{push.branch}.push.{push.id}",
+                f"index.project.mozci.classification.{push.branch}.revision.{push.rev}",
+                f"index.project.mozci.classification.{push.branch}.push.{push.id}",
             ],
             "provisionerId": self.current_task["provisionerId"],
             "workerType": self.current_task["workerType"],

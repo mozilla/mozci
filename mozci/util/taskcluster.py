@@ -13,6 +13,7 @@ from mozci.util.req import get_session
 
 PRODUCTION_TASKCLUSTER_ROOT_URL = "https://firefox-ci-tc.services.mozilla.com"
 queue = taskcluster.Queue({"rootUrl": PRODUCTION_TASKCLUSTER_ROOT_URL})
+COMMUNITY_TASKCLUSTER_ROOT_URL = "https://community-tc.services.mozilla.com"
 
 
 def _do_request(url, force_get=False, **kwargs):
@@ -37,16 +38,18 @@ def _handle_artifact(path, response):
     return response
 
 
-def get_artifact_url(task_id, path):
+def get_artifact_url(task_id, path, use_community=False):
     return liburls.api(
-        PRODUCTION_TASKCLUSTER_ROOT_URL,
+        PRODUCTION_TASKCLUSTER_ROOT_URL
+        if not use_community
+        else COMMUNITY_TASKCLUSTER_ROOT_URL,
         "queue",
         "v1",
         f"task/{task_id}/artifacts/{path}",
     )
 
 
-def get_artifact(task_id, path):
+def get_artifact(task_id, path, use_community=False):
     """
     Returns the artifact with the given path for the given task id.
 
@@ -55,7 +58,7 @@ def get_artifact(task_id, path):
     dict) is returned.
     For other types of content, a file-like object is returned.
     """
-    response = _do_request(get_artifact_url(task_id, path))
+    response = _do_request(get_artifact_url(task_id, path, use_community=use_community))
 
     return _handle_artifact(path, response)
 
@@ -64,14 +67,19 @@ def list_artifacts(task_id):
     return queue.listLatestArtifacts(task_id)["artifacts"]
 
 
-def get_index_url(index_path):
+def get_index_url(index_path, use_community=False):
     return liburls.api(
-        PRODUCTION_TASKCLUSTER_ROOT_URL, "index", "v1", f"task/{index_path}"
+        PRODUCTION_TASKCLUSTER_ROOT_URL
+        if not use_community
+        else COMMUNITY_TASKCLUSTER_ROOT_URL,
+        "index",
+        "v1",
+        f"task/{index_path}",
     )
 
 
-def find_task_id(index_path, use_proxy=False):
-    response = _do_request(get_index_url(index_path))
+def find_task_id(index_path, use_proxy=False, use_community=False):
+    response = _do_request(get_index_url(index_path, use_community=use_community))
     return response.json()["taskId"]
 
 

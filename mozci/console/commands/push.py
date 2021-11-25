@@ -225,10 +225,12 @@ class ClassifyEvalCommand(Command):
                     continue
             else:
                 try:
-                    index = f"project.mozci.classification.{branch}.push.{push.id}"
-                    task = Task.create(index=index)
+                    index = f"project.mozci.classification.{branch}.revision.{push.rev}"
+                    task = Task.create(index=index, use_community=True)
 
-                    artifact = task.get_artifact("public/classification.json")
+                    artifact = task.get_artifact(
+                        "public/classification.json", use_community=True
+                    )
                     classification = artifact["push"]["classification"]
                 except Exception:
                     classification_failed.append(push)
@@ -247,9 +249,10 @@ class ClassifyEvalCommand(Command):
             else:
                 unknown_pushes.append(push)
 
-        self.line(
-            f"<error>Failed to fetch or recalculate classification for {len(classification_failed)} out of {len(pushes)} pushes.</error>"
-        )
+        if classification_failed:
+            self.line(
+                f"<error>Failed to fetch or recalculate classification for {len(classification_failed)} out of {len(pushes)} pushes.</error>"
+            )
         self.line(
             f"{len(bad_backedout_pushes)} out of {len(pushes)} pushes were backed-out by a sheriff and were classify as BAD."
         )

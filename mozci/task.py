@@ -144,7 +144,7 @@ class Task:
     tier: Optional[int] = field(default=None)
 
     @staticmethod
-    def create(index=None, **kwargs):
+    def create(index=None, use_community=False, **kwargs):
         """Factory method to create a new Task instance.
 
         One of ``index`` or ``id`` must be specified.
@@ -159,7 +159,7 @@ class Task:
         """
         if index and "id" not in kwargs:
             try:
-                kwargs["id"] = find_task_id(index)
+                kwargs["id"] = find_task_id(index, use_community=use_community)
             except requests.exceptions.HTTPError as e:
                 label = kwargs.get("label", "unknown label")
                 raise TaskNotFound(id=index, label=label) from e
@@ -177,7 +177,7 @@ class Task:
         """List the artifacts that were uploaded by this task."""
         return [artifact["name"] for artifact in list_artifacts(self.id)]
 
-    def get_artifact(self, path):
+    def get_artifact(self, path, use_community=False):
         """Downloads and returns the content of an artifact.
 
         Args:
@@ -194,7 +194,7 @@ class Task:
                 artifact does not exist.
         """
         try:
-            data = get_artifact(self.id, path)
+            data = get_artifact(self.id, path, use_community=use_community)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
                 raise ArtifactNotFound(path, self.id, self.label) from e

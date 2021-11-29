@@ -38,18 +38,16 @@ def _handle_artifact(path, response):
     return response
 
 
-def get_artifact_url(task_id, path, use_community=False):
+def get_artifact_url(task_id, path, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
     return liburls.api(
-        PRODUCTION_TASKCLUSTER_ROOT_URL
-        if not use_community
-        else COMMUNITY_TASKCLUSTER_ROOT_URL,
+        root_url,
         "queue",
         "v1",
         f"task/{task_id}/artifacts/{path}",
     )
 
 
-def get_artifact(task_id, path, use_community=False):
+def get_artifact(task_id, path, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
     """
     Returns the artifact with the given path for the given task id.
 
@@ -58,7 +56,7 @@ def get_artifact(task_id, path, use_community=False):
     dict) is returned.
     For other types of content, a file-like object is returned.
     """
-    response = _do_request(get_artifact_url(task_id, path, use_community=use_community))
+    response = _do_request(get_artifact_url(task_id, path, root_url=root_url))
 
     return _handle_artifact(path, response)
 
@@ -67,19 +65,17 @@ def list_artifacts(task_id):
     return queue.listLatestArtifacts(task_id)["artifacts"]
 
 
-def get_index_url(index_path, use_community=False):
+def get_index_url(index_path, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
     return liburls.api(
-        PRODUCTION_TASKCLUSTER_ROOT_URL
-        if not use_community
-        else COMMUNITY_TASKCLUSTER_ROOT_URL,
+        root_url,
         "index",
         "v1",
         f"task/{index_path}",
     )
 
 
-def find_task_id(index_path, use_proxy=False, use_community=False):
-    response = _do_request(get_index_url(index_path, use_community=use_community))
+def find_task_id(index_path, use_proxy=False, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
+    response = _do_request(get_index_url(index_path, root_url=root_url))
     return response.json()["taskId"]
 
 

@@ -157,7 +157,7 @@ class Push:
         Returns:
             bool: True if the push is considered finalized (> 1 day old), else False.
         """
-        yesterday = (datetime.now() - timedelta(days=1)).timestamp() * 1000
+        yesterday = (datetime.now() - timedelta(days=1)).timestamp()
         return self.date < yesterday
 
     def create_push(self, push_id):

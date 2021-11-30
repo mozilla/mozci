@@ -6,6 +6,7 @@ import math
 from argparse import Namespace
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
@@ -148,6 +149,16 @@ class Push:
 
         self._id = self._hgmo.pushid
         return self._id
+
+    @property
+    def is_finalized(self):
+        """The push is finished or not.
+
+        Returns:
+            bool: True if the push is considered finalized (> 1 day old), else False.
+        """
+        yesterday = (datetime.now() - timedelta(days=1)).timestamp() * 1000
+        return self.date < yesterday
 
     def create_push(self, push_id):
         result = HgRev.load_json_push(self.branch, push_id)

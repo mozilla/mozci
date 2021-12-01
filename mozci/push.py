@@ -274,9 +274,10 @@ class Push:
         Returns:
             list: A list of `Task` objects.
         """
-        tasks = config.cache.get(f"{self.push_uuid}/tasks")
-        if tasks is not None:
-            return tasks
+        if self.is_finalized:
+            tasks = config.cache.get(f"{self.push_uuid}/tasks")
+            if tasks is not None:
+                return tasks
 
         logger.debug(f"Retrieving all tasks and groups which run on {self.rev}...")
 
@@ -335,15 +336,16 @@ class Push:
         # Skip tier tasks greater than the tier passed in config
         tasks = [task for task in tasks if not task.tier or task.tier <= config.tier]
 
-        # Now we can cache the results.
-        # cachy's put() overwrites the value in the cache; add() would only add if its empty
-        config.cache.put(
-            f"{self.push_uuid}/tasks",
-            tasks,
-            config["cache"]["retention"],
-        )
+        # Push is supposedly finalized, we can cache the results as tasks should've finish running
+        if self.is_finalized:
+            # cachy's put() overwrites the value in the cache; add() would only add if its empty
+            config.cache.put(
+                f"{self.push_uuid}/tasks",
+                tasks,
+                config["cache"]["retention"],
+            )
 
-        logger.debug(f"Cached all tasks and groups which run on {self.rev}.")
+            logger.debug(f"Cached all tasks and groups which run on {self.rev}.")
 
         return tasks
 

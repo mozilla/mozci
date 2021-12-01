@@ -44,6 +44,11 @@ class ErrorSummarySource(DataSource):
             if line
         )
 
+        def _add_error(task_id, message):
+            if task_id not in self.TASK_ERRORS:
+                self.TASK_ERRORS[task_id] = []
+            self.TASK_ERRORS[task_id].append(message)
+
         for line in lines:
             if line["action"] == "test_groups":
                 groups |= set(line["groups"]) - {"default"}
@@ -55,15 +60,14 @@ class ErrorSummarySource(DataSource):
                     group_results[group] = line["status"]
 
             elif line["action"] == "log":
-                if task_id not in self.TASK_ERRORS:
-                    self.TASK_ERRORS[task_id] = []
-                self.TASK_ERRORS[task_id].append(line["message"])
+                _add_error(task_id, line["message"])
 
         missing_groups = groups - set(group_results)
         if len(missing_groups) > 0:
             logger.error(
                 f"Some groups in {task_id} are missing results: {missing_groups}"
             )
+            _add_error(task_id, f"Missing groups {', '.join(missing_groups)}")
 
         self.TASK_GROUPS[task_id] = {
             group: result == "OK"

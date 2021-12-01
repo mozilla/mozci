@@ -413,12 +413,14 @@ class GroupSummary(RunnableSummary):
     @memoized_property
     def failing_tasks(self):
         # List all tasks with some test results failing for that group
+        # or with misbehaving tasks (early failures or missing results)
         return [
             task
             for task in self.tasks
             if any(
                 not result.ok and result.group == self.name for result in task.results
             )
+            or len(task.errors) > 0
         ]
 
     @memoized_property

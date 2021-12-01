@@ -79,4 +79,4 @@ class ErrorSummarySource(DataSource):
     def run_test_task_errors(self, task):
         if task.id not in self.TASK_ERRORS:
             self._load_errorsummary(task.id)
-        return self.TASK_ERRORS.pop(task.id, {})
+        return self.TASK_ERRORS.pop(task.id, [])

@@ -114,3 +114,6 @@ venv.bak/
 
 # Editor stuff:
 .vim
+
+# Classification results
+classify_output_*.json

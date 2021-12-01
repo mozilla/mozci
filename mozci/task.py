@@ -259,8 +259,10 @@ class TestTask(Task):
                     "test_task_groups", branch=push.branch, rev=push.rev, task=self
                 ).items()
             ]
+            self._errors = data.handler.get("test_task_errors", task=self)
         else:
             self._results = []
+            self._errors = []
 
         # Apply WPT workaround, needed at least until bug 1632546 is fixed.
         if self.is_wpt:

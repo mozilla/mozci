@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import json
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import requests
 from loguru import logger
@@ -16,7 +16,7 @@ class ErrorSummarySource(DataSource):
     supported_contracts = ("test_task_groups", "test_task_errors")
 
     TASK_GROUPS: Dict[str, Any] = LRU(2000)
-    TASK_ERRORS: Dict[str, Any] = LRU(2000)
+    TASK_ERRORS: Dict[str, List] = LRU(2000)
 
     def _load_errorsummary(self, task_id) -> None:
         """Load the task's errorsummary.log.
@@ -44,10 +44,7 @@ class ErrorSummarySource(DataSource):
             if line
         )
 
-        def _add_error(task_id, message):
-            if task_id not in self.TASK_ERRORS:
-                self.TASK_ERRORS[task_id] = []
-            self.TASK_ERRORS[task_id].append(message)
+        self.TASK_ERRORS[task_id] = []
 
         for line in lines:
             if line["action"] == "test_groups":
@@ -60,20 +57,24 @@ class ErrorSummarySource(DataSource):
                     group_results[group] = line["status"]
 
             elif line["action"] == "log":
-                _add_error(task_id, line["message"])
-
-        missing_groups = groups - set(group_results)
-        if len(missing_groups) > 0:
-            logger.error(
-                f"Some groups in {task_id} are missing results: {missing_groups}"
-            )
-            _add_error(task_id, f"Missing groups {', '.join(missing_groups)}")
+                self.TASK_ERRORS[task_id].append(line["message"])
 
         self.TASK_GROUPS[task_id] = {
             group: result == "OK"
             for group, result in group_results.items()
             if result != "SKIP"
         }
+
+        missing_groups = groups - set(group_results)
+        if len(missing_groups) > 0:
+            logger.error(
+                f"Some groups in {task_id} are missing results: {missing_groups}"
+            )
+            for group in missing_groups:
+                self.TASK_GROUPS[task_id][group] = False
+
+        if self.TASK_ERRORS[task_id]:
+            logger.error(f"Errors on {task_id}: {self.TASK_ERRORS[task_id]}")
 
     def run_test_task_groups(self, branch, rev, task):
         if task.id not in self.TASK_GROUPS:

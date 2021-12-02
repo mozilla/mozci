@@ -336,7 +336,7 @@ class Push:
         # Skip tier tasks greater than the tier passed in config
         tasks = [task for task in tasks if not task.tier or task.tier <= config.tier]
 
-        # Push is supposedly finalized, we can cache the results as tasks should've finish running
+        # Push is supposedly finalized, we can cache the results as tasks should've finished running
         if self.is_finalized:
             # cachy's put() overwrites the value in the cache; add() would only add if its empty
             config.cache.put(
@@ -1107,25 +1107,7 @@ class Push:
         - good push: when there are only intermittent failures
         - unknown state: when other tasks are failing
         """
-        cache_path = f"{self.push_uuid}/classify_group_tasks/classified_regressions"
-
-        # Retrieve classified regressions for that push, from cache or by running the algorithm
-        if self.is_finalized:
-            regressions = config.cache.get(cache_path)
-        else:
-            # An unfinalized push shouldn't be associated with any cached classified regressions
-            regressions = None
-
-        if regressions is None:
-            regressions = self.classify_regressions(confidence_medium, confidence_high)
-
-            # The push is finalized, we can cache classified regressions as tasks should've finish running
-            if self.is_finalized:
-                config.cache.put(
-                    cache_path,
-                    regressions,
-                    config["cache"]["retention"],
-                )
+        regressions = self.classify_regressions(confidence_medium, confidence_high)
 
         # If there are any real failures, it's a bad push
         if len(regressions.real) > 0:

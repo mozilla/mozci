@@ -185,7 +185,7 @@ def test_push_tasks_with_tier(responses):
     responses.add(
         responses.GET,
         f"https://hg.mozilla.org/integration/autoland/json-automationrelevance/{rev}",
-        json={"changesets": [{"node": rev}]},
+        json={"changesets": [{"node": rev, "pushdate": [1638349140]}]},
         status=200,
     )
 
@@ -887,7 +887,6 @@ def test_classify(monkeypatch, classify_regressions_return_value, expected_resul
         return classify_regressions_return_value
 
     monkeypatch.setattr(Push, "classify_regressions", mock_return)
-    monkeypatch.setattr(Push, "is_finalized", False)
     assert push.classify()[0] == expected_result
 
 
@@ -898,7 +897,6 @@ def generate_mocks(
     get_likely_regressions_value,
     cross_config_values,
 ):
-    monkeypatch.setattr(Push, "is_finalized", False)
     monkeypatch.setattr(config.cache, "get", lambda x: None)
 
     def mock_return_get_test_selection_data(*args, **kwargs):

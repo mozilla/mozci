@@ -4,9 +4,11 @@ import os
 from collections.abc import Mapping
 from pathlib import Path
 
+import taskcluster
 from appdirs import user_config_dir
 from cachy import CacheManager
 from loguru import logger
+from taskcluster.helper import load_secrets
 from tomlkit import parse
 
 from mozci.util.cache_stores import (
@@ -16,6 +18,7 @@ from mozci.util.cache_stores import (
     S3Store,
     SeededFileStore,
 )
+from mozci.util.taskcluster import get_taskcluster_options
 
 
 def merge_to(source, dest):
@@ -97,6 +100,7 @@ class CustomCacheManager(CacheManager):
 
 class Configuration(Mapping):
     DEFAULT_CONFIG_PATH = Path(user_config_dir("mozci")) / "config.toml"
+    TASKCLUSTER_CONFIG_SECRET = os.environ.get("TASKCLUSTER_CONFIG_SECRET")
     DEFAULTS = {
         "merge": {
             "cache": {"retention": 1440},
@@ -122,7 +126,11 @@ class Configuration(Mapping):
         )
 
         self._config = copy.deepcopy(self.DEFAULTS["merge"])
-        if self.path.is_file():
+        if self.TASKCLUSTER_CONFIG_SECRET is not None:
+            # Load configuration from Taskcluster
+            self.merge(self.load_from_secret())
+        elif self.path.is_file():
+            # Load configuration from local file
             with open(self.path, "r") as fh:
                 content = fh.read()
                 self.merge(parse(content)["mozci"])
@@ -182,6 +190,20 @@ class Configuration(Mapping):
 
     def dump(self):
         return "\n".join(flatten(self._config))
+
+    def load_from_secret(self):
+        """
+        Load configuration from a Taskcluster secret
+        """
+        assert self.TASKCLUSTER_CONFIG_SECRET, "Missing TASKCLUSTER_CONFIG_SECRET"
+        logger.info(
+            f"Loading configuration from secret {self.TASKCLUSTER_CONFIG_SECRET}"
+        )
+
+        return load_secrets(
+            secrets_service=taskcluster.Secrets(get_taskcluster_options()),
+            secret_name=self.TASKCLUSTER_CONFIG_SECRET,
+        )
 
 
 config = Configuration()

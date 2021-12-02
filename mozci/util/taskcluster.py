@@ -96,14 +96,20 @@ def get_tasks_in_group(group_id):
     return tasks
 
 
-def get_proxy_queue():
-    """Configure taskcluster queue through internal proxy"""
+def get_taskcluster_options():
+    """
+    Helper to get the Taskcluster setup options
+    according to current environment (local or Taskcluster)
+    """
+    options = taskcluster.optionsFromEnvironment()
+    proxy_url = os.environ.get("TASKCLUSTER_PROXY_URL")
 
-    root_url = os.environ.get("TASKCLUSTER_PROXY_URL")
-    if not root_url:
-        raise Exception("Missing taskcluster proxy")
-    return taskcluster.Queue(
-        {
-            "rootUrl": root_url,
-        }
-    )
+    if proxy_url is not None:
+        # Always use proxy url when available
+        options["rootUrl"] = proxy_url
+
+    if "rootUrl" not in options:
+        # Always have a value in root url
+        options["rootUrl"] = "https://community-tc.services.mozilla.com"
+
+    return options

@@ -82,6 +82,10 @@ class CustomCacheManager(CacheManager):
         super_config.setdefault("stores", {"null": {"driver": "null"}})
         super(CustomCacheManager, self).__init__(super_config)
 
+        for store, conf in self._config["stores"].items():
+            if store != "null":
+                logger.debug(f"Active cache store {store} with conf {conf}")
+
         self.extend("null", lambda driver: NullStore())
         self.extend("seeded-file", SeededFileStore)
         self.extend(

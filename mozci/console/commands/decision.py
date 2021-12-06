@@ -89,6 +89,9 @@ class DecisionCommand(Command):
                 "env": {
                     "TASKCLUSTER_CONFIG_SECRET": "project/mozci/testing",
                 },
+                "features": {
+                    "taskclusterProxy": True,
+                },
                 "command": [
                     "push",
                     "classify",

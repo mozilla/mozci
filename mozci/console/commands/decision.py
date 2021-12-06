@@ -73,9 +73,6 @@ class DecisionCommand(Command):
             "dependencies": [
                 self.current_task["id"],
             ],
-            "features": {
-                "taskclusterProxy": True,
-            },
             "scopes": [
                 "docker-worker:cache:mozci-classifications-testing",
                 "secrets:get:project/mozci/testing",
@@ -91,6 +88,9 @@ class DecisionCommand(Command):
                 "image": self.current_task["payload"]["image"],
                 "env": {
                     "TASKCLUSTER_CONFIG_SECRET": "project/mozci/testing",
+                },
+                "features": {
+                    "taskclusterProxy": True,
                 },
                 "command": [
                     "push",

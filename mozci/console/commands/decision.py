@@ -73,6 +73,9 @@ class DecisionCommand(Command):
             "dependencies": [
                 self.current_task["id"],
             ],
+            "features": {
+                "taskclusterProxy": True,
+            },
             "scopes": [
                 "docker-worker:cache:mozci-classifications-testing",
                 "secrets:get:project/mozci/testing",

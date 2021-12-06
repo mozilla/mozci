@@ -8,7 +8,7 @@ from cleo import Command
 
 from mozci.push import Push, make_push_objects
 from mozci.util.memoize import memoized_property
-from mozci.util.taskcluster import get_proxy_queue
+from mozci.util.taskcluster import get_taskcluster_options
 
 
 class DecisionCommand(Command):
@@ -26,7 +26,9 @@ class DecisionCommand(Command):
         dry_run = self.option("dry-run")
         nb_pushes = int(self.option("nb-pushes"))
 
-        self.queue = not dry_run and get_proxy_queue() or None
+        self.queue = (
+            not dry_run and taskcluster.Queue(get_taskcluster_options()) or None
+        )
 
         self.line(f"Process pushes from {branch}")
 
@@ -80,6 +82,9 @@ class DecisionCommand(Command):
             "payload": {
                 "maxRunTime": 3600,
                 "image": self.current_task["payload"]["image"],
+                "env": {
+                    "TASKCLUSTER_CONFIG_SECRET": "project/mozci/testing",
+                },
                 "command": [
                     "push",
                     "classify",
@@ -87,6 +92,9 @@ class DecisionCommand(Command):
                     f"--rev={push.rev}",
                     "--output=/tmp",
                 ],
+                "cache": {
+                    "mozci-classifications-testing": "/cache",
+                },
                 "artifacts": {
                     "public/classification.json": {
                         "expires": taskcluster.stringDate(

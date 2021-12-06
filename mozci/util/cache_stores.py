@@ -14,6 +14,7 @@ from cachy.stores import FileStore, NullStore  # noqa
 from loguru import logger
 
 from mozci.util.req import get_session
+from mozci.util.taskcluster import get_taskcluster_options
 
 
 def extract_tar_zst(path, dest):
@@ -124,25 +125,6 @@ class RenewingFileStore(FileStore):
 
         self.put(key, value, self.retention)
         return value
-
-
-def get_taskcluster_options():
-    """
-    Helper to get the Taskcluster setup options
-    according to current environment (local or Taskcluster)
-    """
-    options = taskcluster.optionsFromEnvironment()
-    proxy_url = os.environ.get("TASKCLUSTER_PROXY_URL")
-
-    if proxy_url is not None:
-        # Always use proxy url when available
-        options["rootUrl"] = proxy_url
-
-    if "rootUrl" not in options:
-        # Always have a value in root url
-        options["rootUrl"] = "https://community-tc.services.mozilla.com"
-
-    return options
 
 
 def get_s3_credentials(bucket, prefix):

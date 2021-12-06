@@ -282,19 +282,19 @@ class ClassifyEvalCommand(Command):
                 f"<error>Failed to fetch or recalculate classification for {len(classification_failed)} out of {len(pushes)} pushes.</error>"
             )
         self.line(
-            f"{len(bad_backedout_pushes)} out of {len(pushes)} pushes were backed-out by a sheriff and were classify as BAD."
+            f"{len(bad_backedout_pushes)} out of {len(pushes)} pushes were backed-out by a sheriff and were classified as BAD."
         )
         self.line(
-            f"{len(bad_non_backedout_pushes)} out of {len(pushes)} pushes weren't backed-out by a sheriff and were classify as BAD."
+            f"{len(bad_non_backedout_pushes)} out of {len(pushes)} pushes weren't backed-out by a sheriff and were classified as BAD."
         )
         self.line(
-            f"{len(good_backedout_pushes)} out of {len(pushes)} pushes were backed-out by a sheriff and were classify as GOOD."
+            f"{len(good_backedout_pushes)} out of {len(pushes)} pushes were backed-out by a sheriff and were classified as GOOD."
         )
         self.line(
-            f"{len(good_non_backedout_pushes)} out of {len(pushes)} pushes weren't backed-out by a sheriff and were classify as GOOD."
+            f"{len(good_non_backedout_pushes)} out of {len(pushes)} pushes weren't backed-out by a sheriff and were classified as GOOD."
         )
         self.line(
-            f"{len(unknown_pushes)} out of {len(pushes)} pushes were classify as UNKNOWN."
+            f"{len(unknown_pushes)} out of {len(pushes)} pushes were classified as UNKNOWN."
         )
 
 

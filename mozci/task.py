@@ -15,7 +15,12 @@ from loguru import logger
 from mozci import data
 from mozci.errors import ArtifactNotFound, TaskNotFound
 from mozci.util.memoize import memoized_property
-from mozci.util.taskcluster import find_task_id, get_artifact, list_artifacts
+from mozci.util.taskcluster import (
+    PRODUCTION_TASKCLUSTER_ROOT_URL,
+    find_task_id,
+    get_artifact,
+    list_artifacts,
+)
 
 
 class Status(Enum):
@@ -144,7 +149,7 @@ class Task:
     tier: Optional[int] = field(default=None)
 
     @staticmethod
-    def create(index=None, **kwargs):
+    def create(index=None, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL, **kwargs):
         """Factory method to create a new Task instance.
 
         One of ``index`` or ``id`` must be specified.
@@ -159,7 +164,7 @@ class Task:
         """
         if index and "id" not in kwargs:
             try:
-                kwargs["id"] = find_task_id(index)
+                kwargs["id"] = find_task_id(index, root_url=root_url)
             except requests.exceptions.HTTPError as e:
                 label = kwargs.get("label", "unknown label")
                 raise TaskNotFound(id=index, label=label) from e
@@ -177,7 +182,7 @@ class Task:
         """List the artifacts that were uploaded by this task."""
         return [artifact["name"] for artifact in list_artifacts(self.id)]
 
-    def get_artifact(self, path):
+    def get_artifact(self, path, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
         """Downloads and returns the content of an artifact.
 
         Args:
@@ -194,7 +199,7 @@ class Task:
                 artifact does not exist.
         """
         try:
-            data = get_artifact(self.id, path)
+            data = get_artifact(self.id, path, root_url=root_url)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
                 raise ArtifactNotFound(path, self.id, self.label) from e

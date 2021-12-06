@@ -73,7 +73,10 @@ class DecisionCommand(Command):
             "dependencies": [
                 self.current_task["id"],
             ],
-            "scopes": ["docker-worker:cache:mozci-classifications-testing"],
+            "scopes": [
+                "docker-worker:cache:mozci-classifications-testing",
+                "secrets:get:project/mozci/testing",
+            ],
             "metadata": {
                 "name": f"mozci classify {push.branch}@{push.rev}",
                 "description": "mozci classification task",

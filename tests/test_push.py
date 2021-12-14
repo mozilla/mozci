@@ -49,6 +49,8 @@ SCHEDULES_EXTRACT = {
     ],
 }
 
+# group1, status = INTERMITTENT
+# group2, group3, group4, group5, status = FAIL
 GROUP_SUMMARIES_DEFAULT = {
     group.name: group
     for group in [
@@ -62,7 +64,19 @@ GROUP_SUMMARIES_DEFAULT = {
                     _results=[GroupResult(group=f"group{i}", ok=False)],
                 )
                 for j in range(1, 4)
-            ],
+            ]
+            + (
+                [
+                    Task.create(
+                        id=4,
+                        label="test-task1",
+                        result="passed",
+                        _results=[GroupResult(group="group1", ok=True)],
+                    )
+                ]
+                if i == 1
+                else []
+            ),
         )
         for i in range(1, 6)
     ]
@@ -78,7 +92,18 @@ def make_tasks(group_id):
             _results=[GroupResult(group=group_id, ok=False)],
         )
         for j in range(1, 4)
-    ]
+    ] + (
+        [
+            TestTask(
+                id=4,
+                label="test-task1",
+                result="passed",
+                _results=[GroupResult(group="group1", ok=True)],
+            )
+        ]
+        if group_id == 1
+        else []
+    )
 
 
 @pytest.fixture
@@ -913,6 +938,9 @@ def generate_mocks(
         Push, "get_likely_regressions", mock_return_get_likely_regressions
     )
 
+    for g in GROUP_SUMMARIES_DEFAULT.values():
+        print(g.name)
+        print(g.status)
     push.group_summaries = GROUP_SUMMARIES_DEFAULT
     for index, group in enumerate(push.group_summaries.values()):
         group.is_cross_config_failure = cross_config_values[index]

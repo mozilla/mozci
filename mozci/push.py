@@ -1037,14 +1037,17 @@ class Push:
         # - if a group is failing in all tasks, then it is a "cross-config" failure
         # - if a group is failing only in some tasks but not all, then it is not a "cross-config" failure
         all_groups = self.group_summaries.values()
-        failing_groups = [g for g in all_groups if g.status == Status.FAIL]
         groups_cross_config_failure = {
-            g.name for g in failing_groups if g.is_cross_config_failure
+            g.name for g in all_groups if g.is_cross_config_failure
         }
         groups_non_cross_config_failure = {
-            g.name for g in failing_groups if not g.is_cross_config_failure
+            g.name
+            for g in all_groups
+            if g.status != Status.PASS and not g.is_cross_config_failure
         }
-        groups_failing_in_the_push = {g.name for g in failing_groups}
+        groups_failing_in_the_push = {
+            g.name for g in all_groups if g.status != Status.PASS
+        }
         groups_no_confidence = {
             g.name
             for g in all_groups

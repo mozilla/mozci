@@ -938,9 +938,6 @@ def generate_mocks(
         Push, "get_likely_regressions", mock_return_get_likely_regressions
     )
 
-    for g in GROUP_SUMMARIES_DEFAULT.values():
-        print(g.name)
-        print(g.status)
     push.group_summaries = GROUP_SUMMARIES_DEFAULT
     for index, group in enumerate(push.group_summaries.values()):
         group.is_cross_config_failure = cross_config_values[index]

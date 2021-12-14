@@ -13,7 +13,7 @@ from mozci.errors import (
     SourcesNotFound,
 )
 from mozci.push import Push, PushStatus, Regressions
-from mozci.task import GroupResult, GroupSummary, Task, TestTask
+from mozci.task import GroupResult, GroupSummary, Status, Task, TestTask
 from mozci.util.hgmo import HgRev
 from mozci.util.taskcluster import (
     PRODUCTION_TASKCLUSTER_ROOT_URL,
@@ -49,8 +49,8 @@ SCHEDULES_EXTRACT = {
     ],
 }
 
-# group1, status = INTERMITTENT
-# group2, group3, group4, group5, status = FAIL
+NUMBER_OF_DEFAULT_GROUPS = 5
+NUMBER_OF_INTERMITTENT_GROUPS_IN_DEFAULT = 2
 GROUP_SUMMARIES_DEFAULT = {
     group.name: group
     for group in [
@@ -71,16 +71,32 @@ GROUP_SUMMARIES_DEFAULT = {
                         id=4,
                         label="test-task1",
                         result="passed",
-                        _results=[GroupResult(group="group1", ok=True)],
+                        _results=[GroupResult(group=f"group{i}", ok=True)],
                     )
                 ]
-                if i == 1
+                if i <= NUMBER_OF_INTERMITTENT_GROUPS_IN_DEFAULT
                 else []
             ),
         )
-        for i in range(1, 6)
+        for i in range(1, NUMBER_OF_DEFAULT_GROUPS + 1)
     ]
 }
+
+
+def test_group_summaries_default_status():
+    assert {
+        **{
+            f"group{i}": Status.INTERMITTENT
+            for i in range(1, NUMBER_OF_INTERMITTENT_GROUPS_IN_DEFAULT + 1)
+        },
+        **{
+            f"group{i}": Status.FAIL
+            for i in range(
+                NUMBER_OF_INTERMITTENT_GROUPS_IN_DEFAULT + 1,
+                NUMBER_OF_DEFAULT_GROUPS + 1,
+            )
+        },
+    } == {g.name: g.status for g in GROUP_SUMMARIES_DEFAULT.values()}
 
 
 def make_tasks(group_id):
@@ -92,18 +108,7 @@ def make_tasks(group_id):
             _results=[GroupResult(group=group_id, ok=False)],
         )
         for j in range(1, 4)
-    ] + (
-        [
-            TestTask(
-                id=4,
-                label="test-task1",
-                result="passed",
-                _results=[GroupResult(group="group1", ok=True)],
-            )
-        ]
-        if group_id == 1
-        else []
-    )
+    ]
 
 
 @pytest.fixture

@@ -1041,10 +1041,12 @@ class Push:
             g.name for g in all_groups if g.is_cross_config_failure
         }
         groups_non_cross_config_failure = {
-            g.name for g in all_groups if not g.is_cross_config_failure
+            g.name
+            for g in all_groups
+            if g.status != Status.PASS and not g.is_cross_config_failure
         }
         groups_failing_in_the_push = {
-            g.name for g in all_groups if g.status == Status.FAIL
+            g.name for g in all_groups if g.status != Status.PASS
         }
         groups_no_confidence = {
             g.name

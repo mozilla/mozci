@@ -319,6 +319,7 @@ class ClassifyPerfCommand(Command):
 
     perf
         {--environment=testing : Environment to analyze (testing, production, ...)}
+        {--output=perfs.csv: Output CSV file path}
     """
 
     REGEX_ROUTE = re.compile(
@@ -327,6 +328,7 @@ class ClassifyPerfCommand(Command):
 
     def handle(self):
         environment = self.option("environment")
+        output = self.option("output")
 
         # Aggregate stats for completed tasks processed by the hook
         stats = [
@@ -338,7 +340,7 @@ class ClassifyPerfCommand(Command):
         ]
 
         # Dump stats as CSV file
-        with open("perfs.csv", "w") as csvfile:
+        with open(output, "w") as csvfile:
             writer = csv.DictWriter(
                 csvfile,
                 fieldnames=[
@@ -352,6 +354,8 @@ class ClassifyPerfCommand(Command):
             )
             writer.writeheader()
             writer.writerows(stats)
+
+        self.line(f"<info>Written stats for {len(stats)} tasks in {output}</info>")
 
     def parse_routes(self, routes):
         """Find revision from task routes"""
@@ -376,10 +380,11 @@ class ClassifyPerfCommand(Command):
         return branches.pop(), data["revision"], int(data["push"])
 
     def parse_task_status(self, task_status):
+        """Extract identification and time spent for each classification task"""
+
         def date(x):
             return datetime.datetime.strptime(x, "%Y-%m-%dT%H:%M:%S.%fZ")
 
-        # Extract identification and time spent for each classification task
         out = {
             "task_id": task_status["status"]["taskId"],
             "created": task_status["task"]["created"],
@@ -395,10 +400,22 @@ class ClassifyPerfCommand(Command):
         return out
 
     def list_groups_from_hook(self, group_id, hook_id):
+        """List all decision tasks from the specified hook"""
         hooks = taskcluster.Hooks(get_taskcluster_options())
-        fires = hooks.listLastFires(group_id, hook_id)
-        for fire in fires.get("lastFires", []):
+        fires = hooks.listLastFires(group_id, hook_id).get("lastFires", [])
+
+        # Setup CLI progress bar
+        progress = self.progress_bar(len(fires))
+        progress.set_format("verbose")
+
+        # Provide the decision task ID as it's the same value for group ID
+        for fire in fires:
             yield fire["taskId"]
+
+            progress.advance()
+
+        # Cleanup progress bar
+        progress.finish()
 
     def list_classification_tasks(self, group_id):
         cache_key = f"perf/task_group/{group_id}"

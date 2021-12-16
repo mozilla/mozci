@@ -16,7 +16,7 @@ class DecisionCommand(Command):
     Taskcluster decision task to generate classification tasks
 
     decision
-        {branch=mozilla-central : Branch the push belongs to (e.g autoland, try, etc).}
+        {branch=autoland : Branch the push belongs to (e.g autoland, try, etc).}
         {--nb-pushes=15 : Do not create tasks on taskcluster, simply output actions.}
         {--dry-run : Do not create tasks on taskcluster, simply output actions.}
     """

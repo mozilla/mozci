@@ -69,7 +69,7 @@ class ClassifyCommand(Command):
     Display the classification for a given push (or a range of pushes) as GOOD, BAD or UNKNOWN.
 
     classify
-        {branch=mozilla-central : Branch the push belongs to (e.g autoland, try, etc).}
+        {branch=autoland : Branch the push belongs to (e.g autoland, try, etc).}
         {--rev= : Head revision of the push.}
         {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format).}
         {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format).}
@@ -180,7 +180,7 @@ class ClassifyEvalCommand(Command):
     Evaluate the classification results for a given push (or a range of pushes) by comparing them with reality.
 
     classify-eval
-        {branch=mozilla-central : Branch the push belongs to (e.g autoland, try, etc).}
+        {branch=autoland : Branch the push belongs to (e.g autoland, try, etc).}
         {--rev= : Head revision of the push.}
         {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format).}
         {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format).}

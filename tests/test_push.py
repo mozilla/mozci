@@ -286,6 +286,135 @@ def test_push_tasks_with_tier(responses):
     assert len(tasks) == 1
 
 
+def test_push_tasks_with_cached_uncompleted_tasks(monkeypatch, responses):
+    rev = "abcdef"
+    branch = "autoland"
+
+    cached_tasks = [Task.create(id=1, label="test-task", state="running")]
+    monkeypatch.setattr(config.cache, "get", lambda x: cached_tasks)
+
+    responses.add(
+        responses.GET,
+        f"https://hg.mozilla.org/integration/autoland/json-automationrelevance/{rev}",
+        json={"changesets": [{"node": rev, "pushdate": [1638349140]}]},
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.v2.autoland.revision.abcdef.taskgraph.decision",
+        json={"taskId": 1},
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/1",
+        json={"taskGroupId": "xyz789"},
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task-group/xyz789/list",
+        json={
+            "tasks": [
+                {
+                    "task": {
+                        "extra": {
+                            "treeherder": {"tier": 3},
+                        },
+                        "metadata": {
+                            "name": "task-A",
+                        },
+                        "tags": {"name": "tag-A"},
+                    },
+                    "status": {
+                        "taskId": "abc13",
+                        "state": "unscheduled",
+                    },
+                },
+                {
+                    "task": {
+                        "extra": {
+                            "treeherder": {"tier": 1},
+                        },
+                        "metadata": {
+                            "name": "task-B",
+                        },
+                        "tags": {"name": "tag-A"},
+                    },
+                    "status": {
+                        "taskId": "abc123",
+                        "state": "unscheduled",
+                    },
+                },
+            ]
+        },
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://treeherder.mozilla.org/api/project/autoland/note/push_notes/?revision=abcdef&format=json",
+        json={},
+        status=200,
+    )
+
+    push = Push(rev, branch)
+    tasks = push.tasks
+    assert len(tasks) == 1
+
+
+def test_push_tasks_with_cached_completed_tasks(monkeypatch, responses):
+    rev = "abcdef"
+    branch = "autoland"
+
+    cached_tasks = [
+        Task.create(id=1, label="test-task", result="passed", state="completed")
+    ]
+    monkeypatch.setattr(config.cache, "get", lambda x: cached_tasks)
+
+    responses.add(
+        responses.GET,
+        f"https://hg.mozilla.org/integration/autoland/json-automationrelevance/{rev}",
+        json={"changesets": [{"node": rev, "pushdate": [1638349140]}]},
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.v2.autoland.revision.abcdef.taskgraph.decision",
+        json={"taskId": 1},
+        status=200,
+    )
+
+    push = Push(rev, branch)
+    tasks = push.tasks
+    assert len(tasks) == 1
+
+
+def test_finalized_push_tasks_with_cache(monkeypatch, responses):
+    rev = "abcdef"
+    branch = "autoland"
+
+    cached_tasks = [Task.create(id=1, label="test-task", result="passed")]
+    monkeypatch.setattr(config.cache, "get", lambda x: cached_tasks)
+    monkeypatch.setattr(Push, "is_finalized", True)
+
+    responses.add(
+        responses.GET,
+        f"https://hg.mozilla.org/integration/autoland/json-automationrelevance/{rev}",
+        json={"changesets": [{"node": rev, "pushdate": [1638349140]}]},
+        status=200,
+    )
+
+    push = Push(rev, branch)
+    tasks = push.tasks
+    assert len(tasks) == 1
+    assert tasks == cached_tasks
+
+
 def test_push_does_not_exist(responses):
     # We hit hgmo when 'rev' is less than 40 characters.
     rev = "foobar"

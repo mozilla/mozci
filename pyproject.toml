@@ -38,7 +38,7 @@ pre-commit = "^2.16"
 pytest = "^6.2"
 tox = "^3.24"
 responses = "^0.16"
-sphinx = "^4.3.1"
+sphinx = "^4.3.2"
 
 [tool.poetry.extras]
 adr = ["adr"]

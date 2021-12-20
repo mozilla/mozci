@@ -306,11 +306,7 @@ class Push:
                 "push_tasks_classifications", branch=self.branch, rev=self.rev
             )
             for task in tasks:
-                # No need to gather task classifications for a completed task that was already cached
-                if (
-                    task["id"] not in completed_cached_tasks
-                    and task["id"] in classifications
-                ):
+                if task["id"] in classifications:
                     task.update(classifications[task["id"]])
         except MissingDataError:
             pass

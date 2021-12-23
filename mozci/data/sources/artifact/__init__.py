@@ -13,6 +13,7 @@ from mozci.util.taskcluster import get_artifact, list_artifacts
 
 class ErrorSummarySource(DataSource):
     name = "errorsummary"
+    is_try = False
     supported_contracts = ("test_task_groups", "test_task_errors")
 
     TASK_GROUPS: Dict[str, Any] = LRU(2000)
@@ -61,8 +62,10 @@ class ErrorSummarySource(DataSource):
 
         missing_groups = groups - set(group_results)
         if len(missing_groups) > 0:
-            logger.error(
-                f"Some groups in {task_id} are missing results: {missing_groups}"
+            log_level = "DEBUG" if self.is_try else "WARNING"
+            logger.log(
+                log_level,
+                f"Some groups in {task_id} are missing results: {missing_groups}",
             )
 
         self.TASK_GROUPS[task_id] = {
@@ -72,6 +75,9 @@ class ErrorSummarySource(DataSource):
         }
 
     def run_test_task_groups(self, branch, rev, task):
+        if branch == "try":
+            self.is_try = True
+
         if task.id not in self.TASK_GROUPS:
             self._load_errorsummary(task.id)
         return self.TASK_GROUPS.pop(task.id, {})

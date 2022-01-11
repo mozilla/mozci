@@ -237,7 +237,8 @@ class ClassifyEvalCommand(Command):
         bad_non_backedout_pushes = []
         good_backedout_pushes = []
         good_non_backedout_pushes = []
-        unknown_pushes = []
+        unknown_backedout_pushes = []
+        unknown_non_backedout_pushes = []
         for push in pushes:
             classification = None
             if self.option("recalculate"):
@@ -275,7 +276,10 @@ class ClassifyEvalCommand(Command):
                 else:
                     good_non_backedout_pushes.append(push)
             else:
-                unknown_pushes.append(push)
+                if push.backedout:
+                    unknown_backedout_pushes.append(push)
+                else:
+                    unknown_non_backedout_pushes.append(push)
 
         if classification_failed:
             self.line(
@@ -294,7 +298,10 @@ class ClassifyEvalCommand(Command):
             f"{len(good_non_backedout_pushes)} out of {len(pushes)} pushes weren't backed-out by a sheriff and were classified as GOOD."
         )
         self.line(
-            f"{len(unknown_pushes)} out of {len(pushes)} pushes were classified as UNKNOWN."
+            f"{len(unknown_backedout_pushes)} out of {len(pushes)} pushes were backed-out by a sheriff and were classified as UNKNOWN."
+        )
+        self.line(
+            f"{len(unknown_non_backedout_pushes)} out of {len(pushes)} pushes weren't backed-out by a sheriff and were classified as UNKNOWN."
         )
 
 

@@ -4,12 +4,14 @@ from __future__ import annotations
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from inspect import signature
 from statistics import median
 from typing import Dict, List, Optional
 
 import requests
+import taskcluster
 from loguru import logger
 
 from mozci import data
@@ -17,8 +19,10 @@ from mozci.errors import ArtifactNotFound, TaskNotFound
 from mozci.util.memoize import memoized_property
 from mozci.util.taskcluster import (
     PRODUCTION_TASKCLUSTER_ROOT_URL,
+    create_task,
     find_task_id,
     get_artifact,
+    get_task,
     list_artifacts,
 )
 
@@ -217,6 +221,27 @@ class Task:
         """
         sig = signature(self.__init__)
         return {k: v for k, v in self.__dict__.items() if k in sig.parameters}
+
+    def retrigger(self):
+        """This function implements ability to perform retriggers on tasks"""
+        new_task_id = taskcluster.slugId()
+        task = get_task(self.id)
+        task["payload"]["id"] = new_task_id
+        task["created"] = taskcluster.stringDate(datetime.utcnow())
+        task["deadline"] = taskcluster.stringDate(taskcluster.fromNow("90 minutes"))
+
+        if self._should_retrigger(task) == "false":
+            logger.info(
+                "Not retriggering task '{}', task should not be retriggered "
+                "and force not specified.".format(task["tags"]["label"])
+            )
+            return
+        create_task(new_task_id, task)
+
+    def _should_retrigger(self, task):
+        """Return whether a given task in tasks should be retriggered."""
+
+        return task["tags"].get("retrigger", "false")
 
 
 @dataclass

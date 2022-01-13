@@ -10,6 +10,7 @@ import taskcluster
 from cleo import Command
 from loguru import logger
 from tabulate import tabulate
+from taskcluster.exceptions import TaskclusterRestFailure
 
 from mozci import config
 from mozci.push import Push, PushStatus, make_push_objects
@@ -424,7 +425,14 @@ class ClassifyPerfCommand(Command):
         tasks = config.cache.get(cache_key)
         if tasks is None:
             queue = taskcluster.Queue(get_taskcluster_options())
-            tasks = queue.listTaskGroup(group_id).get("tasks", [])
+            try:
+                tasks = queue.listTaskGroup(group_id).get("tasks", [])
+            except TaskclusterRestFailure as e:
+                # Skip expired task groups
+                if e.status_code == 404:
+                    return
+
+                raise
         else:
             logger.debug("From cache", cache_key)
 

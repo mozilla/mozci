@@ -2378,3 +2378,51 @@ def test_failure_after_pass(create_pushes):
     p[i].backedoutby = p[i + 1].rev
 
     assert p[i].get_regressions("label") == {"test-prova": 0}
+
+
+def test_succeeded_in_parent_failed_in_current_passed_in_children(
+    create_pushes,
+):
+    """
+    Tests the scenario where a task succeeded in a parent push, failed in the
+    push of interest, but passed in its following pushes.
+    """
+    p = create_pushes(7)
+    i = 3  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [create_task(id=fake_id(1), label="test-prova", result="passed")]
+    p[i].tasks = [
+        create_task(
+            id=fake_id(1),
+            label="test-prova",
+            result="failed",
+            classification="not classified",
+        )
+    ]
+    p[i + 1].tasks = [
+        create_task(
+            id=fake_id(1),
+            label="test-prova",
+            result="passed",
+        )
+    ]
+    p[i + 2].tasks = [
+        create_task(
+            id=fake_id(1),
+            label="test-prova",
+            result="passed",
+        )
+    ]
+
+    assert p[i - 2].get_regressions("label") == {}
+    assert p[i - 1].get_regressions("label") == {}
+    assert p[i].get_regressions("label") == {}
+    assert p[i + 1].get_regressions("label") == {}
+    assert p[i + 2].get_regressions("label") == {}
+
+    assert p[i - 2].get_regressions("label", False) == {}
+    assert p[i - 1].get_regressions("label", False) == {}
+    # When https://github.com/mozilla/mozci/issues/160 is fixed, we'll have no regressions.
+    assert p[i].get_regressions("label", False) == {"test-prova": 0}
+    assert p[i + 1].get_regressions("label", False) == {}
+    assert p[i + 2].get_regressions("label", False) == {}

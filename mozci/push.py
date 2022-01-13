@@ -274,10 +274,10 @@ class Push:
         Returns:
             list: A list of `Task` objects.
         """
-        if self.is_finalized:
-            tasks = config.cache.get(f"{self.push_uuid}/tasks")
-            if tasks is not None:
-                return tasks
+        cached_tasks = config.cache.get(f"{self.push_uuid}/tasks")
+        # Push is supposedly finalized, if a cache exists we can return it as tasks should've finished running
+        if self.is_finalized and cached_tasks is not None:
+            return cached_tasks
 
         logger.debug(f"Retrieving all tasks and groups which run on {self.rev}...")
 
@@ -289,6 +289,14 @@ class Push:
             tasks = data.handler.get("push_tasks", branch=self.branch, rev=self.rev)
         except MissingDataError:
             return []
+
+        # Update gathered tasks with data retrieved from the cache
+        completed_cached_tasks = {}
+        if cached_tasks:
+            completed_cached_tasks = {
+                t.id: vars(t) for t in cached_tasks if t.state == "completed"
+            }
+            tasks = [{**t, **completed_cached_tasks.get(t["id"], {})} for t in tasks]
 
         logger.debug(f"Gathering task classifications for {self.rev}...")
 
@@ -313,7 +321,8 @@ class Push:
                     lambda task: task.retrieve_results(self), task
                 )
                 for task in tasks
-                if isinstance(task, TestTask)
+                # No need to gather group data for a completed task that was already cached
+                if task.id not in completed_cached_tasks and isinstance(task, TestTask)
             ],
             return_when=concurrent.futures.FIRST_EXCEPTION,
         )
@@ -336,16 +345,14 @@ class Push:
         # Skip tier tasks greater than the tier passed in config
         tasks = [task for task in tasks if not task.tier or task.tier <= config.tier]
 
-        # Push is supposedly finalized, we can cache the results as tasks should've finished running
-        if self.is_finalized:
-            # cachy's put() overwrites the value in the cache; add() would only add if its empty
-            config.cache.put(
-                f"{self.push_uuid}/tasks",
-                tasks,
-                config["cache"]["retention"],
-            )
+        # cachy's put() overwrites the value in the cache; add() would only add if its empty
+        config.cache.put(
+            f"{self.push_uuid}/tasks",
+            tasks,
+            config["cache"]["retention"],
+        )
 
-            logger.debug(f"Cached all tasks and groups which run on {self.rev}.")
+        logger.debug(f"Cached all tasks and groups which run on {self.rev}.")
 
         return tasks
 

@@ -255,7 +255,10 @@ class ClassifyEvalCommand(Command):
                     classification, _ = push.classify(
                         confidence_medium=medium_conf, confidence_high=high_conf
                     )
-                except Exception:
+                except Exception as e:
+                    self.line(
+                        f"classification failed on {branch} {push.rev}: {e}</error>"
+                    )
                     classification_failed.append(push)
                     continue
             else:
@@ -270,7 +273,10 @@ class ClassifyEvalCommand(Command):
                         root_url=COMMUNITY_TASKCLUSTER_ROOT_URL,
                     )
                     classification = artifact["push"]["classification"]
-                except Exception:
+                except Exception as e:
+                    self.line(
+                        f"<error>fetch failed on {branch} {push.rev}: {e}</error>"
+                    )
                     classification_failed.append(push)
                     continue
 

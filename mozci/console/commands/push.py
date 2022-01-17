@@ -13,6 +13,7 @@ from tabulate import tabulate
 from taskcluster.exceptions import TaskclusterRestFailure
 
 from mozci import config
+from mozci.errors import TaskNotFound
 from mozci.push import Push, PushStatus, make_push_objects
 from mozci.task import Task
 from mozci.util.taskcluster import (
@@ -196,13 +197,14 @@ class ClassifyEvalCommand(Command):
         {--medium-confidence= : If recalculate parameter is set, medium confidence threshold used to classify the regressions.}
         {--high-confidence= : If recalculate parameter is set, high confidence threshold used to classify the regressions.}
         {--recalculate : If set, recalculate the classification instead of fetching an artifact.}
+        {--output= : Path towards a path to save a CSV file with classification states for various pushes.}
     """
 
     def handle(self):
         branch = self.argument("branch")
 
         try:
-            pushes = classify_commands_pushes(
+            self.pushes = classify_commands_pushes(
                 branch,
                 self.option("from-date"),
                 self.option("to-date"),
@@ -241,26 +243,23 @@ class ClassifyEvalCommand(Command):
             )
             return
 
-        classification_failed = []
-        bad_backedout_pushes = []
-        bad_non_backedout_pushes = []
-        good_backedout_pushes = []
-        good_non_backedout_pushes = []
-        unknown_backedout_pushes = []
-        unknown_non_backedout_pushes = []
-        for push in pushes:
+        self.errors = {}
+        self.classifications = {}
+        for push in self.pushes:
             classification = None
             if self.option("recalculate"):
                 try:
                     classification, _ = push.classify(
                         confidence_medium=medium_conf, confidence_high=high_conf
                     )
+                    self.line(
+                        f"<comment>Classified {branch} {push.rev} : {classification.name}</comment>"
+                    )
                 except Exception as e:
                     self.line(
-                        f"classification failed on {branch} {push.rev}: {e}</error>"
+                        f"<error>Classification failed on {branch} {push.rev}: {e}</error>"
                     )
-                    classification_failed.append(push)
-                    continue
+                    self.errors[push] = e
             else:
                 try:
                     index = f"project.mozci.classification.{branch}.revision.{push.rev}"
@@ -272,51 +271,94 @@ class ClassifyEvalCommand(Command):
                         "public/classification.json",
                         root_url=COMMUNITY_TASKCLUSTER_ROOT_URL,
                     )
-                    classification = artifact["push"]["classification"]
-                except Exception as e:
+                    self.classifications[push] = classification = PushStatus[
+                        artifact["push"]["classification"]
+                    ]
                     self.line(
-                        f"<error>fetch failed on {branch} {push.rev}: {e}</error>"
+                        f"<comment>Found classification {branch} {push.rev} : {classification.name}</comment>"
                     )
-                    classification_failed.append(push)
-                    continue
+                except TaskNotFound as e:
+                    self.line(
+                        f"<comment>Taskcluster task missing for {branch} {push.rev}</comment>"
+                    )
+                    self.errors[push] = e
 
-            if classification == PushStatus.BAD:
-                if push.backedout:
-                    bad_backedout_pushes.append(push)
-                else:
-                    bad_non_backedout_pushes.append(push)
-            elif classification == PushStatus.GOOD:
-                if push.backedout:
-                    good_backedout_pushes.append(push)
-                else:
-                    good_non_backedout_pushes.append(push)
-            else:
-                if push.backedout:
-                    unknown_backedout_pushes.append(push)
-                else:
-                    unknown_non_backedout_pushes.append(push)
+                except Exception as e:
+                    print(e, type(e))
+                    self.line(
+                        f"<error>Fetch failed on {branch} {push.rev}: {e}</error>"
+                    )
+                    self.errors[push] = e
 
-        if classification_failed:
+        if self.errors:
             self.line(
-                f"<error>Failed to fetch or recalculate classification for {len(classification_failed)} out of {len(pushes)} pushes.</error>"
+                f"<error>Failed to fetch or recalculate classification for {len(self.errors)} out of {len(self.pushes)} pushes.</error>"
             )
-        self.line(
-            f"{len(bad_backedout_pushes)} out of {len(pushes)} pushes were backed-out by a sheriff and were classified as BAD."
+
+        self.log_pushes(PushStatus.BAD, False)
+        self.log_pushes(PushStatus.BAD, True)
+        self.log_pushes(PushStatus.GOOD, False)
+        self.log_pushes(PushStatus.GOOD, True)
+        self.log_pushes(PushStatus.UNKNOWN, False)
+        self.log_pushes(PushStatus.UNKNOWN, True)
+
+        output = self.option("output")
+        if output:
+            # Build stats for CSV
+            with open(output, "w") as csvfile:
+                writer = csv.DictWriter(
+                    csvfile,
+                    fieldnames=[
+                        "push",
+                        "revision",
+                        "date",
+                        "classification",
+                        "backedout",
+                        "error_type",
+                        "error_message",
+                    ],
+                )
+                writer.writeheader()
+                writer.writerows([self.build_stats(push) for push in self.pushes])
+            self.line(
+                f"<info>Written stats for {len(self.pushes)} pushes in {output}</info>"
+            )
+
+    def build_stats(self, push):
+        """
+        Build a dict with statistics relevant for a push
+        """
+        classification = self.classifications.get(push)
+        error = self.errors.get(push)
+
+        return {
+            "push": push.id,
+            "revision": push.rev,
+            "date": push.date,
+            "classification": classification or "error",
+            "backedout": push.backedout if classification else "",
+            "error_type": error.__class__.__name__ if error else "",
+            "error_message": str(error) if error else "",
+        }
+
+    def log_pushes(self, status, backedout):
+        """
+        Display stats for all pushes in a given classification state + backout combination
+        """
+        assert isinstance(status, PushStatus)
+        assert isinstance(backedout, bool)
+
+        nb = len(
+            [
+                push
+                for push in self.pushes
+                if self.classifications.get(push) == status
+                and push.backedout == backedout
+            ]
         )
+        verb = "were" if backedout else "weren't"
         self.line(
-            f"{len(bad_non_backedout_pushes)} out of {len(pushes)} pushes weren't backed-out by a sheriff and were classified as BAD."
-        )
-        self.line(
-            f"{len(good_backedout_pushes)} out of {len(pushes)} pushes were backed-out by a sheriff and were classified as GOOD."
-        )
-        self.line(
-            f"{len(good_non_backedout_pushes)} out of {len(pushes)} pushes weren't backed-out by a sheriff and were classified as GOOD."
-        )
-        self.line(
-            f"{len(unknown_backedout_pushes)} out of {len(pushes)} pushes were backed-out by a sheriff and were classified as UNKNOWN."
-        )
-        self.line(
-            f"{len(unknown_non_backedout_pushes)} out of {len(pushes)} pushes weren't backed-out by a sheriff and were classified as UNKNOWN."
+            f"{nb} out of {len(self.pushes)} pushes {verb} backed-out by a sheriff and were classified as {status.name}."
         )
 
 

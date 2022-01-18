@@ -23,6 +23,7 @@ class HgRev:
     JSON_PUSHES_TEMPLATE = (
         JSON_PUSHES_TEMPLATE_BASE + "&startID={push_id_start}&endID={push_id_end}"
     )
+    JSON_PUSHES_FULL_TEMPLATE = JSON_PUSHES_TEMPLATE + "&full=1"
     JSON_PUSHES_BETWEEN_DATES_TEMPLATE = (
         JSON_PUSHES_TEMPLATE_BASE + "&startdate={from_date}&enddate={to_date}"
     )
@@ -55,9 +56,14 @@ class HgRev:
 
     @staticmethod
     def load_json_pushes_between_ids(
-        branch: str, push_id_start: int, push_id_end: int
+        branch: str, push_id_start: int, push_id_end: int, use_full_format=False
     ) -> List[HgPush]:
-        url = HgRev.JSON_PUSHES_TEMPLATE.format(
+        template = (
+            HgRev.JSON_PUSHES_FULL_TEMPLATE
+            if use_full_format
+            else HgRev.JSON_PUSHES_TEMPLATE
+        )
+        url = template.format(
             push_id_start=push_id_start,
             push_id_end=push_id_end,
             branch=f"integration/{branch}" if branch == "autoland" else branch,

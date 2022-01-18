@@ -3,6 +3,7 @@ import concurrent.futures
 import copy
 import itertools
 import math
+import re
 from argparse import Namespace
 from collections import defaultdict
 from dataclasses import dataclass
@@ -42,6 +43,9 @@ when the task did not run on the currently considered push.
 FAILURE_CLASSES = ("not classified", "fixed by commit")
 
 
+REGEX_REV = re.compile(r"bug (\d+)", flags=re.IGNORECASE)
+
+
 class PushStatus(Enum):
     GOOD = 0
     BAD = 1
@@ -70,10 +74,35 @@ class Push:
 
     def __init__(self, revs, branch="autoland"):
         if isinstance(revs, str):
+            # Direct usage of a single revision reference
             self._revs = None
             revs = [revs]
+            self._bugs = None
         else:
-            self._revs = revs
+
+            # We may get detailed revision objects here
+            if all(map(lambda r: isinstance(r, dict), revs)):
+
+                def _parse_bug(rev):
+                    """Extract Bugzilla bug id from a description in a revision payload"""
+                    desc = rev.get("desc")
+                    if not desc:
+                        return
+
+                    match = REGEX_REV.match(desc)
+                    if match is None:
+                        return
+
+                    return int(match.group(1))
+
+                # Parse bugs if any
+                self._bugs = set(filter(None, [_parse_bug(rev) for rev in revs]))
+
+                self._revs = revs = [r["node"] for r in revs]
+            else:
+                # Or just references towards revisions as strings
+                self._revs = revs
+                self._bugs = None
 
         self.branch = branch
         self._hgmo = HgRev.create(revs[0], branch=self.branch)
@@ -115,14 +144,18 @@ class Push:
         """
         return bool(self.backedoutby)
 
-    @memoized_property
+    @property
     def bugs(self):
         """The bugs associated with the commits of this push.
 
         Returns:
             set: A set of bug IDs.
         """
-        return self._hgmo.bugs
+        if self._bugs:
+            return self._bugs
+
+        self._bugs = self._hgmo.bugs
+        return self._bugs
 
     @property
     def date(self):
@@ -626,18 +659,23 @@ class Push:
 
         return None
 
-    def _iterate_children(self, max_depth=None):
+    def _iterate_children(self, max_depth=None, use_full_format=False):
         other = self
         for i in itertools.count():
             yield other
 
             # Optimization to load child json-pushes data in a single query (up
             # to MAX_DEPTH at a time).
+            # We load ALL available information for the pushes
+            # to avoid later queries for bugs in bustage_fixed_by
             next_id = other.id + 1
             if next_id not in HgRev.JSON_PUSHES_CACHE:
                 depth = max_depth or MAX_DEPTH
                 HgRev.load_json_pushes_between_ids(
-                    self.branch, other.id, next_id + depth - i
+                    self.branch,
+                    other.id,
+                    next_id + depth - i,
+                    use_full_format=use_full_format,
                 )
 
             try:
@@ -852,8 +890,8 @@ class Push:
         # Skip checking regressions if we can't find any possible candidate.
         possible_bustage_fixes = set(
             other
-            for other in self._iterate_children(MAX_DEPTH)
-            if fix_same_bugs(self, other)
+            for other in self._iterate_children(MAX_DEPTH, use_full_format=True)
+            if self != other and fix_same_bugs(self, other)
         )
         if len(possible_bustage_fixes) == 0:
             return None

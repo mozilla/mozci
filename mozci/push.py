@@ -794,7 +794,11 @@ class Push:
         """
         logger.debug(f"Retrieving candidate regressions for {self.rev}...")
 
-        for other, candidate_regressions in self._iterate_failures(runnable_type):
+        max_depth = None if self.backedout or self.bustage_fixed_by else MAX_DEPTH
+
+        for other, candidate_regressions in self._iterate_failures(
+            runnable_type, max_depth
+        ):
             # Break early if we reached the backout of this push, since any failure
             # after that won't be blamed on this push.
             if self.branch != "try" and (
@@ -879,7 +883,9 @@ class Push:
         return find("label") or find("config_group")
 
     @memoize
-    def get_regressions(self, runnable_type: str) -> Dict[str, int]:
+    def get_regressions(
+        self, runnable_type: str, historical_analysis: bool = True
+    ) -> Dict[str, int]:
         """All regressions, both likely and definite.
 
         Each regression is associated with an integer, which is the number of
@@ -897,7 +903,12 @@ class Push:
 
         # If the push was not backed-out and was not "bustage fixed", it can't
         # have caused regressions.
-        if self.branch != "try" and not self.backedout and not self.bustage_fixed_by:
+        if (
+            (historical_analysis or self.is_finalized)
+            and self.branch != "try"
+            and not self.backedout
+            and not self.bustage_fixed_by
+        ):
             return regressions
 
         for name, (count, failure_summary) in self.get_candidate_regressions(
@@ -953,7 +964,11 @@ class Push:
             # penalize regressions for pushes which weren't backed-out by doubling their count
             # (basically, we consider the push to be further away from the failure, which makes
             # it more likely to fall outside of MAX_DEPTH).
-            if self.branch != "try" and not self.backedout:
+            if (
+                (historical_analysis or self.is_finalized)
+                and self.branch != "try"
+                and not self.backedout
+            ):
                 count *= 2
 
             # Also penalize cases where the status was intermittent.
@@ -965,7 +980,9 @@ class Push:
 
         return regressions
 
-    def get_possible_regressions(self, runnable_type):
+    def get_possible_regressions(
+        self, runnable_type: str, historical_analysis: bool = True
+    ) -> Set[str]:
         """The set of all runnables that may have been regressed by this push.
 
         A possible regression is a candidate_regression that didn't run on one or
@@ -976,11 +993,15 @@ class Push:
         """
         return set(
             name
-            for name, count in self.get_regressions(runnable_type).items()
+            for name, count in self.get_regressions(
+                runnable_type, historical_analysis
+            ).items()
             if count > 0
         )
 
-    def get_likely_regressions(self, runnable_type):
+    def get_likely_regressions(
+        self, runnable_type: str, historical_analysis: bool = True
+    ) -> Set[str]:
         """The set of all runnables that were likely regressed by this push.
 
         A likely regression is a candidate_regression that both ran and passed
@@ -992,7 +1013,9 @@ class Push:
         """
         return set(
             name
-            for name, count in self.get_regressions(runnable_type).items()
+            for name, count in self.get_regressions(
+                runnable_type, historical_analysis
+            ).items()
             if count == 0
         )
 
@@ -1024,7 +1047,7 @@ class Push:
         # Fetch likely group regressions for that push from treeherder + Taskcluster
         # We do not cache these results as we might want to analyze in-progress
         # pushes and keep updating these values
-        groups_likely_regressions = self.get_likely_regressions("group")
+        groups_likely_regressions = self.get_likely_regressions("group", False)
 
         # Get task groups with high and low confidence from bugbug scheduling
         groups_high = {

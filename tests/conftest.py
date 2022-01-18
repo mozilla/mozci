@@ -2,6 +2,7 @@
 import json
 import os
 import re
+from datetime import datetime
 
 import pytest
 from responses import RequestsMock
@@ -73,6 +74,7 @@ def create_push(monkeypatch, responses):
                         "bugs": [{"no": bug_id} for bug_id in push.bugs],
                         "backsoutnodes": [],
                         "pushhead": push.rev,
+                        "pushdate": (int(datetime.utcnow().timestamp()), 0),
                     }
                     for rev in push._revs
                 ]

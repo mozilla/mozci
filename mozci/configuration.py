@@ -119,6 +119,7 @@ class Configuration(Mapping):
             ],
             "verbose": 0,
             "tier": 2,
+            "historical_analysis": True,
         },
     }
 

@@ -419,14 +419,21 @@ class ClassifyPerfCommand(Command):
         progress.finish()
 
     def list_classification_tasks(self, group_id):
-        cache_key = f"perf/task_group/{group_id}"
 
-        # Check cache
-        tasks = config.cache.get(cache_key)
-        if tasks is None:
+        # Check cache first
+        cache_key = f"perf/task_group/{group_id}"
+        tasks = config.cache.get(cache_key, [])
+
+        if not tasks:
             queue = taskcluster.Queue(get_taskcluster_options())
+            token = False
             try:
-                tasks = queue.listTaskGroup(group_id).get("tasks", [])
+                # Support pagination using continuation token
+                while token is not None:
+                    query = {"continuationToken": token} if token else {}
+                    results = queue.listTaskGroup(group_id, query=query)
+                    tasks += results.get("tasks")
+                    token = results.get("continuationToken")
             except TaskclusterRestFailure as e:
                 # Skip expired task groups
                 if e.status_code == 404:

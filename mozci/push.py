@@ -76,43 +76,43 @@ class Push:
         if isinstance(revs, str):
             # Direct usage of a single revision reference
             self._revs = None
-            revs = [revs]
+            head_revision = revs
             self._bugs = None
+        elif (
+            isinstance(revs, list)
+            and len(revs) > 0
+            and all(map(lambda r: isinstance(r, dict), revs))
+        ):
+            # We should get detailed revision objects here
+            def _parse_bug(rev):
+                """Extract Bugzilla bug id from a description in a revision payload"""
+                desc = rev.get("desc")
+                if not desc:
+                    return
+
+                match = REGEX_REV.match(desc)
+                if match is None:
+                    return
+
+                return int(match.group(1))
+
+            # Parse bugs if any
+            self._bugs = set(filter(None, [_parse_bug(rev) for rev in revs]))
+
+            self._revs = [r["node"] for r in revs]
+            head_revision = self._revs[0]
         else:
-
-            # We may get detailed revision objects here
-            if all(map(lambda r: isinstance(r, dict), revs)):
-
-                def _parse_bug(rev):
-                    """Extract Bugzilla bug id from a description in a revision payload"""
-                    desc = rev.get("desc")
-                    if not desc:
-                        return
-
-                    match = REGEX_REV.match(desc)
-                    if match is None:
-                        return
-
-                    return int(match.group(1))
-
-                # Parse bugs if any
-                self._bugs = set(filter(None, [_parse_bug(rev) for rev in revs]))
-
-                self._revs = revs = [r["node"] for r in revs]
-            else:
-                # Or just references towards revisions as strings
-                self._revs = revs
-                self._bugs = None
+            raise NotImplementedError(f"Cannot process revisions: {revs}")
 
         self.branch = branch
-        self._hgmo = HgRev.create(revs[0], branch=self.branch)
+        self._hgmo = HgRev.create(head_revision, branch=self.branch)
 
         self._id = None
         self._date = None
 
         # Need to use full hash in the index.
-        if len(revs[0]) == 40:
-            self.rev = revs[0]
+        if len(head_revision) == 40:
+            self.rev = head_revision
         else:
             self.rev = self._hgmo.node
 
@@ -659,7 +659,7 @@ class Push:
 
         return None
 
-    def _iterate_children(self, max_depth=None, use_full_format=False):
+    def _iterate_children(self, max_depth=None):
         other = self
         for i in itertools.count():
             yield other
@@ -675,7 +675,6 @@ class Push:
                     self.branch,
                     other.id,
                     next_id + depth - i,
-                    use_full_format=use_full_format,
                 )
 
             try:
@@ -890,7 +889,7 @@ class Push:
         # Skip checking regressions if we can't find any possible candidate.
         possible_bustage_fixes = set(
             other
-            for other in self._iterate_children(MAX_DEPTH, use_full_format=True)
+            for other in self._iterate_children(MAX_DEPTH)
             if self != other and fix_same_bugs(self, other)
         )
         if len(possible_bustage_fixes) == 0:

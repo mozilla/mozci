@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, NewType, Tuple
 
 import requests
@@ -11,6 +12,48 @@ from mozci.util.memoize import memoized_property
 from mozci.util.req import get_session
 
 HgPush = NewType("HgPush", Dict[str, Any])
+
+RE_SOURCE_REPO = re.compile(r"^Source-Repo: (https?:\/\/.*)$", re.MULTILINE)
+BUG_RE = re.compile(
+    r"""# bug followed by any sequence of numbers, or
+        # a standalone sequence of numbers
+         (
+           (?:
+             bug |
+             b= |
+             # a sequence of 5+ numbers preceded by whitespace
+             (?=\b\#?\d{5,}) |
+             # numbers at the very beginning
+             ^(?=\d)
+           )
+           (?:\s*\#?)(\d+)(?=\b)
+         )""",
+    re.I | re.X,
+)
+
+# Like BUG_RE except it doesn't flag sequences of numbers, only positive
+# "bug" syntax like "bug X" or "b=".
+BUG_CONSERVATIVE_RE = re.compile(r"""(\b(?:bug|b=)\b(?:\s*)(\d+)(?=\b))""", re.I | re.X)
+
+
+def parse_bugs(s, conservative=False):
+    m = RE_SOURCE_REPO.search(s)
+    if m:
+        source_repo = m.group(1)
+
+        if source_repo.startswith("https://github.com/"):
+            conservative = True
+
+    if s.startswith("Bumping gaia.json"):
+        conservative = True
+
+    bugzilla_re = BUG_CONSERVATIVE_RE if conservative else BUG_RE
+
+    bugs_with_duplicates = [int(m[1]) for m in bugzilla_re.findall(s)]
+    bugs_seen = set()
+    bugs_seen_add = bugs_seen.add
+    bugs = [x for x in bugs_with_duplicates if not (x in bugs_seen or bugs_seen_add(x))]
+    return [bug for bug in bugs if bug < 100000000]
 
 
 class HgRev:

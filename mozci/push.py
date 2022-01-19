@@ -30,7 +30,7 @@ from mozci.task import (
     TestTask,
     get_configuration_from_label,
 )
-from mozci.util.hgmo import HgRev
+from mozci.util.hgmo import HgRev, parse_bugs
 from mozci.util.memoize import memoize, memoized_property
 
 BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
@@ -84,20 +84,10 @@ class Push:
             and all(map(lambda r: isinstance(r, dict), revs))
         ):
             # We should get detailed revision objects here
-            def _parse_bug(rev):
-                """Extract Bugzilla bug id from a description in a revision payload"""
-                desc = rev.get("desc")
-                if not desc:
-                    return
-
-                match = REGEX_REV.match(desc)
-                if match is None:
-                    return
-
-                return int(match.group(1))
-
-            # Parse bugs if any
-            self._bugs = set(filter(None, [_parse_bug(rev) for rev in revs]))
+            # and get the list of Bugzilla Bug Ids from the description
+            self._bugs = set(
+                itertools.chain(*[parse_bugs(rev.get("desc", "")) for rev in revs])
+            )
 
             self._revs = [r["node"] for r in revs]
             head_revision = self._revs[0]

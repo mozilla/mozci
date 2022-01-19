@@ -204,6 +204,7 @@ class ClassifyEvalCommand(Command):
         branch = self.argument("branch")
 
         try:
+            self.line("<comment>Loading pushes...</comment>")
             self.pushes = classify_commands_pushes(
                 branch,
                 self.option("from-date"),

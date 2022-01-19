@@ -243,17 +243,21 @@ class ClassifyEvalCommand(Command):
             )
             return
 
+        # Progress bar will display time stats & messages
+        progress = self.progress_bar(len(self.pushes))
+        progress.set_format(
+            " %current%/%max% [%bar%] %percent:3s%% %elapsed:6s% %message%"
+        )
+
         self.errors = {}
         self.classifications = {}
         for push in self.pushes:
             classification = None
             if self.option("recalculate"):
+                progress.set_message(f"Calc. {branch} {push.id}")
                 try:
                     classification, _ = push.classify(
                         confidence_medium=medium_conf, confidence_high=high_conf
-                    )
-                    self.line(
-                        f"<comment>Classified {branch} {push.rev} : {classification.name}</comment>"
                     )
                 except Exception as e:
                     self.line(
@@ -261,6 +265,7 @@ class ClassifyEvalCommand(Command):
                     )
                     self.errors[push] = e
             else:
+                progress.set_message(f"Fetch {branch} {push.id}")
                 try:
                     index = f"project.mozci.classification.{branch}.revision.{push.rev}"
                     task = Task.create(
@@ -271,12 +276,9 @@ class ClassifyEvalCommand(Command):
                         "public/classification.json",
                         root_url=COMMUNITY_TASKCLUSTER_ROOT_URL,
                     )
-                    self.classifications[push] = classification = PushStatus[
+                    self.classifications[push] = PushStatus[
                         artifact["push"]["classification"]
                     ]
-                    self.line(
-                        f"<comment>Found classification {branch} {push.rev} : {classification.name}</comment>"
-                    )
                 except TaskNotFound as e:
                     self.line(
                         f"<comment>Taskcluster task missing for {branch} {push.rev}</comment>"
@@ -284,11 +286,16 @@ class ClassifyEvalCommand(Command):
                     self.errors[push] = e
 
                 except Exception as e:
-                    print(e, type(e))
                     self.line(
                         f"<error>Fetch failed on {branch} {push.rev}: {e}</error>"
                     )
                     self.errors[push] = e
+
+            # Advance the overall progress bar
+            progress.advance()
+
+        # Conclude the progress bar
+        progress.finish()
 
         if self.errors:
             self.line(

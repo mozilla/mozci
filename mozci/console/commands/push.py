@@ -1,15 +1,24 @@
 # -*- coding: utf-8 -*-
+import csv
 import datetime
 import json
 import os
+import re
 from typing import List
 
+import taskcluster
 from cleo import Command
+from loguru import logger
 from tabulate import tabulate
+from taskcluster.exceptions import TaskclusterRestFailure
 
+from mozci import config
 from mozci.push import Push, PushStatus, make_push_objects
 from mozci.task import Task
-from mozci.util.taskcluster import COMMUNITY_TASKCLUSTER_ROOT_URL
+from mozci.util.taskcluster import (
+    COMMUNITY_TASKCLUSTER_ROOT_URL,
+    get_taskcluster_options,
+)
 
 
 class PushTasksCommand(Command):
@@ -305,6 +314,154 @@ class ClassifyEvalCommand(Command):
         )
 
 
+class ClassifyPerfCommand(Command):
+    """
+    Generate a CSV file with performance stats for all classification tasks
+
+    perf
+        {--environment=testing : Environment to analyze (testing, production, ...)}
+        {--output=perfs.csv: Output CSV file path}
+    """
+
+    REGEX_ROUTE = re.compile(
+        r"^index.project.mozci.classification.([\w\-]+).(revision|push).(\w+)$"
+    )
+
+    def handle(self):
+        environment = self.option("environment")
+        output = self.option("output")
+
+        # Aggregate stats for completed tasks processed by the hook
+        stats = [
+            self.parse_task_status(task_status)
+            for group_id in self.list_groups_from_hook(
+                "project-mozci", f"decision-task-{environment}"
+            )
+            for task_status in self.list_classification_tasks(group_id)
+        ]
+
+        # Dump stats as CSV file
+        with open(output, "w") as csvfile:
+            writer = csv.DictWriter(
+                csvfile,
+                fieldnames=[
+                    "branch",
+                    "push",
+                    "revision",
+                    "task_id",
+                    "created",
+                    "time_taken",
+                ],
+            )
+            writer.writeheader()
+            writer.writerows(stats)
+
+        self.line(f"<info>Written stats for {len(stats)} tasks in {output}</info>")
+
+    def parse_routes(self, routes):
+        """Find revision from task routes"""
+
+        def _match(route):
+            res = self.REGEX_ROUTE.search(route)
+            if res:
+                return res.groups()
+
+        # Extract branch+name+value from the routes
+        # and get 3 separated lists to check those values
+        branches, keys, values = zip(*filter(None, map(_match, routes)))
+
+        # We should only have one branch
+        branches = set(branches)
+        assert len(branches) == 1, f"Multiple branches detected: {branches}"
+
+        # Output single branch, revision and push id
+        data = dict(zip(keys, values))
+        assert "revision" in data, "Missing revision route"
+        assert "push" in data, "Missing push route"
+        return branches.pop(), data["revision"], int(data["push"])
+
+    def parse_task_status(self, task_status):
+        """Extract identification and time spent for each classification task"""
+
+        def date(x):
+            return datetime.datetime.strptime(x, "%Y-%m-%dT%H:%M:%S.%fZ")
+
+        out = {
+            "task_id": task_status["status"]["taskId"],
+            "created": task_status["task"]["created"],
+            "time_taken": sum(
+                (date(run["resolved"]) - date(run["started"])).total_seconds()
+                for run in task_status["status"]["runs"]
+                if run["state"] == "completed"
+            ),
+        }
+        out["branch"], out["revision"], out["push"] = self.parse_routes(
+            task_status["task"]["routes"]
+        )
+        return out
+
+    def list_groups_from_hook(self, group_id, hook_id):
+        """List all decision tasks from the specified hook"""
+        hooks = taskcluster.Hooks(get_taskcluster_options())
+        fires = hooks.listLastFires(group_id, hook_id).get("lastFires", [])
+
+        # Setup CLI progress bar
+        progress = self.progress_bar(len(fires))
+        progress.set_format("verbose")
+
+        # Provide the decision task ID as it's the same value for group ID
+        for fire in fires:
+            yield fire["taskId"]
+
+            progress.advance()
+
+        # Cleanup progress bar
+        progress.finish()
+
+    def list_classification_tasks(self, group_id):
+
+        # Check cache first
+        cache_key = f"perf/task_group/{group_id}"
+        tasks = config.cache.get(cache_key, [])
+
+        if not tasks:
+            queue = taskcluster.Queue(get_taskcluster_options())
+            token = False
+            try:
+                # Support pagination using continuation token
+                while token is not None:
+                    query = {"continuationToken": token} if token else {}
+                    results = queue.listTaskGroup(group_id, query=query)
+                    tasks += results.get("tasks")
+                    token = results.get("continuationToken")
+            except TaskclusterRestFailure as e:
+                # Skip expired task groups
+                if e.status_code == 404:
+                    return
+
+                raise
+        else:
+            logger.debug("From cache", cache_key)
+
+        for task_status in tasks:
+            task_id = task_status["status"]["taskId"]
+
+            # Skip decision task
+            if task_id == group_id:
+                continue
+
+            # Only provide completed tasks
+            if task_status["status"]["state"] != "completed":
+                logger.debug(f"Skip not completed task {task_id}")
+                continue
+
+            yield task_status
+
+        # Cache all tasks if all completed
+        if all(t["status"]["state"] == "completed" for t in tasks):
+            config.cache.add(cache_key, tasks, int(config["cache"]["retention"]))
+
+
 class PushCommands(Command):
     """
     Contains commands that operate on a single push.
@@ -312,7 +469,12 @@ class PushCommands(Command):
     push
     """
 
-    commands = [PushTasksCommand(), ClassifyCommand(), ClassifyEvalCommand()]
+    commands = [
+        PushTasksCommand(),
+        ClassifyCommand(),
+        ClassifyEvalCommand(),
+        ClassifyPerfCommand(),
+    ]
 
     def handle(self):
         return self.call("help", self._config.name)

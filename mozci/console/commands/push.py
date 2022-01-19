@@ -316,7 +316,6 @@ class ClassifyEvalCommand(Command):
                 writer = csv.DictWriter(
                     csvfile,
                     fieldnames=[
-                        "push",
                         "revision",
                         "date",
                         "classification",
@@ -339,7 +338,6 @@ class ClassifyEvalCommand(Command):
         error = self.errors.get(push)
 
         return {
-            "push": push.id,
             "revision": push.rev,
             "date": push.date,
             "classification": classification or "error",

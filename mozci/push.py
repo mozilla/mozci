@@ -3,7 +3,6 @@ import concurrent.futures
 import copy
 import itertools
 import math
-import re
 from argparse import Namespace
 from collections import defaultdict
 from dataclasses import dataclass
@@ -41,9 +40,6 @@ when the task did not run on the currently considered push.
 """
 
 FAILURE_CLASSES = ("not classified", "fixed by commit")
-
-
-REGEX_REV = re.compile(r"bug (\d+)", flags=re.IGNORECASE)
 
 
 class PushStatus(Enum):
@@ -656,15 +652,11 @@ class Push:
 
             # Optimization to load child json-pushes data in a single query (up
             # to MAX_DEPTH at a time).
-            # We load ALL available information for the pushes
-            # to avoid later queries for bugs in bustage_fixed_by
             next_id = other.id + 1
             if next_id not in HgRev.JSON_PUSHES_CACHE:
                 depth = max_depth or MAX_DEPTH
                 HgRev.load_json_pushes_between_ids(
-                    self.branch,
-                    other.id,
-                    next_id + depth - i,
+                    self.branch, other.id, next_id + depth - i
                 )
 
             try:

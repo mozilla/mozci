@@ -13,6 +13,8 @@ from mozci.util.req import get_session
 
 HgPush = NewType("HgPush", Dict[str, Any])
 
+# This code is ported from HGMO hgcustom extension
+# https://hg.mozilla.org/hgcustom/version-control-tools/file/9822fcf4b1178d219b7d7a386dda02a11facf55b/pylib/mozautomation/mozautomation/commitparser.py#l97
 RE_SOURCE_REPO = re.compile(r"^Source-Repo: (https?:\/\/.*)$", re.MULTILINE)
 BUG_RE = re.compile(
     r"""# bug followed by any sequence of numbers, or

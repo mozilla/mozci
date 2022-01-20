@@ -74,18 +74,20 @@ class Push:
             self._revs = None
             head_revision = revs
             self._bugs = None
-        elif (
-            isinstance(revs, list)
-            and len(revs) > 0
-            and all(map(lambda r: isinstance(r, dict), revs))
-        ):
-            # We should get detailed revision objects here
-            # and get the list of Bugzilla Bug Ids from the description
-            self._bugs = set(
-                itertools.chain(*[parse_bugs(rev.get("desc", "")) for rev in revs])
-            )
+        elif isinstance(revs, list) and len(revs) > 0:
+            if all(map(lambda r: isinstance(r, dict), revs)):
+                # We should get detailed revision objects here
+                # and get the list of Bugzilla Bug Ids from the description
+                self._bugs = set(
+                    itertools.chain(*[parse_bugs(rev.get("desc", "")) for rev in revs])
+                )
 
-            self._revs = [r["node"] for r in revs]
+                self._revs = [r["node"] for r in revs]
+            else:
+                # Support list of changeset IDs
+                self._bugs = None
+                self._revs = revs
+
             head_revision = self._revs[0]
         else:
             raise NotImplementedError(f"Cannot process revisions: {revs}")

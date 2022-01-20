@@ -29,7 +29,7 @@ from mozci.task import (
     TestTask,
     get_configuration_from_label,
 )
-from mozci.util.hgmo import HgRev
+from mozci.util.hgmo import HgRev, parse_bugs
 from mozci.util.memoize import memoize, memoized_property
 
 BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
@@ -70,20 +70,37 @@ class Push:
 
     def __init__(self, revs, branch="autoland"):
         if isinstance(revs, str):
+            # Direct usage of a single revision reference
             self._revs = None
-            revs = [revs]
+            head_revision = revs
+            self._bugs = None
+        elif isinstance(revs, list) and len(revs) > 0:
+            if all(map(lambda r: isinstance(r, dict), revs)):
+                # We should get detailed revision objects here
+                # and get the list of Bugzilla Bug Ids from the description
+                self._bugs = set(
+                    itertools.chain(*[parse_bugs(rev.get("desc", "")) for rev in revs])
+                )
+
+                self._revs = [r["node"] for r in revs]
+            else:
+                # Support list of changeset IDs
+                self._bugs = None
+                self._revs = revs
+
+            head_revision = self._revs[0]
         else:
-            self._revs = revs
+            raise NotImplementedError(f"Cannot process revisions: {revs}")
 
         self.branch = branch
-        self._hgmo = HgRev.create(revs[0], branch=self.branch)
+        self._hgmo = HgRev.create(head_revision, branch=self.branch)
 
         self._id = None
         self._date = None
 
         # Need to use full hash in the index.
-        if len(revs[0]) == 40:
-            self.rev = revs[0]
+        if len(head_revision) == 40:
+            self.rev = head_revision
         else:
             self.rev = self._hgmo.node
 
@@ -115,14 +132,18 @@ class Push:
         """
         return bool(self.backedoutby)
 
-    @memoized_property
+    @property
     def bugs(self):
         """The bugs associated with the commits of this push.
 
         Returns:
             set: A set of bug IDs.
         """
-        return self._hgmo.bugs
+        if self._bugs:
+            return self._bugs
+
+        self._bugs = self._hgmo.bugs
+        return self._bugs
 
     @property
     def date(self):
@@ -853,7 +874,7 @@ class Push:
         possible_bustage_fixes = set(
             other
             for other in self._iterate_children(MAX_DEPTH)
-            if fix_same_bugs(self, other)
+            if self != other and fix_same_bugs(self, other)
         )
         if len(possible_bustage_fixes) == 0:
             return None

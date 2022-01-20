@@ -109,7 +109,19 @@ _contracts: Tuple[Contract, ...] = (
                 {
                     "pushid": v.Int(),
                     "date": v.Int(),
-                    "revs": v.List(v.Str()),
+                    "revs": v.List(
+                        v.Dict(
+                            {
+                                "author": v.Str(),
+                                "branch": v.Str(),
+                                "desc": v.Str(),
+                                "files": v.List(v.Str()),
+                                "node": v.Str(),
+                                "parents": v.List(v.Str()),
+                                "tags": v.List(v.Str()),
+                            }
+                        )
+                    ),
                 }
             )
         ),

@@ -204,6 +204,7 @@ class ClassifyEvalCommand(Command):
         branch = self.argument("branch")
 
         try:
+            self.line("<comment>Loading pushes...</comment>")
             self.pushes = classify_commands_pushes(
                 branch,
                 self.option("from-date"),
@@ -252,11 +253,10 @@ class ClassifyEvalCommand(Command):
         self.errors = {}
         self.classifications = {}
         for push in self.pushes:
-            classification = None
             if self.option("recalculate"):
                 progress.set_message(f"Calc. {branch} {push.id}")
                 try:
-                    classification, _ = push.classify(
+                    self.classifications[push], _ = push.classify(
                         confidence_medium=medium_conf, confidence_high=high_conf
                     )
                 except Exception as e:
@@ -296,6 +296,7 @@ class ClassifyEvalCommand(Command):
 
         # Conclude the progress bar
         progress.finish()
+        print("\n")
 
         if self.errors:
             self.line(

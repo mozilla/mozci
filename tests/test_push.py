@@ -152,7 +152,9 @@ def test_create_push(responses):
             json={
                 "pushes": {
                     "123": {
-                        "changesets": ["123456"],
+                        "changesets": [
+                            {"node": "123456", "desc": "Bug 567890 - Fix something bad"}
+                        ],
                         "date": 1213174092,
                         "user": "user@example.org",
                     },
@@ -519,7 +521,7 @@ def test_push_parent_on_autoland(responses):
         json={
             "pushes": {
                 "122": {
-                    "changesets": ["b" * 40],
+                    "changesets": [{"node": "b" * 40}],
                     "date": 1213174092,
                     "user": "user@example.org",
                 },
@@ -533,6 +535,7 @@ def test_push_parent_on_autoland(responses):
     parent = p1.parent
 
     assert parent.id == 122
+    assert parent.rev == "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
 
 def test_push_parent_on_try(responses, create_changesets):
@@ -842,10 +845,19 @@ def test_iterate_children(responses):
 
     responses.add(
         responses.GET,
-        f"https://hg.mozilla.org/{branch}/json-pushes?version=2&startID={push_id}&endID={push_id+depth+1}",
+        f"https://hg.mozilla.org/{branch}/json-pushes?version=2&full=1&startID={push_id}&endID={push_id+depth+1}",
         json={
             "pushes": {
-                push_id + i: {"changesets": [chr(ord("a") + i) * 40], "date": 1}
+                push_id
+                + i: {
+                    "changesets": [
+                        {
+                            "node": chr(ord("a") + i) * 40,
+                            "desc": "A nice description about Bug 1234567",
+                        }
+                    ],
+                    "date": 1,
+                }
                 for i in range(1, depth + 2)
             }
         },
@@ -878,10 +890,19 @@ def test_iterate_parents(responses):
 
     responses.add(
         responses.GET,
-        f"https://hg.mozilla.org/{branch}/json-pushes?version=2&startID={push_id-2-depth}&endID={push_id-1}",
+        f"https://hg.mozilla.org/{branch}/json-pushes?version=2&full=1&startID={push_id-2-depth}&endID={push_id-1}",
         json={
             "pushes": {
-                push_id - i: {"changesets": [chr(ord("a") + i) * 40], "date": 1}
+                push_id
+                - i: {
+                    "changesets": [
+                        {
+                            "node": chr(ord("a") + i) * 40,
+                            "desc": "A nice description about Bug 1234567",
+                        }
+                    ],
+                    "date": 1,
+                }
                 for i in range(1, depth + 2)
             }
         },

@@ -270,7 +270,7 @@ def test_failure_on_bustage_fix(create_pushes):
             classification="not classified",
         ),
     ]
-    p[i].bugs = {123}
+    p[i]._bugs = {123}
     p[i + 1].tasks = []
     p[i + 1].backedoutby = p[i + 3].rev
     p[i + 2].tasks = [
@@ -286,7 +286,7 @@ def test_failure_on_bustage_fix(create_pushes):
             result="passed",
         ),
     ]
-    p[i + 2].bugs = {123}
+    p[i + 2]._bugs = {123}
 
     assert p[i].get_regressions("label") == {"test_for_detecting_bustage_fix": 0}
     assert p[i + 1].get_regressions("label") == {"test": 2}
@@ -539,9 +539,9 @@ def test_failed_and_bustage_fixed(create_pushes):
             result="passed",
         ),
     ]
-    p[i].bugs = {123}
+    p[i]._bugs = {123}
     p[i + 1].tasks = [create_task(id=fake_id(1), label="test-prova1", result="passed")]
-    p[i + 1].bugs = {123}
+    p[i + 1]._bugs = {123}
 
     assert p[i].get_regressions("label") == {"test-prova1": 0}
 
@@ -568,9 +568,9 @@ def test_failed_and_bustage_fixed_intermittently(create_pushes):
             result="passed",
         ),
     ]
-    p[i].bugs = {123}
+    p[i]._bugs = {123}
     p[i + 1].tasks = [create_task(id=fake_id(1), label="test-prova", result="passed")]
-    p[i + 1].bugs = {123}
+    p[i + 1]._bugs = {123}
 
     assert p[i].get_regressions("label") == {"test-prova": 0}
 
@@ -592,8 +592,8 @@ def test_failed_with_child_push_fixing_same_bug(create_pushes):
             classification="not classified",
         )
     ]
-    p[i].bugs = {123}
-    p[i + 1].bugs = {123}
+    p[i]._bugs = {123}
+    p[i + 1]._bugs = {123}
 
     assert p[i].get_regressions("label") == {}
 
@@ -640,7 +640,7 @@ def test_failed_with_child_push_still_failing_fixing_same_bug(create_pushes):
             classification="intermittent",
         ),
     ]
-    p[i].bugs = {123}
+    p[i]._bugs = {123}
     p[i + 1].tasks = [
         create_task(
             id=fake_id(1),
@@ -659,7 +659,7 @@ def test_failed_with_child_push_still_failing_fixing_same_bug(create_pushes):
             result="passed",
         ),
     ]
-    p[i + 1].bugs = {123}
+    p[i + 1]._bugs = {123}
 
     assert p[i].get_regressions("label") == {}
 
@@ -694,7 +694,7 @@ def test_child_failed_and_bustage_fixed(create_pushes):
     i = 1  # the index of the push we are mainly interested in
 
     p[i - 1].tasks = [create_task(id=fake_id(1), label="test-prova", result="passed")]
-    p[i].bugs = {123}
+    p[i]._bugs = {123}
     p[len(p) - 2].tasks = [
         create_task(
             id=fake_id(1),
@@ -706,7 +706,7 @@ def test_child_failed_and_bustage_fixed(create_pushes):
     p[len(p) - 1].tasks = [
         create_task(id=fake_id(1), label="test-prova", result="passed")
     ]
-    p[len(p) - 1].bugs = {123}
+    p[len(p) - 1]._bugs = {123}
 
     assert p[i].get_regressions("label") == {"test-prova": 10}
 
@@ -1230,7 +1230,7 @@ def test_fixed_by_commit_another_push_possible_classification8(
         )
     ]
     p[i + 4].tasks = [create_task(id=fake_id(1), label="test-failure", result="passed")]
-    p[i + 4].bugs = p[i].bugs
+    p[i + 4]._bugs = p[i].bugs
     p[i + 4]._revs = [p[i + 4].rev, "rev4.2"]
 
     assert p[i].get_regressions("label") == {"test-failure": 0}
@@ -1689,7 +1689,7 @@ def test_fixed_by_commit_another_push_wrong_classification_bustage_fixed(
 
     p[i - 1].tasks = [create_task(id=fake_id(1), label="test-failure", result="passed")]
     p[i].tasks = []
-    p[i].bugs = {123}
+    p[i]._bugs = {123}
     p[i + 1].tasks = [
         create_task(
             id=fake_id(1),
@@ -1700,7 +1700,7 @@ def test_fixed_by_commit_another_push_wrong_classification_bustage_fixed(
         )
     ]
     p[i + 1].backedoutby = p[i + 5].rev
-    p[i + 2].bugs = {123}
+    p[i + 2]._bugs = {123}
 
     assert p[i].get_regressions("label") == {}
     assert p[i + 1].get_regressions("label") == {"test-failure": 1}
@@ -1728,8 +1728,8 @@ def test_fixed_by_commit_another_push_wrong_classification_bustage_fixed2(
 
     p[i - 1].tasks = [create_task(id=fake_id(1), label="test-failure", result="passed")]
     p[i].tasks = []
-    p[i].bugs = {123}
-    p[i + 1].bugs = {123}
+    p[i]._bugs = {123}
+    p[i + 1]._bugs = {123}
     p[i + 2].tasks = [
         create_task(
             id=fake_id(1),

@@ -376,7 +376,7 @@ class GroupSummary(RunnableSummary):
     """Summarizes the overall state of a group (across retriggers)."""
 
     name: str
-    tasks: List[Task]
+    tasks: List[TestTask]
     _durations: Optional[List[float]] = field(default_factory=lambda: [0.0])
 
     def __post_init__(self):
@@ -452,7 +452,7 @@ class GroupSummary(RunnableSummary):
         ]
 
     @memoized_property
-    def is_cross_config_failure(self):
+    def is_cross_config_failure(self) -> Optional[bool]:
         states = [
             result.ok
             for task in self.tasks
@@ -464,9 +464,13 @@ class GroupSummary(RunnableSummary):
         nb_passed = sum(states)  # Number of True booleans in the states list
         nb_failed = nb - nb_passed
 
-        # A group is a cross config failure when it is failing in all tasks, at least two, and not
+        # If the group run on a single task, we don't have enough information to tell.
+        if nb <= 1:
+            return None
+
+        # A group is a cross config failure when it is failing in all tasks and not
         # only in some.
-        return nb > 1 and nb_failed > 0 and nb_passed == 0
+        return nb_failed > 0 and nb_passed == 0
 
 
 @dataclass

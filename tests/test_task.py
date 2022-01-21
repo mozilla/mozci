@@ -299,7 +299,7 @@ def test_results_for_incomplete_task(responses):
                     )
                 ],
             ),
-            False,
+            None,
         ),  # Only one task run and failed
         (
             GroupSummary(

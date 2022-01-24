@@ -114,3 +114,7 @@ venv.bak/
 
 # Editor stuff:
 .vim
+
+# Mac stuff
+.DS_Store
+*.DS_Store

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import json
+import re
 
 import pytest
 
@@ -69,6 +70,48 @@ def test_create(responses):
     responses.replace(responses.GET, get_index_url(index), status=404)
     with pytest.raises(TaskNotFound):
         Task.create(index=index)
+
+
+def test_retrigger_should_retrigger(responses, create_task):
+
+    responses.add(
+        responses.GET,
+        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/0",
+        json={"payload": {}, "tags": {"retrigger": "true"}},
+        status=200,
+    )
+
+    create_new_task_url_matcher = re.compile(
+        r"https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/*"
+    )
+
+    responses.add(responses.PUT, create_new_task_url_matcher, status=200)
+
+    task = create_task(label="foobar")
+    task.retrigger()
+
+    # verify last call was to create a new task
+    assert responses.calls[-1].request.method == "PUT"
+    assert create_new_task_url_matcher.match(responses.calls[-1].request.url)
+
+
+def test_retrigger_should_not_retrigger(responses, create_task):
+
+    responses.add(
+        responses.GET,
+        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/0",
+        json={
+            "payload": {},
+            "tags": {"retrigger": "false", "label": "test_dont_retrigger"},
+        },
+        status=200,
+    )
+
+    task = create_task(label="foobar")
+    task.retrigger()
+
+    # verify last call was not to create a new task
+    assert not responses.calls[-1].request.method == "PUT"
 
 
 def test_to_json():

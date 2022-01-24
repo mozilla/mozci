@@ -89,6 +89,13 @@ def get_task(task_id, use_proxy=False):
     return queue.task(task_id)
 
 
+def create_task(task_id, task):
+    options = taskcluster.optionsFromEnvironment()
+    options["rootUrl"] = PRODUCTION_TASKCLUSTER_ROOT_URL
+    queue = taskcluster.Queue(options)
+    return queue.createTask(task_id, task)
+
+
 def get_tasks_in_group(group_id):
     tasks = []
 

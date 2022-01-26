@@ -293,6 +293,19 @@ def test_results_for_incomplete_task(responses):
                 "group1",
                 [
                     Task.create(
+                        id=1,
+                        label="test-task1",
+                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                    )
+                ],
+            ),
+            None,
+        ),  # Only one task run and failed
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
                         id=i,
                         label=f"test-task{i}",
                         _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
@@ -300,7 +313,7 @@ def test_results_for_incomplete_task(responses):
                     for i in range(1, 11)
                 ],
             ),
-            False,
+            True,
         ),  # All related tasks failed
         (
             GroupSummary(
@@ -318,7 +331,7 @@ def test_results_for_incomplete_task(responses):
                     for i in range(1, 11)
                 ],
             ),
-            True,
+            False,
         ),  # Related tasks both failed and passed
         (
             GroupSummary(

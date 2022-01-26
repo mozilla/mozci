@@ -1094,7 +1094,7 @@ class Push:
         groups_non_cross_config_failure = {
             g.name
             for g in all_groups
-            if g.status != Status.PASS and not g.is_cross_config_failure
+            if g.status != Status.PASS and g.is_cross_config_failure is False
         }
         groups_failing_in_the_push = {
             g.name for g in all_groups if g.status != Status.PASS

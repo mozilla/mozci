@@ -822,9 +822,14 @@ class Push:
         ):
             # Break early if we reached the backout of this push, since any failure
             # after that won't be blamed on this push.
+            try:
+                next_child = other.child
+            except ChildPushNotFound:
+                break
+
             if self.branch != "try" and (
-                self.backedoutby in other.child.revs
-                or self.bustage_fixed_by in other.child.revs
+                self.backedoutby in next_child.revs
+                or self.bustage_fixed_by in next_child.revs
             ):
                 logger.debug(
                     f"Reached a backout/bustage fix of {self.rev}, stop looking for failures in children."
@@ -836,7 +841,7 @@ class Push:
                 # backout that causes another failure in the same runnable, but it is very
                 # unlikely (especially for finer granularities, such as "group").
                 for name, summary in getattr(
-                    other.child, f"{runnable_type}_summaries"
+                    next_child, f"{runnable_type}_summaries"
                 ).items():
                     if (
                         name in candidate_regressions

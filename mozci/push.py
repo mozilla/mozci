@@ -1272,7 +1272,7 @@ def make_push_objects(**kwargs):
             pushes_data = data.handler.get("pushes", **kwargs)
         else:
             raise Exception(
-                "Unsupported parameters (either from_date and to_date or nb are required"
+                "Unsupported parameters (either from_date and to_date or nb are required)"
             )
     except MissingDataError:
         return []

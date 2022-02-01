@@ -32,6 +32,7 @@ adr = { version = "~0", optional = true }
 ValidX = "^0.7"
 cleo = "^0.8.1"
 tabulate = "^0.8.9"
+arrow = "^1.2.2"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.17"

@@ -6,6 +6,7 @@ import os
 import re
 from typing import List
 
+import arrow
 import taskcluster
 from cleo import Command
 from loguru import logger
@@ -46,28 +47,41 @@ def classify_commands_pushes(
 ) -> List[Push]:
     if not (bool(rev) ^ bool(from_date or to_date)):
         raise Exception(
-            "You must either provide a single push revision with --rev or define --from-date AND --to-date options to classify a range of pushes."
+            "You must either provide a single push revision with --rev or define at least --from-date option to classify a range of pushes (note: --to-date will default to current time if not given)."
         )
 
     if rev:
         pushes = [Push(rev, branch)]
     else:
-        if not from_date or not to_date:
+        if not from_date:
             raise Exception(
-                "You must provide --from-date AND --to-date options to classify a range of pushes."
+                "You must provide at least --from-date to classify a range of pushes (note: --to-date will default to current time if not given)."
             )
 
+        now = datetime.datetime.now()
+        if not to_date:
+            to_date = datetime.datetime.strftime(now, "%Y-%m-%d")
+
+        arrow_now = arrow.get(now)
         try:
             datetime.datetime.strptime(from_date, "%Y-%m-%d")
         except ValueError:
-            raise Exception(
-                "Provided --from-date should be a date in yyyy-mm-dd format."
-            )
+            try:
+                from_date = arrow_now.dehumanize(from_date).format("YYYY-MM-DD")
+            except ValueError:
+                raise Exception(
+                    'Provided --from-date should be a date in yyyy-mm-dd format or a human expression like "1 days ago".'
+                )
 
         try:
             datetime.datetime.strptime(to_date, "%Y-%m-%d")
         except ValueError:
-            raise Exception("Provided --to-date should be a date in yyyy-mm-dd format.")
+            try:
+                to_date = arrow_now.dehumanize(to_date).format("YYYY-MM-DD")
+            except ValueError:
+                raise Exception(
+                    'Provided --to-date should be a date in yyyy-mm-dd format or a human expression like "1 days ago".'
+                )
 
         pushes = make_push_objects(from_date=from_date, to_date=to_date, branch=branch)
 
@@ -81,8 +95,8 @@ class ClassifyCommand(Command):
     classify
         {branch=autoland : Branch the push belongs to (e.g autoland, try, etc).}
         {--rev= : Head revision of the push.}
-        {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format).}
-        {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format).}
+        {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").}
+        {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.}
         {--medium-confidence=0.8 : Medium confidence threshold used to classify the regressions.}
         {--high-confidence=0.9 : High confidence threshold used to classify the regressions.}
         {--output= : Path towards a directory to save a JSON file containing classification and regressions details in.}
@@ -192,8 +206,8 @@ class ClassifyEvalCommand(Command):
     classify-eval
         {branch=autoland : Branch the push belongs to (e.g autoland, try, etc).}
         {--rev= : Head revision of the push.}
-        {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format).}
-        {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format).}
+        {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").}
+        {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.}
         {--medium-confidence= : If recalculate parameter is set, medium confidence threshold used to classify the regressions.}
         {--high-confidence= : If recalculate parameter is set, high confidence threshold used to classify the regressions.}
         {--recalculate : If set, recalculate the classification instead of fetching an artifact.}

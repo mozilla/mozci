@@ -6,6 +6,7 @@ import os
 import re
 from typing import List
 
+import arrow
 import taskcluster
 from cleo import Command
 from loguru import logger
@@ -20,6 +21,18 @@ from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
     get_taskcluster_options,
 )
+
+EMAIL_CONTENT = """
+# classify-eval report generated on the {today}
+
+The report contains statistics about pushes that were classified by Mozci.
+
+## Statistics for the {total} pushes that were evaluated
+
+{error_line}
+
+{stats}
+"""
 
 
 class PushTasksCommand(Command):
@@ -46,28 +59,41 @@ def classify_commands_pushes(
 ) -> List[Push]:
     if not (bool(rev) ^ bool(from_date or to_date)):
         raise Exception(
-            "You must either provide a single push revision with --rev or define --from-date AND --to-date options to classify a range of pushes."
+            "You must either provide a single push revision with --rev or define at least --from-date option to classify a range of pushes (note: --to-date will default to current time if not given)."
         )
 
     if rev:
         pushes = [Push(rev, branch)]
     else:
-        if not from_date or not to_date:
+        if not from_date:
             raise Exception(
-                "You must provide --from-date AND --to-date options to classify a range of pushes."
+                "You must provide at least --from-date to classify a range of pushes (note: --to-date will default to current time if not given)."
             )
 
+        now = datetime.datetime.now()
+        if not to_date:
+            to_date = datetime.datetime.strftime(now, "%Y-%m-%d")
+
+        arrow_now = arrow.get(now)
         try:
             datetime.datetime.strptime(from_date, "%Y-%m-%d")
         except ValueError:
-            raise Exception(
-                "Provided --from-date should be a date in yyyy-mm-dd format."
-            )
+            try:
+                from_date = arrow_now.dehumanize(from_date).format("YYYY-MM-DD")
+            except ValueError:
+                raise Exception(
+                    'Provided --from-date should be a date in yyyy-mm-dd format or a human expression like "1 days ago".'
+                )
 
         try:
             datetime.datetime.strptime(to_date, "%Y-%m-%d")
         except ValueError:
-            raise Exception("Provided --to-date should be a date in yyyy-mm-dd format.")
+            try:
+                to_date = arrow_now.dehumanize(to_date).format("YYYY-MM-DD")
+            except ValueError:
+                raise Exception(
+                    'Provided --to-date should be a date in yyyy-mm-dd format or a human expression like "1 days ago".'
+                )
 
         pushes = make_push_objects(from_date=from_date, to_date=to_date, branch=branch)
 
@@ -81,8 +107,8 @@ class ClassifyCommand(Command):
     classify
         {branch=autoland : Branch the push belongs to (e.g autoland, try, etc).}
         {--rev= : Head revision of the push.}
-        {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format).}
-        {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format).}
+        {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").}
+        {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.}
         {--medium-confidence=0.8 : Medium confidence threshold used to classify the regressions.}
         {--high-confidence=0.9 : High confidence threshold used to classify the regressions.}
         {--output= : Path towards a directory to save a JSON file containing classification and regressions details in.}
@@ -192,12 +218,13 @@ class ClassifyEvalCommand(Command):
     classify-eval
         {branch=autoland : Branch the push belongs to (e.g autoland, try, etc).}
         {--rev= : Head revision of the push.}
-        {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format).}
-        {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format).}
+        {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").}
+        {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.}
         {--medium-confidence= : If recalculate parameter is set, medium confidence threshold used to classify the regressions.}
         {--high-confidence= : If recalculate parameter is set, high confidence threshold used to classify the regressions.}
         {--recalculate : If set, recalculate the classification instead of fetching an artifact.}
         {--output= : Path towards a path to save a CSV file with classification states for various pushes.}
+        {--send-email : If set, also send the evaluation report by email instead of just logging it.}
     """
 
     def handle(self):
@@ -298,17 +325,22 @@ class ClassifyEvalCommand(Command):
         progress.finish()
         print("\n")
 
+        error_line = ""
         if self.errors:
-            self.line(
-                f"<error>Failed to fetch or recalculate classification for {len(self.errors)} out of {len(self.pushes)} pushes.</error>"
-            )
+            error_line = f"Failed to fetch or recalculate classification for {len(self.errors)} out of {len(self.pushes)} pushes."
+            self.line(f"<error>{error_line}</error>")
 
-        self.log_pushes(PushStatus.BAD, False)
-        self.log_pushes(PushStatus.BAD, True)
-        self.log_pushes(PushStatus.GOOD, False)
-        self.log_pushes(PushStatus.GOOD, True)
-        self.log_pushes(PushStatus.UNKNOWN, False)
-        self.log_pushes(PushStatus.UNKNOWN, True)
+        stats = [
+            self.log_pushes(PushStatus.BAD, False),
+            self.log_pushes(PushStatus.BAD, True),
+            self.log_pushes(PushStatus.GOOD, False),
+            self.log_pushes(PushStatus.GOOD, True),
+            self.log_pushes(PushStatus.UNKNOWN, False),
+            self.log_pushes(PushStatus.UNKNOWN, True),
+        ]
+
+        if self.option("send-email"):
+            self.send_emails(len(self.pushes), stats, error_line)
 
         output = self.option("output")
         if output:
@@ -363,9 +395,44 @@ class ClassifyEvalCommand(Command):
             ]
         )
         verb = "were" if backedout else "weren't"
-        self.line(
-            f"{nb} out of {len(self.pushes)} pushes {verb} backed-out by a sheriff and were classified as {status.name}."
+        line = f"{nb} out of {len(self.pushes)} pushes {verb} backed-out by a sheriff and were classified as {status.name}."
+        self.line(line)
+
+        return line
+
+    def send_emails(self, total, stats, error_line):
+        notify = taskcluster.Notify(get_taskcluster_options())
+
+        today = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d")
+        subject = f"Mozci | classify-eval report generated the {today}"
+
+        stats = "\n".join([f"- {stat}" for stat in stats])
+        content = EMAIL_CONTENT.format(
+            today=today,
+            total=total,
+            error_line=f"**{error_line}**" if error_line else "",
+            stats=stats,
         )
+
+        emails = config.get("emails", [])
+        if not emails:
+            self.line(
+                "<info>--send-email option was provided but no email recipient was found in the configuration.</info>"
+            )
+
+        for idx, email in enumerate(emails):
+            try:
+                notify.email(
+                    {
+                        "address": email,
+                        "subject": subject,
+                        "content": content,
+                    }
+                )
+            except Exception as e:
+                self.line(
+                    f"<error>Failed to send the report by email to address n°{idx} ({email}): {e}</error>"
+                )
 
 
 class ClassifyPerfCommand(Command):

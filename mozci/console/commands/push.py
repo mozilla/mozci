@@ -224,7 +224,7 @@ class ClassifyEvalCommand(Command):
         {--high-confidence= : If recalculate parameter is set, high confidence threshold used to classify the regressions.}
         {--recalculate : If set, recalculate the classification instead of fetching an artifact.}
         {--output= : Path towards a path to save a CSV file with classification states for various pushes.}
-        {--send-email : If set, send the evaluation report by email instead of logging it.}
+        {--send-email : If set, also send the evaluation report by email instead of just logging it.}
     """
 
     def handle(self):

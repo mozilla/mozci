@@ -414,7 +414,7 @@ class ClassifyEvalCommand(Command):
             stats=stats,
         )
 
-        emails = config.get("emails", ["test@test.fr", "bardou@ŧeklia.com"])
+        emails = config.get("emails", [])
         if not emails:
             self.line(
                 "<info>--send-email option was provided but no email recipient was found in the configuration.</info>"

@@ -414,20 +414,25 @@ class ClassifyEvalCommand(Command):
             stats=stats,
         )
 
-        emails = config.get("emails", [])
+        emails = config.get("emails", ["test@test.fr", "bardou@ŧeklia.com"])
         if not emails:
             self.line(
                 "<info>--send-email option was provided but no email recipient was found in the configuration.</info>"
             )
 
-        for email in emails:
-            notify.email(
-                {
-                    "address": email,
-                    "subject": subject,
-                    "content": content,
-                }
-            )
+        for idx, email in enumerate(emails):
+            try:
+                notify.email(
+                    {
+                        "address": email,
+                        "subject": subject,
+                        "content": content,
+                    }
+                )
+            except Exception:
+                self.line(
+                    f"<error>Failed to send the report by email for the address at index {idx} in the provided list.</error>"
+                )
 
 
 class ClassifyPerfCommand(Command):

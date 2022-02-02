@@ -22,6 +22,18 @@ from mozci.util.taskcluster import (
     get_taskcluster_options,
 )
 
+EMAIL_CONTENT = """
+# classify-eval report generated on the {today}
+
+The report contains statistics about pushes that were classified by Mozci.
+
+## Statistics for the {total} pushes that were evaluated
+
+{error_line}
+
+{stats}
+"""
+
 
 class PushTasksCommand(Command):
     """
@@ -212,6 +224,7 @@ class ClassifyEvalCommand(Command):
         {--high-confidence= : If recalculate parameter is set, high confidence threshold used to classify the regressions.}
         {--recalculate : If set, recalculate the classification instead of fetching an artifact.}
         {--output= : Path towards a path to save a CSV file with classification states for various pushes.}
+        {--send-email : If set, send the evaluation report by email instead of logging it.}
     """
 
     def handle(self):
@@ -312,17 +325,22 @@ class ClassifyEvalCommand(Command):
         progress.finish()
         print("\n")
 
+        error_line = ""
         if self.errors:
-            self.line(
-                f"<error>Failed to fetch or recalculate classification for {len(self.errors)} out of {len(self.pushes)} pushes.</error>"
-            )
+            error_line = f"Failed to fetch or recalculate classification for {len(self.errors)} out of {len(self.pushes)} pushes."
+            self.line(f"<error>{error_line}</error>")
 
-        self.log_pushes(PushStatus.BAD, False)
-        self.log_pushes(PushStatus.BAD, True)
-        self.log_pushes(PushStatus.GOOD, False)
-        self.log_pushes(PushStatus.GOOD, True)
-        self.log_pushes(PushStatus.UNKNOWN, False)
-        self.log_pushes(PushStatus.UNKNOWN, True)
+        stats = [
+            self.log_pushes(PushStatus.BAD, False),
+            self.log_pushes(PushStatus.BAD, True),
+            self.log_pushes(PushStatus.GOOD, False),
+            self.log_pushes(PushStatus.GOOD, True),
+            self.log_pushes(PushStatus.UNKNOWN, False),
+            self.log_pushes(PushStatus.UNKNOWN, True),
+        ]
+
+        if self.option("send-email"):
+            self.send_emails(len(self.pushes), stats, error_line)
 
         output = self.option("output")
         if output:
@@ -377,9 +395,39 @@ class ClassifyEvalCommand(Command):
             ]
         )
         verb = "were" if backedout else "weren't"
-        self.line(
-            f"{nb} out of {len(self.pushes)} pushes {verb} backed-out by a sheriff and were classified as {status.name}."
+        line = f"{nb} out of {len(self.pushes)} pushes {verb} backed-out by a sheriff and were classified as {status.name}."
+        self.line(line)
+
+        return line
+
+    def send_emails(self, total, stats, error_line):
+        notify = taskcluster.Notify(get_taskcluster_options())
+
+        today = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d")
+        subject = f"Mozci | classify-eval report generated the {today}"
+
+        stats = "\n".join([f"- {stat}" for stat in stats])
+        content = EMAIL_CONTENT.format(
+            today=today,
+            total=total,
+            error_line=f"**{error_line}**" if error_line else "",
+            stats=stats,
         )
+
+        emails = config.get("emails", [])
+        if not emails:
+            self.line(
+                "<info>--send-email option was provided but no email recipient was found in the configuration.</info>"
+            )
+
+        for email in emails:
+            notify.email(
+                {
+                    "address": email,
+                    "subject": subject,
+                    "content": content,
+                }
+            )
 
 
 class ClassifyPerfCommand(Command):

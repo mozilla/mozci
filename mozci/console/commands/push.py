@@ -429,9 +429,9 @@ class ClassifyEvalCommand(Command):
                         "content": content,
                     }
                 )
-            except Exception:
+            except Exception as e:
                 self.line(
-                    f"<error>Failed to send the report by email for the address at index {idx} in the provided list.</error>"
+                    f"<error>Failed to send the report by email to address n°{idx} ({email}): {e}</error>"
                 )
 
 

@@ -104,7 +104,9 @@ class CustomCacheManager(CacheManager):
 
 class Configuration(Mapping):
     DEFAULT_CONFIG_PATH = Path(user_config_dir("mozci")) / "config.toml"
-    TASKCLUSTER_CONFIG_SECRET = os.environ.get("TASKCLUSTER_CONFIG_SECRET")
+    TASKCLUSTER_CONFIG_SECRET = os.environ.get(
+        "TASKCLUSTER_CONFIG_SECRET"
+    ) or os.environ.get("TASKCLUSTER_SECRET")
     DEFAULTS = {
         "merge": {
             "cache": {"retention": 1440},

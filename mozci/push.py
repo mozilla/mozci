@@ -1049,6 +1049,7 @@ class Push:
         self,
         intermittent_confidence_threshold: float = 0.8,
         real_confidence_threshold: float = 0.9,
+        use_possible_regressions: bool = False,
     ) -> Regressions:
         """
         Use group classification data from bugbug to classify all likely
@@ -1075,7 +1076,9 @@ class Push:
         # Fetch likely group regressions for that push from treeherder + Taskcluster
         # We do not cache these results as we might want to analyze in-progress
         # pushes and keep updating these values
-        groups_likely_regressions = self.get_likely_regressions("group", False)
+        groups_regressions = self.get_likely_regressions("group", False)
+        if use_possible_regressions:
+            groups_regressions |= self.get_possible_regressions("group", False)
 
         # Get task groups with high and low confidence from bugbug scheduling
         groups_high = {
@@ -1126,9 +1129,7 @@ class Push:
 
         # Real failure are groups with likely regressions that were selected with high confidence
         # AND failing across config
-        real_failures = (
-            groups_likely_regressions & groups_cross_config_failure & groups_high
-        )
+        real_failures = groups_regressions & groups_cross_config_failure & groups_high
         logger.debug(f"Got {len(real_failures)} real failures")
 
         # Intermittent failures are groups that were NOT selected (low confidence)

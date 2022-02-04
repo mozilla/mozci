@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import collections
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -450,6 +451,23 @@ class GroupSummary(RunnableSummary):
                 not result.ok and result.group == self.name for result in task.results
             )
         ]
+
+    def is_config_consistent_failure(self, minimum_count: int = 3) -> Optional[bool]:
+        config_to_results = collections.defaultdict(list)
+        for task in self.tasks:
+            for result in task.results:
+                if result.group == self.name:
+                    config_to_results[task.configuration].append(result.ok)
+
+        # If there is no config for which we have at least two runs, return None (that is, unknown).
+        if all(len(results) < minimum_count for results in config_to_results.values()):
+            return None
+
+        # Return True if there is at least one configuration for which we have only failures, False otherwise.
+        return any(
+            len(results) >= minimum_count and not any(results)
+            for results in config_to_results.values()
+        )
 
     @memoized_property
     def is_cross_config_failure(self) -> Optional[bool]:

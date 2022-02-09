@@ -150,7 +150,8 @@ class ClassifyCommand(Command):
         for push in pushes:
             try:
                 classification, regressions = push.classify(
-                    confidence_medium=medium_conf, confidence_high=high_conf
+                    intermittent_confidence_threshold=medium_conf,
+                    real_confidence_threshold=high_conf,
                 )
                 self.line(
                     f"Push associated with the head revision {push.rev} on "
@@ -284,7 +285,8 @@ class ClassifyEvalCommand(Command):
                 progress.set_message(f"Calc. {branch} {push.id}")
                 try:
                     self.classifications[push], _ = push.classify(
-                        confidence_medium=medium_conf, confidence_high=high_conf
+                        intermittent_confidence_threshold=medium_conf,
+                        real_confidence_threshold=high_conf,
                     )
                 except Exception as e:
                     self.line(

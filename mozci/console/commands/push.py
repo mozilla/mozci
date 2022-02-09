@@ -115,7 +115,7 @@ class ClassifyCommand(Command):
         {--show-intermittents : If set, print tasks that should be marked as intermittent.}
     """
 
-    def handle(self):
+    def handle(self) -> None:
         branch = self.argument("branch")
 
         try:
@@ -228,7 +228,7 @@ class ClassifyEvalCommand(Command):
         {--send-email : If set, also send the evaluation report by email instead of just logging it.}
     """
 
-    def handle(self):
+    def handle(self) -> None:
         branch = self.argument("branch")
 
         try:
@@ -450,7 +450,7 @@ class ClassifyPerfCommand(Command):
         r"^index.project.mozci.classification.([\w\-]+).(revision|push).(\w+)$"
     )
 
-    def handle(self):
+    def handle(self) -> None:
         environment = self.option("environment")
         output = self.option("output")
 

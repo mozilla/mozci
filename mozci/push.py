@@ -1046,7 +1046,9 @@ class Push:
         )
 
     def classify_regressions(
-        self, confidence_medium: float = 0.8, confidence_high: float = 0.9
+        self,
+        intermittent_confidence_threshold: float = 0.8,
+        real_confidence_threshold: float = 0.9,
     ) -> Regressions:
         """
         Use group classification data from bugbug to classify all likely
@@ -1079,12 +1081,12 @@ class Push:
         groups_high = {
             g
             for g, confidence in bugbug_selection["groups"].items()
-            if confidence >= confidence_high
+            if confidence >= real_confidence_threshold
         }
         groups_low = {
             g
             for g, confidence in bugbug_selection["groups"].items()
-            if confidence < confidence_medium
+            if confidence < intermittent_confidence_threshold
         }
         logger.debug(f"Got {len(groups_high)} groups with high confidence")
         logger.debug(f"Got {len(groups_low)} groups with low confidence")
@@ -1156,7 +1158,9 @@ class Push:
         )
 
     def classify(
-        self, confidence_medium: float = 0.8, confidence_high: float = 0.9
+        self,
+        intermittent_confidence_threshold: float = 0.8,
+        real_confidence_threshold: float = 0.9,
     ) -> Tuple[PushStatus, Regressions]:
         """
         Classify the overall push state using its group tasks states
@@ -1165,7 +1169,9 @@ class Push:
         - good push: when there are only intermittent failures
         - unknown state: when other tasks are failing
         """
-        regressions = self.classify_regressions(confidence_medium, confidence_high)
+        regressions = self.classify_regressions(
+            intermittent_confidence_threshold, real_confidence_threshold
+        )
 
         # If there are any real failures, it's a bad push
         if len(regressions.real) > 0:

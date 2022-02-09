@@ -115,7 +115,7 @@ class ClassifyCommand(Command):
         {--show-intermittents : If set, print tasks that should be marked as intermittent.}
     """
 
-    def handle(self):
+    def handle(self) -> None:
         branch = self.argument("branch")
 
         try:
@@ -150,7 +150,8 @@ class ClassifyCommand(Command):
         for push in pushes:
             try:
                 classification, regressions = push.classify(
-                    confidence_medium=medium_conf, confidence_high=high_conf
+                    intermittent_confidence_threshold=medium_conf,
+                    real_confidence_threshold=high_conf,
                 )
                 self.line(
                     f"Push associated with the head revision {push.rev} on "
@@ -227,7 +228,7 @@ class ClassifyEvalCommand(Command):
         {--send-email : If set, also send the evaluation report by email instead of just logging it.}
     """
 
-    def handle(self):
+    def handle(self) -> None:
         branch = self.argument("branch")
 
         try:
@@ -284,7 +285,8 @@ class ClassifyEvalCommand(Command):
                 progress.set_message(f"Calc. {branch} {push.id}")
                 try:
                     self.classifications[push], _ = push.classify(
-                        confidence_medium=medium_conf, confidence_high=high_conf
+                        intermittent_confidence_threshold=medium_conf,
+                        real_confidence_threshold=high_conf,
                     )
                 except Exception as e:
                     self.line(
@@ -448,7 +450,7 @@ class ClassifyPerfCommand(Command):
         r"^index.project.mozci.classification.([\w\-]+).(revision|push).(\w+)$"
     )
 
-    def handle(self):
+    def handle(self) -> None:
         environment = self.option("environment")
         output = self.option("output")
 

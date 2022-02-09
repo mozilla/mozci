@@ -7,6 +7,7 @@ import os
 
 import taskcluster
 import taskcluster_urls as liburls
+from loguru import logger
 
 from mozci.util import yaml
 from mozci.util.req import get_session
@@ -124,3 +125,29 @@ def get_taskcluster_options():
         options["rootUrl"] = "https://community-tc.services.mozilla.com"
 
     return options
+
+
+def send_admin_emails(subject, content, emails):
+    """
+    Send an email to all provided email addresses
+    using Taskcluster notify service
+    """
+    if not emails:
+        logger.warn("No emails addresses available in configuration")
+        return
+
+    notify = taskcluster.Notify(get_taskcluster_options())
+
+    for idx, email in enumerate(emails):
+        try:
+            notify.email(
+                {
+                    "address": email,
+                    "subject": f"Mozci | {subject}",
+                    "content": content,
+                }
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to send the report by email to address n°{idx} ({email}): {e}"
+            )

@@ -4,6 +4,8 @@ from datetime import datetime
 
 import requests
 from loguru import logger
+from taskcluster import Index
+from taskcluster.exceptions import TaskclusterRestFailure
 
 from mozci.data.base import DataSource
 from mozci.errors import ContractNotFilled
@@ -17,6 +19,7 @@ class TaskclusterSource(DataSource):
     supported_contracts = (
         "push_tasks",
         "push_test_selection_data",
+        "push_existing_classification",
     )
 
     def to_ms(self, datestring, fmt="%Y-%m-%dT%H:%M:%S.%fZ"):
@@ -120,3 +123,24 @@ class TaskclusterSource(DataSource):
             )
 
         return results
+
+    def run_push_existing_classification(self, branch, rev):
+        try:
+            index = Index(taskcluster.get_taskcluster_options())
+            response = index.findArtifactFromTask(
+                f"project.mozci.classification.{branch}.revision.{rev}",
+                "public/classification.json",
+            )
+        except TaskclusterRestFailure as e:
+            raise ContractNotFilled(
+                self.name,
+                "push_existing_classification",
+                f"Failed to load existing classification for {branch} {rev}: {e}",
+            )
+
+        try:
+            return response["push"]["classification"]
+        except KeyError:
+            raise ContractNotFilled(
+                self.name, "push_existing_classification", "Invalid classification data"
+            )

@@ -14,15 +14,16 @@ from tabulate import tabulate
 from taskcluster.exceptions import TaskclusterRestFailure
 
 from mozci import config
-from mozci.errors import TaskNotFound
+from mozci.errors import SourcesNotFound, TaskNotFound
 from mozci.push import Push, PushStatus, make_push_objects
 from mozci.task import Task
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
     get_taskcluster_options,
+    send_admin_emails,
 )
 
-EMAIL_CONTENT = """
+EMAIL_CLASSIFY_EVAL = """
 # classify-eval report generated on the {today}
 
 The report contains statistics about pushes that were classified by Mozci.
@@ -32,6 +33,17 @@ The report contains statistics about pushes that were classified by Mozci.
 {error_line}
 
 {stats}
+"""
+
+EMAIL_PUSH_EVOLUTION = """
+# Push {push.id} evolved from {previous.name} to {classification.name}
+
+Rev: {push.rev}
+
+## Real failures
+
+- {real_failures}
+
 """
 
 
@@ -210,6 +222,38 @@ class ClassifyCommand(Command):
                 self.line(
                     f"Classification and regressions details for push {push.push_uuid} were saved in {filename} JSON file"
                 )
+
+            # Send a notification when some emails are declared in the config
+            emails = config.get("emails")
+            if emails:
+
+                # Load previous classification from taskcluster
+                try:
+                    previous = push.get_existing_classification()
+                except SourcesNotFound:
+                    # Nothing to do if there is no pre-existing classification
+                    return
+
+                # Send an email notification when:
+                # - the previous classification was GOOD or UNKNOWN and the new classification is BAD;
+                # - or the previous classification was BAD and the new classification is GOOD or UNKNOWN.
+                if (
+                    previous in (PushStatus.GOOD, PushStatus.UNKNOWN)
+                    and classification == PushStatus.BAD
+                ) or (
+                    previous == PushStatus.BAD
+                    and classification in (PushStatus.GOOD, PushStatus.UNKNOWN)
+                ):
+                    send_admin_emails(
+                        emails=emails,
+                        subject=f"Push status evolution {push.id} {push.rev[:8]}",
+                        content=EMAIL_PUSH_EVOLUTION.format(
+                            previous=previous,
+                            classification=classification,
+                            push=push,
+                            real_failures="\n - ".join(regressions.real.keys()),
+                        ),
+                    )
 
 
 class ClassifyEvalCommand(Command):
@@ -403,38 +447,21 @@ class ClassifyEvalCommand(Command):
         return line
 
     def send_emails(self, total, stats, error_line):
-        notify = taskcluster.Notify(get_taskcluster_options())
 
         today = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d")
-        subject = f"Mozci | classify-eval report generated the {today}"
 
         stats = "\n".join([f"- {stat}" for stat in stats])
-        content = EMAIL_CONTENT.format(
-            today=today,
-            total=total,
-            error_line=f"**{error_line}**" if error_line else "",
-            stats=stats,
+
+        send_admin_emails(
+            emails=config.get("emails"),
+            subject=f"classify-eval report generated the {today}",
+            content=EMAIL_CLASSIFY_EVAL.format(
+                today=today,
+                total=total,
+                error_line=f"**{error_line}**" if error_line else "",
+                stats=stats,
+            ),
         )
-
-        emails = config.get("emails", [])
-        if not emails:
-            self.line(
-                "<info>--send-email option was provided but no email recipient was found in the configuration.</info>"
-            )
-
-        for idx, email in enumerate(emails):
-            try:
-                notify.email(
-                    {
-                        "address": email,
-                        "subject": subject,
-                        "content": content,
-                    }
-                )
-            except Exception as e:
-                self.line(
-                    f"<error>Failed to send the report by email to address n°{idx} ({email}): {e}</error>"
-                )
 
 
 class ClassifyPerfCommand(Command):

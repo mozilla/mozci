@@ -197,6 +197,17 @@ _contracts: Tuple[Contract, ...] = (
             )
         ),
     ),
+    Contract(
+        name="push_existing_classification",
+        description="Retrieve the pre-existing classification status of a given push",
+        validate_in=v.Dict(
+            {
+                "branch": v.Str(),
+                "rev": v.Str(),
+            }
+        ),
+        validate_out=v.Str(options=["GOOD", "BAD", "UNKNOWN"]),
+    ),
 )
 
 

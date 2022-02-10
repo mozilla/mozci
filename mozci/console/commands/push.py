@@ -20,7 +20,7 @@ from mozci.task import Task
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
     get_taskcluster_options,
-    send_admin_emails,
+    notify_email,
 )
 
 EMAIL_CLASSIFY_EVAL = """
@@ -38,7 +38,7 @@ The report contains statistics about pushes that were classified by Mozci.
 EMAIL_PUSH_EVOLUTION = """
 # Push {push.id} evolved from {previous.name} to {classification.name}
 
-Rev: {push.rev}
+Rev: [{push.rev}](https://treeherder.mozilla.org/jobs?repo={branch}&revision={push.rev})
 
 ## Real failures
 
@@ -224,7 +224,7 @@ class ClassifyCommand(Command):
                 )
 
             # Send a notification when some emails are declared in the config
-            emails = config.get("emails")
+            emails = config.get("emails-classify-evolution")
             if emails:
 
                 # Load previous classification from taskcluster
@@ -245,13 +245,14 @@ class ClassifyCommand(Command):
                     previous == PushStatus.BAD
                     and classification in (PushStatus.GOOD, PushStatus.UNKNOWN)
                 ):
-                    send_admin_emails(
+                    notify_email(
                         emails=emails,
                         subject=f"Push status evolution {push.id} {push.rev[:8]}",
                         content=EMAIL_PUSH_EVOLUTION.format(
                             previous=previous or "no classification",
                             classification=classification,
                             push=push,
+                            branch=branch,
                             real_failures="\n - ".join(regressions.real.keys()),
                         ),
                     )
@@ -453,8 +454,8 @@ class ClassifyEvalCommand(Command):
 
         stats = "\n".join([f"- {stat}" for stat in stats])
 
-        send_admin_emails(
-            emails=config.get("emails"),
+        notify_email(
+            emails=config.get("emails-monitoring"),
             subject=f"classify-eval report generated the {today}",
             content=EMAIL_CLASSIFY_EVAL.format(
                 today=today,

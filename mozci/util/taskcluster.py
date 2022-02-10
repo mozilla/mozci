@@ -127,7 +127,7 @@ def get_taskcluster_options():
     return options
 
 
-def send_admin_emails(subject, content, emails):
+def notify_email(subject, content, emails):
     """
     Send an email to all provided email addresses
     using Taskcluster notify service

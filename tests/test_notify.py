@@ -15,8 +15,8 @@ Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 
 ## Real failures
 
-- group1
-- group2
+- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
+- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - Tasks No tasks available
 
 """
 
@@ -27,8 +27,8 @@ Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 
 ## Real failures
 
-- group1
-- group2
+- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
+- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - Tasks No tasks available
 
 """
 
@@ -39,8 +39,8 @@ Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 
 ## Real failures
 
-- group1
-- group2
+- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
+- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - Tasks No tasks available
 
 """
 
@@ -51,8 +51,8 @@ Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 
 ## Real failures
 
-- group1
-- group2
+- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
+- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - Tasks No tasks available
 
 """
 
@@ -63,8 +63,8 @@ Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 
 ## Real failures
 
-- group1
-- group2
+- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
+- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - Tasks No tasks available
 
 """
 
@@ -122,12 +122,6 @@ def test_classification_evolution(
         current=current,
         regressions=regressions,
     )
-
-    if len(responses.calls) > 0:
-        print("-" * 20)
-        print(previous, current)
-        print(json.loads(responses.calls[0].request.body)["content"])
-        print("-" * 20)
 
     if email_content:
         # Check an email was correctly sent

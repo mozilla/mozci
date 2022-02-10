@@ -5,6 +5,7 @@ import json
 import os
 import re
 from typing import List, Union
+from urllib.parse import urlencode
 
 import arrow
 import taskcluster
@@ -16,7 +17,7 @@ from taskcluster.exceptions import TaskclusterRestFailure
 from mozci import config
 from mozci.errors import SourcesNotFound, TaskNotFound
 from mozci.push import Push, PushStatus, Regressions, make_push_objects
-from mozci.task import Task
+from mozci.task import Task, TestTask
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
     get_taskcluster_options,
@@ -128,11 +129,11 @@ class ClassifyCommand(Command):
     """
 
     def handle(self) -> None:
-        branch = self.argument("branch")
+        self.branch = self.argument("branch")
 
         try:
             pushes = classify_commands_pushes(
-                branch,
+                self.branch,
                 self.option("from-date"),
                 self.option("to-date"),
                 self.option("rev"),
@@ -167,7 +168,7 @@ class ClassifyCommand(Command):
                 )
                 self.line(
                     f"Push associated with the head revision {push.rev} on "
-                    f"the branch {branch} is classified as {classification.name}"
+                    f"the branch {self.branch} is classified as {classification.name}"
                 )
             except Exception as e:
                 self.line(
@@ -215,7 +216,7 @@ class ClassifyCommand(Command):
                     },
                 }
 
-                filename = f"{output}/classify_output_{branch}_{push.rev}.json"
+                filename = f"{output}/classify_output_{self.branch}_{push.rev}.json"
                 with open(filename, "w") as file:
                     json.dump(to_save, file, indent=2)
 
@@ -249,6 +250,32 @@ class ClassifyCommand(Command):
         - the previous classification was GOOD or UNKNOWN and the new classification is BAD;
         - or the previous classification was BAD and the new classification is GOOD or UNKNOWN.
         """
+
+        def _get_task_url(task: TestTask):
+            """Helper to build a treeherder link for a task"""
+            assert task.id is not None
+            params = {
+                "repo": self.branch,
+                "revision": push.rev,
+                "selectedTaskRun": f"{task.id}-0",
+            }
+
+            return f"https://treeherder.mozilla.org/#/jobs?{urlencode(params)}"
+
+        def _get_group_url(group: str):
+            """Helper to build a treeherder link for a group"""
+            params = {"repo": self.branch, "tochange": push.rev, "test_paths": group}
+            return f"https://treeherder.mozilla.org/#/jobs?{urlencode(params)}"
+
+        def _list_tasks(tasks):
+            """Helper to build a list of all tasks in a group, with their treeherder url"""
+            if not tasks:
+                return "No tasks available"
+
+            return ", ".join(
+                [f"[{task.label}]({_get_task_url(task)})" for task in tasks]
+            )
+
         if (
             previous in (None, PushStatus.GOOD, PushStatus.UNKNOWN)
             and current == PushStatus.BAD
@@ -264,7 +291,12 @@ class ClassifyCommand(Command):
                     current=current.name,
                     push=push,
                     branch=self.branch,
-                    real_failures="\n- ".join(regressions.real.keys()),
+                    real_failures="\n- ".join(
+                        [
+                            f"Group [{group}]({_get_group_url(group)}) - Tasks {_list_tasks(tasks)}"
+                            for group, tasks in regressions.real.items()
+                        ]
+                    ),
                 ),
             )
 

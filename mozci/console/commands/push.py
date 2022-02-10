@@ -36,7 +36,7 @@ The report contains statistics about pushes that were classified by Mozci.
 """
 
 EMAIL_PUSH_EVOLUTION = """
-# Push {push.id} evolved from {previous.name} to {classification.name}
+# Push {push.id} evolved from {previous} to {current}
 
 Rev: [{push.rev}](https://treeherder.mozilla.org/jobs?repo={branch}&revision={push.rev})
 
@@ -260,11 +260,11 @@ class ClassifyCommand(Command):
                 emails=emails,
                 subject=f"Push status evolution {push.id} {push.rev[:8]}",
                 content=EMAIL_PUSH_EVOLUTION.format(
-                    previous=previous or "no classification",
-                    classification=current,
+                    previous=previous.name if previous else "no classification",
+                    current=current.name,
                     push=push,
                     branch=self.branch,
-                    real_failures="\n - ".join(regressions.real.keys()),
+                    real_failures="\n- ".join(regressions.real.keys()),
                 ),
             )
 

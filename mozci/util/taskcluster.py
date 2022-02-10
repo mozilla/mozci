@@ -133,7 +133,7 @@ def notify_email(subject, content, emails):
     using Taskcluster notify service
     """
     if not emails:
-        logger.warn("No emails addresses available in configuration")
+        logger.warn("No email address available in configuration")
         return
 
     notify = taskcluster.Notify(get_taskcluster_options())

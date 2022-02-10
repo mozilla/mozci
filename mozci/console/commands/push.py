@@ -370,7 +370,7 @@ class ClassifyEvalCommand(Command):
 
         self.errors = {}
         self.classifications = {}
-        self.regressions = {}
+        self.failures = {}
         for push in self.pushes:
             if self.option("recalculate"):
                 progress.set_message(f"Calc. {branch} {push.id}")
@@ -379,7 +379,7 @@ class ClassifyEvalCommand(Command):
                         intermittent_confidence_threshold=medium_conf,
                         real_confidence_threshold=high_conf,
                     )
-                    self.regressions[push] = {
+                    self.failures[push] = {
                         "real": regressions.real,
                         "intermittent": regressions.intermittent,
                         "unknown": regressions.unknown,
@@ -404,7 +404,7 @@ class ClassifyEvalCommand(Command):
                     self.classifications[push] = PushStatus[
                         artifact["push"]["classification"]
                     ]
-                    self.regressions[push] = artifact["failures"]
+                    self.failures[push] = artifact["failures"]
                 except TaskNotFound as e:
                     self.line(
                         f"<comment>Taskcluster task missing for {branch} {push.rev}</comment>"
@@ -438,6 +438,51 @@ class ClassifyEvalCommand(Command):
             self.log_pushes(PushStatus.UNKNOWN, True),
         ]
 
+        if self.option("detailed-classifications"):
+            self.line("\n")
+
+            real_stats = [0, 0, 0, 0]
+            intermittent_stats = [0, 0, 0, 0]
+            for push in self.pushes:
+                if self.failures.get(push) and (
+                    self.failures[push]["real"] or self.failures[push]["intermittent"]
+                ):
+                    self.line(
+                        f"<comment>Printing detailed classifications comparison for push {push.branch}/{push.rev}</comment>"
+                    )
+
+                    # log_details returns an integer list with following values [total, correct, wrong, missed/conflicting]
+                    real_stats = [
+                        x + y
+                        for (x, y) in zip(
+                            real_stats,
+                            self.log_details(push, "real", {"fixed by commit"}),
+                        )
+                    ]
+                    intermittent_stats = [
+                        x + y
+                        for (x, y) in zip(
+                            intermittent_stats,
+                            self.log_details(push, "intermittent", {"intermittent"}),
+                        )
+                    ]
+
+            self.line(
+                f"\n<comment>Printing overall detailed classifications comparison for {len(self.pushes)} pushes</comment>"
+            )
+            detailed_stats = [
+                f"{real_stats[1]} out of {real_stats[0]} real failures were correctly classified ('fixed by commit' by Sheriffs).",
+                f"{real_stats[2]} out of {real_stats[0]} real failures were wrongly classified ('intermittent' by Sheriffs).",
+                f"{real_stats[3]} out of {real_stats[0]} real failures were missed or have conflicting classifications applied by Sheriffs.",
+                f"{intermittent_stats[1]} out of {intermittent_stats[0]} intermittent failures were correctly classified ('intermittent' by Sheriffs).",
+                f"{intermittent_stats[2]} out of {intermittent_stats[0]} intermittent failures were wrongly classified ('fixed by commit' by Sheriffs).",
+                f"{intermittent_stats[3]} out of {intermittent_stats[0]} intermittent failures were missed or have conflicting classifications applied by Sheriffs.",
+            ]
+            for line in detailed_stats:
+                self.line(line)
+
+            stats += detailed_stats
+
         if self.option("send-email"):
             self.send_emails(len(self.pushes), stats, error_line)
 
@@ -461,19 +506,6 @@ class ClassifyEvalCommand(Command):
             self.line(
                 f"<info>Written stats for {len(self.pushes)} pushes in {output}</info>"
             )
-
-        if self.option("detailed-classifications"):
-            self.line("\n")
-            for push in self.pushes:
-                if self.regressions.get(push) and (
-                    self.regressions[push]["real"]
-                    or self.regressions[push]["intermittent"]
-                ):
-                    self.line(
-                        f"<comment>Printing detailed classifications comparison for push {push.branch}/{push.rev}</comment>"
-                    )
-                    self.log_details(push, "real", {"fixed by commit"})
-                    self.log_details(push, "intermittent", {"intermittent"})
 
     def build_stats(self, push):
         """
@@ -530,26 +562,36 @@ class ClassifyEvalCommand(Command):
         )
 
     def log_details(self, push, state, expected):
-        total = len(self.regressions[push][state])
+        total = len(self.failures[push][state])
         if not total:
-            return
+            return [0, 0, 0, 0]
 
+        missed_conflicting = []
         differing = []
-        for group in self.regressions[push][state].keys():
-            if (
-                set([c for c, _ in push.group_summaries[group].classifications])
-                != expected
-            ):
+        for group in self.failures[push][state].keys():
+            classifications_set = set(
+                [c for c, _ in push.group_summaries[group].classifications]
+            )
+            if len(classifications_set) != 1:
+                missed_conflicting.append(group)
+            if classifications_set != expected:
                 differing.append(group)
 
+        correct = total - len(missed_conflicting) - len(differing)
         self.line(
-            f"{total - len(differing)} out of {total} {state} groups were also classified as {state} by Sheriffs."
+            f"{correct} out of {total} {state} groups were also classified as {state} by Sheriffs."
         )
         if differing:
             self.line(
                 f"{len(differing)} out of {total} {state} groups weren't classified as {state} by Sheriffs, differing groups:"
             )
             self.line("  - " + "\n  - ".join(differing))
+        if missed_conflicting:
+            self.line(
+                f"{len(missed_conflicting)} out of {total} {state} groups are missing a classification or have conflicting ones applied by Sheriffs."
+            )
+
+        return [total, correct, len(differing), len(missed_conflicting)]
 
 
 class ClassifyPerfCommand(Command):

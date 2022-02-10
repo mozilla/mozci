@@ -4,7 +4,8 @@ import datetime
 import json
 import os
 import re
-from typing import List
+from typing import List, Union
+from urllib.parse import urlencode
 
 import arrow
 import taskcluster
@@ -14,15 +15,16 @@ from tabulate import tabulate
 from taskcluster.exceptions import TaskclusterRestFailure
 
 from mozci import config
-from mozci.errors import TaskNotFound
-from mozci.push import Push, PushStatus, make_push_objects
-from mozci.task import Task
+from mozci.errors import SourcesNotFound, TaskNotFound
+from mozci.push import Push, PushStatus, Regressions, make_push_objects
+from mozci.task import Task, TestTask
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
     get_taskcluster_options,
+    notify_email,
 )
 
-EMAIL_CONTENT = """
+EMAIL_CLASSIFY_EVAL = """
 # classify-eval report generated on the {today}
 
 The report contains statistics about pushes that were classified by Mozci.
@@ -32,6 +34,17 @@ The report contains statistics about pushes that were classified by Mozci.
 {error_line}
 
 {stats}
+"""
+
+EMAIL_PUSH_EVOLUTION = """
+# Push {push.id} evolved from {previous} to {current}
+
+Rev: [{push.rev}](https://treeherder.mozilla.org/jobs?repo={branch}&revision={push.rev})
+
+## Real failures
+
+- {real_failures}
+
 """
 
 
@@ -116,11 +129,11 @@ class ClassifyCommand(Command):
     """
 
     def handle(self) -> None:
-        branch = self.argument("branch")
+        self.branch = self.argument("branch")
 
         try:
             pushes = classify_commands_pushes(
-                branch,
+                self.branch,
                 self.option("from-date"),
                 self.option("to-date"),
                 self.option("rev"),
@@ -155,7 +168,7 @@ class ClassifyCommand(Command):
                 )
                 self.line(
                     f"Push associated with the head revision {push.rev} on "
-                    f"the branch {branch} is classified as {classification.name}"
+                    f"the branch {self.branch} is classified as {classification.name}"
                 )
             except Exception as e:
                 self.line(
@@ -203,13 +216,89 @@ class ClassifyCommand(Command):
                     },
                 }
 
-                filename = f"{output}/classify_output_{branch}_{push.rev}.json"
+                filename = f"{output}/classify_output_{self.branch}_{push.rev}.json"
                 with open(filename, "w") as file:
                     json.dump(to_save, file, indent=2)
 
                 self.line(
                     f"Classification and regressions details for push {push.push_uuid} were saved in {filename} JSON file"
                 )
+
+            # Send a notification when some emails are declared in the config
+            emails = config.get("emails", {}).get("classifications")
+            if emails:
+                # Load previous classification from taskcluster
+                try:
+                    previous = push.get_existing_classification()
+                except SourcesNotFound:
+                    # We still want to send a notification if the current one is bad
+                    previous = None
+
+                self.send_emails(emails, push, previous, classification, regressions)
+
+    def send_emails(
+        self,
+        emails: List[str],
+        push: Push,
+        previous: Union[PushStatus, None],
+        current: PushStatus,
+        regressions: Regressions,
+    ) -> None:
+        """
+        Send an email notification when:
+        - there is no previous classification and the new classification is BAD;
+        - the previous classification was GOOD or UNKNOWN and the new classification is BAD;
+        - or the previous classification was BAD and the new classification is GOOD or UNKNOWN.
+        """
+
+        def _get_task_url(task: TestTask):
+            """Helper to build a treeherder link for a task"""
+            assert task.id is not None
+            params = {
+                "repo": self.branch,
+                "revision": push.rev,
+                "selectedTaskRun": f"{task.id}-0",
+            }
+
+            return f"https://treeherder.mozilla.org/#/jobs?{urlencode(params)}"
+
+        def _get_group_url(group: str):
+            """Helper to build a treeherder link for a group"""
+            params = {"repo": self.branch, "tochange": push.rev, "test_paths": group}
+            return f"https://treeherder.mozilla.org/#/jobs?{urlencode(params)}"
+
+        def _list_tasks(tasks):
+            """Helper to build a list of all tasks in a group, with their treeherder url"""
+            if not tasks:
+                return "No tasks available"
+
+            return ", ".join(
+                [f"[{task.label}]({_get_task_url(task)})" for task in tasks]
+            )
+
+        if (
+            previous in (None, PushStatus.GOOD, PushStatus.UNKNOWN)
+            and current == PushStatus.BAD
+        ) or (
+            previous == PushStatus.BAD
+            and current in (PushStatus.GOOD, PushStatus.UNKNOWN)
+        ):
+            notify_email(
+                emails=emails,
+                subject=f"Push status evolution {push.id} {push.rev[:8]}",
+                content=EMAIL_PUSH_EVOLUTION.format(
+                    previous=previous.name if previous else "no classification",
+                    current=current.name,
+                    push=push,
+                    branch=self.branch,
+                    real_failures="\n- ".join(
+                        [
+                            f"Group [{group}]({_get_group_url(group)}) - Tasks {_list_tasks(tasks)}"
+                            for group, tasks in regressions.real.items()
+                        ]
+                    ),
+                ),
+            )
 
 
 class ClassifyEvalCommand(Command):
@@ -403,38 +492,21 @@ class ClassifyEvalCommand(Command):
         return line
 
     def send_emails(self, total, stats, error_line):
-        notify = taskcluster.Notify(get_taskcluster_options())
 
         today = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d")
-        subject = f"Mozci | classify-eval report generated the {today}"
 
         stats = "\n".join([f"- {stat}" for stat in stats])
-        content = EMAIL_CONTENT.format(
-            today=today,
-            total=total,
-            error_line=f"**{error_line}**" if error_line else "",
-            stats=stats,
+
+        notify_email(
+            emails=config.get("emails", {}).get("monitoring"),
+            subject=f"classify-eval report generated the {today}",
+            content=EMAIL_CLASSIFY_EVAL.format(
+                today=today,
+                total=total,
+                error_line=f"**{error_line}**" if error_line else "",
+                stats=stats,
+            ),
         )
-
-        emails = config.get("emails", [])
-        if not emails:
-            self.line(
-                "<info>--send-email option was provided but no email recipient was found in the configuration.</info>"
-            )
-
-        for idx, email in enumerate(emails):
-            try:
-                notify.email(
-                    {
-                        "address": email,
-                        "subject": subject,
-                        "content": content,
-                    }
-                )
-            except Exception as e:
-                self.line(
-                    f"<error>Failed to send the report by email to address n°{idx} ({email}): {e}</error>"
-                )
 
 
 class ClassifyPerfCommand(Command):

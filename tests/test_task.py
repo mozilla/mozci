@@ -306,6 +306,24 @@ def test_results_for_incomplete_task(responses):
                 "group1",
                 [
                     Task.create(
+                        id=1,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                    ),
+                    Task.create(
+                        id=2,
+                        label="test-macosx1015-64/opt-xpcshell-e10s-1",
+                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                    ),
+                ],
+            ),
+            True,
+        ),  # Multiple tasks with different configurations and single run for each
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
                         id=i,
                         label=f"test-task{i}",
                         _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
@@ -351,3 +369,115 @@ def test_results_for_incomplete_task(responses):
 )
 def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
     assert group_summary.is_cross_config_failure == expected_result
+
+
+@pytest.mark.parametrize(
+    "group_summary, expected_result",
+    [
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=1,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                    )
+                ],
+            ),
+            None,
+        ),  # Only one task run and failed
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=1,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                    ),
+                    Task.create(
+                        id=2,
+                        label="test-macosx1015-64/opt-xpcshell-e10s-1",
+                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                    ),
+                ],
+            ),
+            None,
+        ),  # Multiple tasks with different configurations and single run for each
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=i,
+                        label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
+                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                    )
+                    for i in range(1, 11)
+                ],
+            ),
+            True,
+        ),  # All related tasks failed
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=i,
+                        label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
+                        _results=[
+                            GroupResult(group="group1", ok=False if i % 2 else True),
+                            GR_2,
+                            GR_3,
+                        ],
+                    )
+                    for i in range(1, 11)
+                ],
+            ),
+            False,
+        ),  # Related tasks both failed and passed
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=i,
+                        label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
+                        _results=[GroupResult(group="group1", ok=True), GR_2, GR_3],
+                    )
+                    for i in range(1, 11)
+                ],
+            ),
+            False,
+        ),  # All related tasks passed
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=i,
+                        label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
+                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                    )
+                    for i in range(1, 11)
+                ]
+                + [
+                    Task.create(
+                        id=i,
+                        label=f"test-macosx1015-64/opt-xpcshell-e10s-{i}",
+                        _results=[
+                            GroupResult(group="group1", ok=False if i % 2 else True),
+                            GR_2,
+                            GR_3,
+                        ],
+                    )
+                    for i in range(1, 11)
+                ],
+            ),
+            True,
+        ),  # All related tasks failed on a configuration and related tasks both failed and passed on another
+    ],
+)
+def test_GroupSummary_is_config_consistent_failure(group_summary, expected_result):
+    assert group_summary.is_config_consistent_failure(2) == expected_result

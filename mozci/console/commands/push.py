@@ -231,14 +231,15 @@ class ClassifyCommand(Command):
                 try:
                     previous = push.get_existing_classification()
                 except SourcesNotFound:
-                    # Nothing to do if there is no pre-existing classification
-                    return
+                    # We still want to send a notification if the current one is bad
+                    previous = None
 
                 # Send an email notification when:
+                # - there is no previous classification and the new classification is BAD;
                 # - the previous classification was GOOD or UNKNOWN and the new classification is BAD;
                 # - or the previous classification was BAD and the new classification is GOOD or UNKNOWN.
                 if (
-                    previous in (PushStatus.GOOD, PushStatus.UNKNOWN)
+                    previous in (None, PushStatus.GOOD, PushStatus.UNKNOWN)
                     and classification == PushStatus.BAD
                 ) or (
                     previous == PushStatus.BAD
@@ -248,7 +249,7 @@ class ClassifyCommand(Command):
                         emails=emails,
                         subject=f"Push status evolution {push.id} {push.rev[:8]}",
                         content=EMAIL_PUSH_EVOLUTION.format(
-                            previous=previous,
+                            previous=previous or "no classification",
                             classification=classification,
                             push=push,
                             real_failures="\n - ".join(regressions.real.keys()),

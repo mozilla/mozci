@@ -4,7 +4,7 @@ import datetime
 import json
 import os
 import re
-from typing import List
+from typing import List, Union
 
 import arrow
 import taskcluster
@@ -15,7 +15,7 @@ from taskcluster.exceptions import TaskclusterRestFailure
 
 from mozci import config
 from mozci.errors import SourcesNotFound, TaskNotFound
-from mozci.push import Push, PushStatus, make_push_objects
+from mozci.push import Push, PushStatus, Regressions, make_push_objects
 from mozci.task import Task
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
@@ -224,9 +224,8 @@ class ClassifyCommand(Command):
                 )
 
             # Send a notification when some emails are declared in the config
-            emails = config.get("emails-classify-evolution")
+            emails = config.get("emails", {}).get("classifications")
             if emails:
-
                 # Load previous classification from taskcluster
                 try:
                     previous = push.get_existing_classification()
@@ -234,28 +233,40 @@ class ClassifyCommand(Command):
                     # We still want to send a notification if the current one is bad
                     previous = None
 
-                # Send an email notification when:
-                # - there is no previous classification and the new classification is BAD;
-                # - the previous classification was GOOD or UNKNOWN and the new classification is BAD;
-                # - or the previous classification was BAD and the new classification is GOOD or UNKNOWN.
-                if (
-                    previous in (None, PushStatus.GOOD, PushStatus.UNKNOWN)
-                    and classification == PushStatus.BAD
-                ) or (
-                    previous == PushStatus.BAD
-                    and classification in (PushStatus.GOOD, PushStatus.UNKNOWN)
-                ):
-                    notify_email(
-                        emails=emails,
-                        subject=f"Push status evolution {push.id} {push.rev[:8]}",
-                        content=EMAIL_PUSH_EVOLUTION.format(
-                            previous=previous or "no classification",
-                            classification=classification,
-                            push=push,
-                            branch=branch,
-                            real_failures="\n - ".join(regressions.real.keys()),
-                        ),
-                    )
+                self.send_emails(emails, push, previous, classification, regressions)
+
+    def send_emails(
+        self,
+        emails: List[str],
+        push: Push,
+        previous: Union[PushStatus, None],
+        current: PushStatus,
+        regressions: Regressions,
+    ) -> None:
+        """
+        Send an email notification when:
+        - there is no previous classification and the new classification is BAD;
+        - the previous classification was GOOD or UNKNOWN and the new classification is BAD;
+        - or the previous classification was BAD and the new classification is GOOD or UNKNOWN.
+        """
+        if (
+            previous in (None, PushStatus.GOOD, PushStatus.UNKNOWN)
+            and current == PushStatus.BAD
+        ) or (
+            previous == PushStatus.BAD
+            and current in (PushStatus.GOOD, PushStatus.UNKNOWN)
+        ):
+            notify_email(
+                emails=emails,
+                subject=f"Push status evolution {push.id} {push.rev[:8]}",
+                content=EMAIL_PUSH_EVOLUTION.format(
+                    previous=previous or "no classification",
+                    classification=current,
+                    push=push,
+                    branch=self.branch,
+                    real_failures="\n - ".join(regressions.real.keys()),
+                ),
+            )
 
 
 class ClassifyEvalCommand(Command):
@@ -455,7 +466,7 @@ class ClassifyEvalCommand(Command):
         stats = "\n".join([f"- {stat}" for stat in stats])
 
         notify_email(
-            emails=config.get("emails-monitoring"),
+            emails=config.get("emails", {}).get("monitoring"),
             subject=f"classify-eval report generated the {today}",
             content=EMAIL_CLASSIFY_EVAL.format(
                 today=today,

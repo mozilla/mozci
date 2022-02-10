@@ -111,7 +111,7 @@ def test_classification_evolution(
         status=200,
     )
 
-    # Run the notificayion code from mozci push classify
+    # Run the notification code from mozci push classify
     cmd = ClassifyCommand()
     cmd.name = "classify"
     cmd.branch = "unittest"

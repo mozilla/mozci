@@ -372,6 +372,11 @@ class ClassifyEvalCommand(Command):
         self.classifications = {}
         self.failures = {}
         for push in self.pushes:
+            # Pretend no tasks were classified to evaluate the model without any outside help.
+            for task in push.tasks:
+                task.classification = "not classified"
+                task.classification_note = None
+
             if self.option("recalculate"):
                 progress.set_message(f"Calc. {branch} {push.id}")
                 try:

@@ -441,8 +441,13 @@ class ClassifyEvalCommand(Command):
         if self.option("detailed-classifications"):
             self.line("\n")
 
-            real_stats = [0, 0, 0, 0]
-            intermittent_stats = [0, 0, 0, 0]
+            real_stats = {"total": 0, "correct": 0, "wrong": 0, "missed_conflicting": 0}
+            intermittent_stats = {
+                "total": 0,
+                "correct": 0,
+                "wrong": 0,
+                "missed_conflicting": 0,
+            }
             for push in self.pushes:
                 if self.failures.get(push) and (
                     self.failures[push]["real"] or self.failures[push]["intermittent"]
@@ -451,32 +456,42 @@ class ClassifyEvalCommand(Command):
                         f"<comment>Printing detailed classifications comparison for push {push.branch}/{push.rev}</comment>"
                     )
 
-                    # log_details returns an integer list with following values [total, correct, wrong, missed/conflicting]
-                    real_stats = [
-                        x + y
-                        for (x, y) in zip(
-                            real_stats,
-                            self.log_details(push, "real", {"fixed by commit"}),
+                    try:
+                        push_real_stats = self.log_details(
+                            push, "real", {"fixed by commit"}
                         )
-                    ]
-                    intermittent_stats = [
-                        x + y
-                        for (x, y) in zip(
-                            intermittent_stats,
-                            self.log_details(push, "intermittent", {"intermittent"}),
+                        real_stats = {
+                            key: value + push_real_stats[key]
+                            for key, value in real_stats.items()
+                        }
+                    except Exception:
+                        self.line(
+                            "<error>Failed to retrieve Sheriff classifications for the intermittent failures of this push.</error>"
                         )
-                    ]
+
+                    try:
+                        push_intermittent_stats = self.log_details(
+                            push, "intermittent", {"intermittent"}
+                        )
+                        intermittent_stats = {
+                            key: value + push_intermittent_stats[key]
+                            for key, value in intermittent_stats.items()
+                        }
+                    except Exception:
+                        self.line(
+                            "<error>Failed to retrieve Sheriff classifications for the real failures of this push.</error>"
+                        )
 
             self.line(
                 f"\n<comment>Printing overall detailed classifications comparison for {len(self.pushes)} pushes</comment>"
             )
             detailed_stats = [
-                f"{real_stats[1]} out of {real_stats[0]} real failures were correctly classified ('fixed by commit' by Sheriffs).",
-                f"{real_stats[2]} out of {real_stats[0]} real failures were wrongly classified ('intermittent' by Sheriffs).",
-                f"{real_stats[3]} out of {real_stats[0]} real failures were missed or have conflicting classifications applied by Sheriffs.",
-                f"{intermittent_stats[1]} out of {intermittent_stats[0]} intermittent failures were correctly classified ('intermittent' by Sheriffs).",
-                f"{intermittent_stats[2]} out of {intermittent_stats[0]} intermittent failures were wrongly classified ('fixed by commit' by Sheriffs).",
-                f"{intermittent_stats[3]} out of {intermittent_stats[0]} intermittent failures were missed or have conflicting classifications applied by Sheriffs.",
+                f"{real_stats['correct']} out of {real_stats['total']} real failures were correctly classified ('fixed by commit' by Sheriffs).",
+                f"{real_stats['wrong']} out of {real_stats['total']} real failures were wrongly classified ('intermittent' by Sheriffs).",
+                f"{real_stats['missed_conflicting']} out of {real_stats['total']} real failures were missed or have conflicting classifications applied by Sheriffs.",
+                f"{intermittent_stats['correct']} out of {intermittent_stats['total']} intermittent failures were correctly classified ('intermittent' by Sheriffs).",
+                f"{intermittent_stats['wrong']} out of {intermittent_stats['total']} intermittent failures were wrongly classified ('fixed by commit' by Sheriffs).",
+                f"{intermittent_stats['missed_conflicting']} out of {intermittent_stats['total']} intermittent failures were missed or have conflicting classifications applied by Sheriffs.",
             ]
             for line in detailed_stats:
                 self.line(line)
@@ -564,7 +579,7 @@ class ClassifyEvalCommand(Command):
     def log_details(self, push, state, expected):
         total = len(self.failures[push][state])
         if not total:
-            return [0, 0, 0, 0]
+            return {"total": 0, "correct": 0, "wrong": 0, "missed_conflicting": 0}
 
         missed_conflicting = []
         differing = []
@@ -588,10 +603,16 @@ class ClassifyEvalCommand(Command):
             self.line("  - " + "\n  - ".join(differing))
         if missed_conflicting:
             self.line(
-                f"{len(missed_conflicting)} out of {total} {state} groups are missing a classification or have conflicting ones applied by Sheriffs."
+                f"{len(missed_conflicting)} out of {total} {state} groups are missing a classification or have conflicting ones applied by Sheriffs, missed/inconsistent groups:"
             )
+            self.line("  - " + "\n  - ".join(missed_conflicting))
 
-        return [total, correct, len(differing), len(missed_conflicting)]
+        return {
+            "total": total,
+            "correct": correct,
+            "wrong": len(differing),
+            "missed_conflicting": len(missed_conflicting),
+        }
 
 
 class ClassifyPerfCommand(Command):

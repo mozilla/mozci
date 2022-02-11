@@ -126,7 +126,8 @@ class TaskclusterSource(DataSource):
 
     def run_push_existing_classification(self, branch, rev):
         try:
-            index = Index(taskcluster.get_taskcluster_options())
+            # Proxy authentication does not seem to work here
+            index = Index({"rootUrl": taskcluster.COMMUNITY_TASKCLUSTER_ROOT_URL})
             response = index.findArtifactFromTask(
                 f"project.mozci.classification.{branch}.revision.{rev}",
                 "public/classification.json",

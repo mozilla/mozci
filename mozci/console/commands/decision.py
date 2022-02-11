@@ -76,6 +76,7 @@ class DecisionCommand(Command):
             "scopes": [
                 "docker-worker:cache:mozci-classifications-testing",
                 "secrets:get:project/mozci/testing",
+                "notify:email:*",
             ],
             "metadata": {
                 "name": f"mozci classify {push.branch}@{push.rev}",

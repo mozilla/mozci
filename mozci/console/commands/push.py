@@ -441,12 +441,19 @@ class ClassifyEvalCommand(Command):
         if self.option("detailed-classifications"):
             self.line("\n")
 
-            real_stats = {"total": 0, "correct": 0, "wrong": 0, "missed_conflicting": 0}
+            real_stats = {
+                "total": 0,
+                "correct": 0,
+                "wrong": 0,
+                "conflicting": 0,
+                "missed": 0,
+            }
             intermittent_stats = {
                 "total": 0,
                 "correct": 0,
                 "wrong": 0,
-                "missed_conflicting": 0,
+                "conflicting": 0,
+                "missed": 0,
             }
             for push in self.pushes:
                 if self.failures.get(push) and (
@@ -488,10 +495,12 @@ class ClassifyEvalCommand(Command):
             detailed_stats = [
                 f"{real_stats['correct']} out of {real_stats['total']} real failures were correctly classified ('fixed by commit' by Sheriffs).",
                 f"{real_stats['wrong']} out of {real_stats['total']} real failures were wrongly classified ('intermittent' by Sheriffs).",
-                f"{real_stats['missed_conflicting']} out of {real_stats['total']} real failures were missed or have conflicting classifications applied by Sheriffs.",
+                f"{real_stats['conflicting']} out of {real_stats['total']} real failures have conflicting classifications applied by Sheriffs.",
+                f"{real_stats['missed']} out of {real_stats['total']} real failures were missed.",
                 f"{intermittent_stats['correct']} out of {intermittent_stats['total']} intermittent failures were correctly classified ('intermittent' by Sheriffs).",
                 f"{intermittent_stats['wrong']} out of {intermittent_stats['total']} intermittent failures were wrongly classified ('fixed by commit' by Sheriffs).",
-                f"{intermittent_stats['missed_conflicting']} out of {intermittent_stats['total']} intermittent failures were missed or have conflicting classifications applied by Sheriffs.",
+                f"{intermittent_stats['conflicting']} out of {intermittent_stats['total']} intermittent failures have conflicting classifications applied by Sheriffs.",
+                f"{intermittent_stats['missed']} out of {intermittent_stats['total']} intermittent failures were missed.",
             ]
             for line in detailed_stats:
                 self.line(line)
@@ -579,20 +588,23 @@ class ClassifyEvalCommand(Command):
     def log_details(self, push, state, expected):
         total = len(self.failures[push][state])
         if not total:
-            return {"total": 0, "correct": 0, "wrong": 0, "missed_conflicting": 0}
+            return {"total": 0, "correct": 0, "wrong": 0, "conflicting": 0, "missed": 0}
 
-        missed_conflicting = []
+        missed = []
+        conflicting = []
         differing = []
         for group in self.failures[push][state].keys():
             classifications_set = set(
                 [c for c, _ in push.group_summaries[group].classifications]
             )
-            if len(classifications_set) != 1:
-                missed_conflicting.append(group)
-            if classifications_set != expected:
+            if len(classifications_set) == 0:
+                missed.append(group)
+            elif len(classifications_set) != 1:
+                conflicting.append(group)
+            elif classifications_set != expected:
                 differing.append(group)
 
-        correct = total - len(missed_conflicting) - len(differing)
+        correct = total - len(missed) - len(conflicting) - len(differing)
         self.line(
             f"{correct} out of {total} {state} groups were also classified as {state} by Sheriffs."
         )
@@ -601,17 +613,23 @@ class ClassifyEvalCommand(Command):
                 f"{len(differing)} out of {total} {state} groups weren't classified as {state} by Sheriffs, differing groups:"
             )
             self.line("  - " + "\n  - ".join(differing))
-        if missed_conflicting:
+        if conflicting:
             self.line(
-                f"{len(missed_conflicting)} out of {total} {state} groups are missing a classification or have conflicting ones applied by Sheriffs, missed/inconsistent groups:"
+                f"{len(conflicting)} out of {total} {state} groups have conflicting classifications applied by Sheriffs, inconsistent groups:"
             )
-            self.line("  - " + "\n  - ".join(missed_conflicting))
+            self.line("  - " + "\n  - ".join(conflicting))
+        if missed:
+            self.line(
+                f"{len(missed)} out of {total} {state} groups are missing a classification, missed groups:"
+            )
+            self.line("  - " + "\n  - ".join(missed))
 
         return {
             "total": total,
             "correct": correct,
             "wrong": len(differing),
-            "missed_conflicting": len(missed_conflicting),
+            "conflicting": len(conflicting),
+            "missed": len(missed),
         }
 
 

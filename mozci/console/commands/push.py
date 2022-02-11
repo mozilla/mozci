@@ -441,14 +441,7 @@ class ClassifyEvalCommand(Command):
         if self.option("detailed-classifications"):
             self.line("\n")
 
-            real_stats = {
-                "total": 0,
-                "correct": 0,
-                "wrong": 0,
-                "conflicting": 0,
-                "missed": 0,
-            }
-            intermittent_stats = {
+            real_stats = intermittent_stats = {
                 "total": 0,
                 "correct": 0,
                 "wrong": 0,

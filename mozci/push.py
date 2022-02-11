@@ -1051,6 +1051,7 @@ class Push:
         real_confidence_threshold: float = 0.9,
         use_possible_regressions: bool = False,
         unknown_from_regressions: bool = True,
+        consistent_failures_counts: Optional[Tuple[int, int]] = (2, 3),
     ) -> Regressions:
         """
         Use group classification data from bugbug to classify all likely
@@ -1099,13 +1100,27 @@ class Push:
         # - if a group is failing in all tasks, then it is a "cross-config" failure
         # - if a group is failing only in some tasks but not all, then it is not a "cross-config" failure
         all_groups = self.group_summaries.values()
-        groups_cross_config_failure = {
-            g.name for g in all_groups if g.is_cross_config_failure
-        }
-        groups_non_cross_config_failure = {
+        groups_relevant_failure = {
             g.name
             for g in all_groups
-            if g.status != Status.PASS and g.is_cross_config_failure is False
+            if g.is_cross_config_failure
+            or (
+                consistent_failures_counts is not None
+                and g.is_config_consistent_failure(consistent_failures_counts[1])
+            )
+        }
+        groups_non_relevant_failure = {
+            g.name
+            for g in all_groups
+            if g.status != Status.PASS
+            and (
+                g.is_cross_config_failure is False
+                or (
+                    consistent_failures_counts is not None
+                    and g.is_config_consistent_failure(consistent_failures_counts[0])
+                    is False
+                )
+            )
         }
         groups_failing_in_the_push = {
             g.name for g in all_groups if g.status != Status.PASS
@@ -1116,10 +1131,10 @@ class Push:
             if g.name not in list(bugbug_selection["groups"].keys())
         }
         logger.debug(
-            f"Got {len(groups_cross_config_failure)} groups with cross-config failures"
+            f"Got {len(groups_relevant_failure)} groups with cross-config or config-consistent failures"
         )
         logger.debug(
-            f"Got {len(groups_non_cross_config_failure)} groups with no cross-config failures"
+            f"Got {len(groups_non_relevant_failure)} groups with no cross-config and no config-consistent failures"
         )
         logger.debug(
             f"Got {len(groups_failing_in_the_push)} groups failing in the push"
@@ -1130,13 +1145,13 @@ class Push:
 
         # Real failure are groups with likely regressions that were selected with high confidence
         # AND failing across config
-        real_failures = groups_regressions & groups_cross_config_failure & groups_high
+        real_failures = groups_regressions & groups_relevant_failure & groups_high
         logger.debug(f"Got {len(real_failures)} real failures")
 
         # Intermittent failures are groups that were NOT selected (low confidence)
         # OR without any confidence from bugbug (too low confidence)
         # AND are not failing across config
-        intermittent_failures = groups_non_cross_config_failure & groups_low.union(
+        intermittent_failures = groups_non_relevant_failure & groups_low.union(
             groups_no_confidence
         )
         logger.debug(f"Got {len(intermittent_failures)} intermittent failures")
@@ -1171,6 +1186,7 @@ class Push:
         real_confidence_threshold: float = 0.9,
         use_possible_regressions: bool = False,
         unknown_from_regressions: bool = True,
+        consistent_failures_counts: Optional[Tuple[int, int]] = (2, 3),
     ) -> Tuple[PushStatus, Regressions]:
         """
         Classify the overall push state using its group tasks states
@@ -1184,6 +1200,7 @@ class Push:
             real_confidence_threshold,
             use_possible_regressions,
             unknown_from_regressions,
+            consistent_failures_counts,
         )
 
         # If there are any real failures, it's a bad push

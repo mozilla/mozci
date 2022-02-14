@@ -431,7 +431,16 @@ class ClassifyEvalCommand(Command):
 
         error_line = ""
         if self.errors:
-            error_line = f"Failed to fetch or recalculate classification for {len(self.errors)} out of {len(self.pushes)} pushes."
+            if self.option("recalculate"):
+                error_line = "Failed to recalculate classification"
+            else:
+                error_line = "Failed to fetch classification"
+
+            error_line += f" for {len(self.errors)} out of {len(self.pushes)} pushes."
+
+            if not self.option("recalculate") and not self.option("send-email"):
+                error_line += " Use the '--recalculate' option if you want to generate them yourself."
+
             self.line(f"<error>{error_line}</error>")
 
         stats = [

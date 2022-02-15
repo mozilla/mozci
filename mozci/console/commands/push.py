@@ -126,7 +126,7 @@ class ClassifyCommand(Command):
         {--high-confidence=0.9 : High confidence threshold used to classify the regressions.}
         {--output= : Path towards a directory to save a JSON file containing classification and regressions details in.}
         {--show-intermittents : If set, print tasks that should be marked as intermittent.}
-        {--environment=testing : Environment to analyze (testing, production, ...)}
+        {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
     """
 
     def handle(self) -> None:
@@ -319,7 +319,7 @@ class ClassifyEvalCommand(Command):
         {--output= : Path towards a path to save a CSV file with classification states for various pushes.}
         {--send-email : If set, also send the evaluation report by email instead of just logging it.}
         {--detailed-classifications : If set, compare real/intermittent group classifications with Sheriff's ones.}
-        {--environment=testing : Environment to analyze (testing, production, ...)}
+        {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
     """
 
     def handle(self) -> None:
@@ -640,7 +640,7 @@ class ClassifyPerfCommand(Command):
     Generate a CSV file with performance stats for all classification tasks
 
     perf
-        {--environment=testing : Environment to analyze (testing, production, ...)}
+        {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
         {--output=perfs.csv: Output CSV file path}
     """
 

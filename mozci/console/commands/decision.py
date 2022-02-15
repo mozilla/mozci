@@ -19,7 +19,7 @@ class DecisionCommand(Command):
         {branch=autoland : Branch the push belongs to (e.g autoland, try, etc).}
         {--nb-pushes=15 : Do not create tasks on taskcluster, simply output actions.}
         {--dry-run : Do not create tasks on taskcluster, simply output actions.}
-        {--environment=testing : Environment to analyze (testing, production, ...)}
+        {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
     """
 
     def handle(self):

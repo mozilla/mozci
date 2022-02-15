@@ -126,6 +126,7 @@ class ClassifyCommand(Command):
         {--high-confidence=0.9 : High confidence threshold used to classify the regressions.}
         {--output= : Path towards a directory to save a JSON file containing classification and regressions details in.}
         {--show-intermittents : If set, print tasks that should be marked as intermittent.}
+        {--environment=testing : Environment to analyze (testing, production, ...)}
     """
 
     def handle(self) -> None:
@@ -229,7 +230,9 @@ class ClassifyCommand(Command):
             if emails:
                 # Load previous classification from taskcluster
                 try:
-                    previous = push.get_existing_classification()
+                    previous = push.get_existing_classification(
+                        self.option("environment")
+                    )
                 except SourcesNotFound:
                     # We still want to send a notification if the current one is bad
                     previous = None
@@ -316,6 +319,7 @@ class ClassifyEvalCommand(Command):
         {--output= : Path towards a path to save a CSV file with classification states for various pushes.}
         {--send-email : If set, also send the evaluation report by email instead of just logging it.}
         {--detailed-classifications : If set, compare real/intermittent group classifications with Sheriff's ones.}
+        {--environment=testing : Environment to analyze (testing, production, ...)}
     """
 
     def handle(self) -> None:

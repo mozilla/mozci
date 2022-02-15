@@ -19,6 +19,7 @@ class DecisionCommand(Command):
         {branch=autoland : Branch the push belongs to (e.g autoland, try, etc).}
         {--nb-pushes=15 : Do not create tasks on taskcluster, simply output actions.}
         {--dry-run : Do not create tasks on taskcluster, simply output actions.}
+        {--environment=testing : Environment to analyze (testing, production, ...)}
     """
 
     def handle(self):
@@ -65,6 +66,15 @@ class DecisionCommand(Command):
         Create a children task linked to the current task
         that will classify a single push
         """
+        environment = self.option("environment")
+
+        # Expose non-production environment in sub routes
+        route_prefix = (
+            "index.project.mozci.classification"
+            if environment == "production"
+            else f"index.project.mozci.{environment}.classification"
+        )
+
         task_id = taskcluster.slugId()
         task = {
             "taskGroupId": self.current_task["taskGroupId"],
@@ -74,8 +84,8 @@ class DecisionCommand(Command):
                 self.current_task["id"],
             ],
             "scopes": [
-                "docker-worker:cache:mozci-classifications-testing",
-                "secrets:get:project/mozci/testing",
+                f"docker-worker:cache:mozci-classifications-{environment}",
+                f"secrets:get:project/mozci/{environment}",
                 "notify:email:*",
             ],
             "metadata": {
@@ -88,7 +98,7 @@ class DecisionCommand(Command):
                 "maxRunTime": 3600,
                 "image": self.current_task["payload"]["image"],
                 "env": {
-                    "TASKCLUSTER_CONFIG_SECRET": "project/mozci/testing",
+                    "TASKCLUSTER_CONFIG_SECRET": f"project/mozci/{environment}",
                 },
                 "features": {
                     "taskclusterProxy": True,
@@ -101,7 +111,7 @@ class DecisionCommand(Command):
                     "--output=/tmp",
                 ],
                 "cache": {
-                    "mozci-classifications-testing": "/cache",
+                    f"mozci-classifications-{environment}": "/cache",
                 },
                 "artifacts": {
                     "public/classification.json": {
@@ -114,8 +124,8 @@ class DecisionCommand(Command):
                 },
             },
             "routes": [
-                f"index.project.mozci.classification.{push.branch}.revision.{push.rev}",
-                f"index.project.mozci.classification.{push.branch}.push.{push.id}",
+                f"{route_prefix}.{push.branch}.revision.{push.rev}",
+                f"{route_prefix}.{push.branch}.push.{push.id}",
             ],
             "provisionerId": self.current_task["provisionerId"],
             "workerType": self.current_task["workerType"],

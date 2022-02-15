@@ -1265,13 +1265,16 @@ class Push:
             "push_test_selection_data", branch=self.branch, rev=self.rev
         )
 
-    def get_existing_classification(self) -> PushStatus:
+    def get_existing_classification(self, environment: str) -> PushStatus:
         """Retrieves existing classification from Taskcluster artifacts
 
         Do not memoize this method as the classification may change every few minutes remotely
         """
         existing = data.handler.get(
-            "push_existing_classification", branch=self.branch, rev=self.rev
+            "push_existing_classification",
+            branch=self.branch,
+            rev=self.rev,
+            environment=environment,
         )
 
         # Convert from raw string to enum

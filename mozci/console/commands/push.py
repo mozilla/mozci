@@ -388,6 +388,14 @@ class ClassifyEvalCommand(Command):
             " %current%/%max% [%bar%] %percent:3s%% %elapsed:6s% %message%"
         )
 
+        # Setup specific route prefix for existing tasks, according to environment
+        environment = self.option("environment")
+        route_prefix = (
+            "project.mozci.classification"
+            if environment == "production"
+            else f"project.mozci.{environment}.classification"
+        )
+
         self.errors = {}
         self.classifications = {}
         self.failures = {}
@@ -417,7 +425,7 @@ class ClassifyEvalCommand(Command):
             else:
                 progress.set_message(f"Fetch {branch} {push.id}")
                 try:
-                    index = f"project.mozci.classification.{branch}.revision.{push.rev}"
+                    index = f"{route_prefix}.{branch}.revision.{push.rev}"
                     task = Task.create(
                         index=index, root_url=COMMUNITY_TASKCLUSTER_ROOT_URL
                     )
@@ -592,9 +600,10 @@ class ClassifyEvalCommand(Command):
 
         stats = "\n".join([f"- {stat}" for stat in stats])
 
+        environment = self.option("environment")
         notify_email(
             emails=config.get("emails", {}).get("monitoring"),
-            subject=f"classify-eval report generated the {today}",
+            subject=f"{environment} classify-eval report generated the {today}",
             content=EMAIL_CLASSIFY_EVAL.format(
                 today=today,
                 total=total,

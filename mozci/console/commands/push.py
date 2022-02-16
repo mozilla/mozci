@@ -4,7 +4,7 @@ import datetime
 import json
 import os
 import re
-from typing import List, Union
+from typing import List, Optional
 from urllib.parse import urlencode
 
 import arrow
@@ -20,8 +20,10 @@ from mozci.push import Push, PushStatus, Regressions, make_push_objects
 from mozci.task import Task, TestTask
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
+    get_taskcluster_notify_service,
     get_taskcluster_options,
     notify_email,
+    notify_matrix,
 )
 
 EMAIL_CLASSIFY_EVAL = """
@@ -226,7 +228,8 @@ class ClassifyCommand(Command):
 
             # Send a notification when some emails are declared in the config
             emails = config.get("emails", {}).get("classifications")
-            if emails:
+            matrix_room = config.get("matrix-room-id", None)
+            if emails or matrix_room:
                 # Load previous classification from taskcluster
                 try:
                     previous = push.get_existing_classification()
@@ -234,18 +237,21 @@ class ClassifyCommand(Command):
                     # We still want to send a notification if the current one is bad
                     previous = None
 
-                self.send_emails(emails, push, previous, classification, regressions)
+                self.send_notifications(
+                    emails, matrix_room, push, previous, classification, regressions
+                )
 
-    def send_emails(
+    def send_notifications(
         self,
-        emails: List[str],
+        emails: Optional[List[str]],
+        matrix_room: Optional[str],
         push: Push,
-        previous: Union[PushStatus, None],
+        previous: Optional[PushStatus],
         current: PushStatus,
         regressions: Regressions,
     ) -> None:
         """
-        Send an email notification when:
+        Send an email and/or a matrix notification when:
         - there is no previous classification and the new classification is BAD;
         - the previous classification was GOOD or UNKNOWN and the new classification is BAD;
         - or the previous classification was BAD and the new classification is GOOD or UNKNOWN.
@@ -283,22 +289,32 @@ class ClassifyCommand(Command):
             previous == PushStatus.BAD
             and current in (PushStatus.GOOD, PushStatus.UNKNOWN)
         ):
-            notify_email(
-                emails=emails,
-                subject=f"Push status evolution {push.id} {push.rev[:8]}",
-                content=EMAIL_PUSH_EVOLUTION.format(
-                    previous=previous.name if previous else "no classification",
-                    current=current.name,
-                    push=push,
-                    branch=self.branch,
-                    real_failures="\n- ".join(
-                        [
-                            f"Group [{group}]({_get_group_url(group)}) - Tasks {_list_tasks(tasks)}"
-                            for group, tasks in regressions.real.items()
-                        ]
-                    ),
+            notify = get_taskcluster_notify_service()
+            email_content = EMAIL_PUSH_EVOLUTION.format(
+                previous=previous.name if previous else "no classification",
+                current=current.name,
+                push=push,
+                branch=self.branch,
+                real_failures="\n- ".join(
+                    [
+                        f"Group [{group}]({_get_group_url(group)}) - Tasks {_list_tasks(tasks)}"
+                        for group, tasks in regressions.real.items()
+                    ]
                 ),
             )
+            if emails:
+                notify_email(
+                    notify_service=notify,
+                    emails=emails,
+                    subject=f"Push status evolution {push.id} {push.rev[:8]}",
+                    content=email_content,
+                )
+            if matrix_room:
+                notify_matrix(
+                    notify_service=notify,
+                    room=matrix_room,
+                    body=email_content,
+                )
 
 
 class ClassifyEvalCommand(Command):

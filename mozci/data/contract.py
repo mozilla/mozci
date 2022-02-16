@@ -204,6 +204,7 @@ _contracts: Tuple[Contract, ...] = (
             {
                 "branch": v.Str(),
                 "rev": v.Str(),
+                "environment": v.Str(),
             }
         ),
         validate_out=v.Str(options=["GOOD", "BAD", "UNKNOWN"]),

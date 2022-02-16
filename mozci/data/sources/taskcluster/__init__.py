@@ -124,12 +124,19 @@ class TaskclusterSource(DataSource):
 
         return results
 
-    def run_push_existing_classification(self, branch, rev):
+    def run_push_existing_classification(self, branch, rev, environment):
+        # Non-production environments are exposed in sub routes
+        route_prefix = (
+            "project.mozci.classification"
+            if environment == "production"
+            else f"project.mozci.{environment}.classification"
+        )
+
         try:
             # Proxy authentication does not seem to work here
             index = Index({"rootUrl": taskcluster.COMMUNITY_TASKCLUSTER_ROOT_URL})
             response = index.findArtifactFromTask(
-                f"project.mozci.classification.{branch}.revision.{rev}",
+                f"{route_prefix}.{branch}.revision.{rev}",
                 "public/classification.json",
             )
         except TaskclusterRestFailure as e:

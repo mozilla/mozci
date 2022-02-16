@@ -127,11 +127,7 @@ def get_taskcluster_options():
     return options
 
 
-def get_taskcluster_notify_service():
-    return taskcluster.Notify(get_taskcluster_options())
-
-
-def notify_email(notify_service, subject, content, emails):
+def notify_email(subject, content, emails):
     """
     Send an email to all provided email addresses
     using Taskcluster notify service
@@ -140,6 +136,7 @@ def notify_email(notify_service, subject, content, emails):
         logger.warning("No email address available in configuration")
         return
 
+    notify_service = taskcluster.Notify(get_taskcluster_options())
     for idx, email in enumerate(emails):
         try:
             notify_service.email(
@@ -155,7 +152,7 @@ def notify_email(notify_service, subject, content, emails):
             )
 
 
-def notify_matrix(notify_service, body, room):
+def notify_matrix(body, room):
     """
     Send a message on the provided Matrix room
     using Taskcluster notify service
@@ -164,6 +161,7 @@ def notify_matrix(notify_service, body, room):
         logger.warning("No Matrix room available in configuration")
         return
 
+    notify_service = taskcluster.Notify(get_taskcluster_options())
     try:
         notify_service.matrix({"roomId": room, "body": body})
     except Exception as e:

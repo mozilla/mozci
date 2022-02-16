@@ -20,7 +20,6 @@ from mozci.push import Push, PushStatus, Regressions, make_push_objects
 from mozci.task import Task, TestTask
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
-    get_taskcluster_notify_service,
     get_taskcluster_options,
     notify_email,
     notify_matrix,
@@ -292,7 +291,6 @@ class ClassifyCommand(Command):
             previous == PushStatus.BAD
             and current in (PushStatus.GOOD, PushStatus.UNKNOWN)
         ):
-            notify = get_taskcluster_notify_service()
             email_content = EMAIL_PUSH_EVOLUTION.format(
                 previous=previous.name if previous else "no classification",
                 current=current.name,
@@ -307,14 +305,12 @@ class ClassifyCommand(Command):
             )
             if emails:
                 notify_email(
-                    notify_service=notify,
                     emails=emails,
                     subject=f"Push status evolution {push.id} {push.rev[:8]}",
                     content=email_content,
                 )
             if matrix_room:
                 notify_matrix(
-                    notify_service=notify,
                     room=matrix_room,
                     body=email_content,
                 )

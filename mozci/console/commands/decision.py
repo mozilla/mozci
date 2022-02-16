@@ -109,6 +109,7 @@ class DecisionCommand(Command):
                     push.branch,
                     f"--rev={push.rev}",
                     "--output=/tmp",
+                    f"--environment={environment}",
                 ],
                 "cache": {
                     f"mozci-classifications-{environment}": "/cache",

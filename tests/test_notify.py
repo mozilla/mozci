@@ -110,13 +110,21 @@ def test_classification_evolution(
         json={},
         status=200,
     )
+    # Mock Taskcluster Matrix notification service
+    responses.add(
+        responses.POST,
+        "https://community-tc.services.mozilla.com/api/notify/v1/matrix",
+        json={},
+        status=200,
+    )
 
     # Run the notification code from mozci push classify
     cmd = ClassifyCommand()
     cmd.name = "classify"
     cmd.branch = "unittest"
-    cmd.send_emails(
+    cmd.send_notifications(
         emails=["test@mozilla.com"],
+        matrix_room="!tEsTmAtRIxRooM:mozilla.org",
         push=push,
         previous=previous,
         current=current,
@@ -124,13 +132,18 @@ def test_classification_evolution(
     )
 
     if email_content:
-        # Check an email was correctly sent
-        assert len(responses.calls) == 1
-        call = responses.calls[0]
-        assert json.loads(call.request.body) == {
+        # Check an email and a matrix notification were correctly sent
+        assert len(responses.calls) == 2
+        email_call = responses.calls[0]
+        assert json.loads(email_call.request.body) == {
             "address": "test@mozilla.com",
             "subject": "Mozci | Push status evolution 1 rev1",
             "content": email_content,
+        }
+        matrix_call = responses.calls[1]
+        assert json.loads(matrix_call.request.body) == {
+            "roomId": "!tEsTmAtRIxRooM:mozilla.org",
+            "body": email_content,
         }
     else:
         # Check no email was sent

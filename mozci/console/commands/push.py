@@ -4,7 +4,7 @@ import datetime
 import json
 import os
 import re
-from typing import List, Union
+from typing import List, Optional
 from urllib.parse import urlencode
 
 import arrow
@@ -243,10 +243,10 @@ class ClassifyCommand(Command):
 
     def send_notifications(
         self,
-        emails: Union[List[str], None],
-        matrix_room: Union[str, None],
+        emails: Optional[List[str]],
+        matrix_room: Optional[str],
         push: Push,
-        previous: Union[PushStatus, None],
+        previous: Optional[PushStatus],
         current: PushStatus,
         regressions: Regressions,
     ) -> None:

@@ -20,7 +20,6 @@ from mozci.push import Push, PushStatus, Regressions, make_push_objects
 from mozci.task import Task, TestTask
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
-    get_taskcluster_notify_service,
     get_taskcluster_options,
     notify_email,
     notify_matrix,
@@ -292,7 +291,6 @@ class ClassifyCommand(Command):
             previous == PushStatus.BAD
             and current in (PushStatus.GOOD, PushStatus.UNKNOWN)
         ):
-            notify = get_taskcluster_notify_service()
             email_content = EMAIL_PUSH_EVOLUTION.format(
                 previous=previous.name if previous else "no classification",
                 current=current.name,
@@ -307,14 +305,12 @@ class ClassifyCommand(Command):
             )
             if emails:
                 notify_email(
-                    notify_service=notify,
                     emails=emails,
                     subject=f"Push status evolution {push.id} {push.rev[:8]}",
                     content=email_content,
                 )
             if matrix_room:
                 notify_matrix(
-                    notify_service=notify,
                     room=matrix_room,
                     body=email_content,
                 )
@@ -388,6 +384,14 @@ class ClassifyEvalCommand(Command):
             " %current%/%max% [%bar%] %percent:3s%% %elapsed:6s% %message%"
         )
 
+        # Setup specific route prefix for existing tasks, according to environment
+        environment = self.option("environment")
+        route_prefix = (
+            "project.mozci.classification"
+            if environment == "production"
+            else f"project.mozci.{environment}.classification"
+        )
+
         self.errors = {}
         self.classifications = {}
         self.failures = {}
@@ -417,7 +421,7 @@ class ClassifyEvalCommand(Command):
             else:
                 progress.set_message(f"Fetch {branch} {push.id}")
                 try:
-                    index = f"project.mozci.classification.{branch}.revision.{push.rev}"
+                    index = f"{route_prefix}.{branch}.revision.{push.rev}"
                     task = Task.create(
                         index=index, root_url=COMMUNITY_TASKCLUSTER_ROOT_URL
                     )
@@ -592,9 +596,10 @@ class ClassifyEvalCommand(Command):
 
         stats = "\n".join([f"- {stat}" for stat in stats])
 
+        environment = self.option("environment")
         notify_email(
             emails=config.get("emails", {}).get("monitoring"),
-            subject=f"classify-eval report generated the {today}",
+            subject=f"{environment} classify-eval report generated the {today}",
             content=EMAIL_CLASSIFY_EVAL.format(
                 today=today,
                 total=total,

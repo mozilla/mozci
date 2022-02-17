@@ -1050,6 +1050,7 @@ class Push:
         intermittent_confidence_threshold: float = 0.8,
         real_confidence_threshold: float = 0.9,
         use_possible_regressions: bool = False,
+        unknown_from_regressions: bool = True,
     ) -> Regressions:
         """
         Use group classification data from bugbug to classify all likely
@@ -1142,7 +1143,13 @@ class Push:
 
         # Unknown failures all the remaining failing groups that are not real nor intermittent
         unknown_failures = (
-            groups_failing_in_the_push - real_failures - intermittent_failures
+            (
+                groups_regressions
+                if unknown_from_regressions
+                else groups_failing_in_the_push
+            )
+            - real_failures
+            - intermittent_failures
         )
         logger.debug(f"Got {len(unknown_failures)} unknown failures")
 
@@ -1162,6 +1169,8 @@ class Push:
         self,
         intermittent_confidence_threshold: float = 0.8,
         real_confidence_threshold: float = 0.9,
+        use_possible_regressions: bool = False,
+        unknown_from_regressions: bool = True,
     ) -> Tuple[PushStatus, Regressions]:
         """
         Classify the overall push state using its group tasks states
@@ -1171,7 +1180,10 @@ class Push:
         - unknown state: when other tasks are failing
         """
         regressions = self.classify_regressions(
-            intermittent_confidence_threshold, real_confidence_threshold
+            intermittent_confidence_threshold,
+            real_confidence_threshold,
+            use_possible_regressions,
+            unknown_from_regressions,
         )
 
         # If there are any real failures, it's a bad push

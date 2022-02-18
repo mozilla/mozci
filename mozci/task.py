@@ -179,6 +179,10 @@ class Task:
         return Task(**kwargs)
 
     @property
+    def is_backfill(self) -> bool:
+        return self.tags.get("action", "") == "backfill-task"
+
+    @property
     def failed(self):
         return self.result in ("failed", "exception")
 

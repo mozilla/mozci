@@ -490,24 +490,24 @@ class ClassifyEvalCommand(Command):
                     f"<comment>Printing detailed classifications comparison for push {push.branch}/{push.rev}</comment>"
                 )
 
-                sheriff_reals = set()
-                # Get likely regressions of this push
-                likely_regressions = push.get_likely_regressions("group", True)
-                # Only consider groups that were classified as "fixed by commit" to exclude likely regressions mozci found via heuristics.
-                for other in push._iterate_children():
-                    for name, group in other.group_summaries.items():
-                        classifications = set([c for c, _ in group.classifications])
-                        if (
-                            classifications == {"fixed by commit"}
-                            and name in likely_regressions
-                        ):
-                            sheriff_reals.add(name)
-
-                sheriff_intermittents = set()
-                for name, group in push.group_summaries.items():
-                    classifications = set([c for c, _ in group.classifications])
-                    if classifications == {"intermittent"}:
-                        sheriff_intermittents.add(name)
+                # Compare real failures that were predicted by mozci with the ones classified by Sheriffs
+                try:
+                    sheriff_reals = set()
+                    # Get likely regressions of this push
+                    likely_regressions = push.get_likely_regressions("group", True)
+                    # Only consider groups that were classified as "fixed by commit" to exclude likely regressions mozci found via heuristics.
+                    for other in push._iterate_children():
+                        for name, group in other.group_summaries.items():
+                            classifications = set([c for c, _ in group.classifications])
+                            if (
+                                classifications == {"fixed by commit"}
+                                and name in likely_regressions
+                            ):
+                                sheriff_reals.add(name)
+                except Exception:
+                    self.line(
+                        "<error>Failed to retrieve Sheriff classifications for the real failures of this push.</error>"
+                    )
 
                 try:
                     push_real_stats = self.log_details(
@@ -520,6 +520,18 @@ class ClassifyEvalCommand(Command):
                         key: value + push_real_stats[key]
                         for key, value in real_stats.items()
                     }
+                except Exception:
+                    self.line(
+                        "<error>Failed to compare true and predicted real failures of this push.</error>"
+                    )
+
+                # Compare intermittent failures that were predicted by mozci with the ones classified by Sheriffs
+                try:
+                    sheriff_intermittents = set()
+                    for name, group in push.group_summaries.items():
+                        classifications = set([c for c, _ in group.classifications])
+                        if classifications == {"intermittent"}:
+                            sheriff_intermittents.add(name)
                 except Exception:
                     self.line(
                         "<error>Failed to retrieve Sheriff classifications for the intermittent failures of this push.</error>"
@@ -538,7 +550,7 @@ class ClassifyEvalCommand(Command):
                     }
                 except Exception:
                     self.line(
-                        "<error>Failed to retrieve Sheriff classifications for the real failures of this push.</error>"
+                        "<error>Failed to compare true and predicted intermittent failures of this push.</error>"
                     )
 
             self.line(

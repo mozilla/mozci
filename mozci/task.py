@@ -237,6 +237,7 @@ class Task:
                 "and force not specified.".format(task["tags"]["label"])
             )
             return
+        logger.info("Retriggering task '{}'".format(task["tags"]["label"]))
         create_task(new_task_id, task)
 
     def _should_retrigger(self, task):

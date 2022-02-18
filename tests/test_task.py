@@ -77,7 +77,7 @@ def test_retrigger_should_retrigger(responses, create_task):
     responses.add(
         responses.GET,
         "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/0",
-        json={"payload": {}, "tags": {"retrigger": "true"}},
+        json={"payload": {}, "tags": {"retrigger": "true", "label": "test_retrigger"}},
         status=200,
     )
 

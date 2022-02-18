@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import json
+import re
 from itertools import count
 
 import pytest
@@ -12,7 +14,7 @@ from mozci.errors import (
     PushNotFound,
     SourcesNotFound,
 )
-from mozci.push import Push, PushStatus, Regressions
+from mozci.push import Push, PushStatus, Regressions, retrigger
 from mozci.task import GroupResult, GroupSummary, Status, Task, TestTask
 from mozci.util.hgmo import HgRev
 from mozci.util.taskcluster import (
@@ -1260,6 +1262,129 @@ def test_classify_almost_bad_push(
             },
         ),
     )
+
+
+@pytest.mark.parametrize(
+    "classify_regressions_return_value, expected_result",
+    [
+        (
+            Regressions(
+                real={
+                    "group1": [
+                        Task.create(
+                            id="NjJqN07WQ9Cs6HvVLUJXnw",
+                            label=f"test-task{id}",
+                            result="failed",
+                            _results=[GroupResult(group=f"group{id}", ok=False)],
+                        )
+                    ]
+                },
+                intermittent={},
+                unknown={},
+            ),
+            False,  # does not perform retrigger
+        ),
+        (
+            Regressions(real={}, intermittent={}, unknown={}),
+            False,  # does not perform retrigger
+        ),
+        (
+            Regressions(
+                real={},
+                intermittent={},
+                unknown={
+                    "group1": [
+                        Task.create(
+                            id="NjJqN07WQ9Cs6HvVLUJXnw",
+                            label=f"test-task{id}",
+                            result="failed",
+                            _results=[GroupResult(group=f"group{id}", ok=False)],
+                        )
+                    ]
+                },
+            ),
+            True,  # performs retrigger
+        ),
+        (
+            Regressions(
+                real={},
+                intermittent={
+                    "group1": [
+                        Task.create(
+                            id="NjJqN07WQ9Cs6HvVLUJXnw",
+                            label=f"test-task{id}",
+                            result="failed",
+                            _results=[GroupResult(group=f"group{id}", ok=False)],
+                        )
+                    ]
+                },
+                unknown={},
+            ),
+            False,  # does not perform retrigger
+        ),
+    ],
+)
+def test_classify_retrigger_unknown_tasks(
+    responses, monkeypatch, classify_regressions_return_value, expected_result
+):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    def mock_return(self, *args, **kwargs):
+        return classify_regressions_return_value
+
+    monkeypatch.setattr(Push, "classify_regressions", mock_return)
+    responses.add(
+        responses.PUT,
+        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/JHT2zBEmRvKeXTAs0_PXYQ",
+        json={"payload": {}, "tags": {"retrigger": "true", "label": "test_retrigger"}},
+        status=200,
+    )
+
+    responses.add(
+        responses.GET,
+        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/NjJqN07WQ9Cs6HvVLUJXnw",
+        json={
+            "payload": {},
+            "tags": {"retrigger": "true", "label": "test-taskNjJqN07WQ9Cs6HvVLUJXnw"},
+        },
+        status=200,
+    )
+
+    create_new_task_url_matcher = re.compile(
+        r"https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/*"
+    )
+
+    responses.add(
+        responses.PUT,
+        create_new_task_url_matcher,
+        json={
+            "payload": {},
+            "tags": {"retrigger": "true", "label": "test-taskNjJqN07WQ9Cs6HvVLUJXnw"},
+        },
+        status=200,
+    )
+
+    _, regressions = push.classify()
+    for _, tasks in regressions.unknown.items():
+        retrigger(tasks=tasks, repeat_retrigger=1)
+
+    # verify last call was to create a new task i.e a retrigger
+    assert (
+        len(responses.calls) != 0 and responses.calls[-1].request.method == "PUT"
+    ) == expected_result
+    assert (
+        len(responses.calls) != 0
+        and bool(create_new_task_url_matcher.match(responses.calls[-1].request.url))
+    ) == expected_result
+
+    if len(responses.calls) < 0:
+        # assert that the new task created has the same label as the original task
+        last_request_body = json.loads(responses.calls[-1].request.body)
+        assert (
+            last_request_body["tags"]["label"] == "test-taskNjJqN07WQ9Cs6HvVLUJXnw"
+        ) == expected_result
 
 
 def test_classify_bad_push_some_real_failures(monkeypatch):

@@ -16,7 +16,7 @@ from taskcluster.exceptions import TaskclusterRestFailure
 
 from mozci import config
 from mozci.errors import SourcesNotFound, TaskNotFound
-from mozci.push import Push, PushStatus, Regressions, make_push_objects
+from mozci.push import Push, PushStatus, Regressions, make_push_objects, retrigger
 from mozci.task import Task, TestTask
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
@@ -128,6 +128,7 @@ class ClassifyCommand(Command):
         {--output= : Path towards a directory to save a JSON file containing classification and regressions details in.}
         {--show-intermittents : If set, print tasks that should be marked as intermittent.}
         {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
+        {--retrigger-unknown : If set, retrigger UNKNOWN regressions}
     """
 
     def handle(self) -> None:
@@ -155,6 +156,7 @@ class ClassifyCommand(Command):
             self.line("<error>Provided --high-confidence should be a float.</error>")
             return
 
+        retrigger_unknown = True if self.option("retrigger-unknown") else False
         output = self.option("output")
         if output and not os.path.isdir(output):
             os.makedirs(output)
@@ -168,6 +170,9 @@ class ClassifyCommand(Command):
                     intermittent_confidence_threshold=medium_conf,
                     real_confidence_threshold=high_conf,
                 )
+                if retrigger_unknown:
+                    for _, tasks in regressions.unknown.items():
+                        retrigger(tasks=tasks, repeat_retrigger=1)
                 self.line(
                     f"Push associated with the head revision {push.rev} on "
                     f"the branch {self.branch} is classified as {classification.name}"

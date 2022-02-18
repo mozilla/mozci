@@ -486,18 +486,28 @@ class ClassifyEvalCommand(Command):
                 "missed": 0,
             }
             for push in self.pushes:
-                sheriff_reals = []
-                sheriff_intermittents = []
-                for name, group in push.group_summaries.items():
-                    classifications = set([c for c, _ in group.classifications])
-                    if classifications == {"fixed by commit"}:
-                        sheriff_reals.append(name)
-                    if classifications == {"intermittent"}:
-                        sheriff_intermittents.append(name)
-
                 self.line(
                     f"<comment>Printing detailed classifications comparison for push {push.branch}/{push.rev}</comment>"
                 )
+
+                sheriff_reals = set()
+                # Get likely regressions of this push
+                likely_regressions = push.get_likely_regressions("group", True)
+                # Only consider groups that were classified as "fixed by commit" to exclude likely regressions mozci found via heuristics.
+                for other in push._iterate_children():
+                    for name, group in other.group_summaries.items():
+                        classifications = set([c for c, _ in group.classifications])
+                        if (
+                            classifications == {"fixed by commit"}
+                            and name in likely_regressions
+                        ):
+                            sheriff_reals.add(name)
+
+                sheriff_intermittents = set()
+                for name, group in push.group_summaries.items():
+                    classifications = set([c for c, _ in group.classifications])
+                    if classifications == {"intermittent"}:
+                        sheriff_intermittents.add(name)
 
                 try:
                     push_real_stats = self.log_details(

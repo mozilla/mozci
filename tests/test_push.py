@@ -1150,7 +1150,9 @@ def test_classify_almost_good_push(monkeypatch, test_selection_data, are_cross_c
     )
 
     assert push.classify(
-        unknown_from_regressions=False, consistent_failures_counts=None
+        unknown_from_regressions=False,
+        consistent_failures_counts=None,
+        consider_children_pushes_configs=False,
     ) == (
         PushStatus.UNKNOWN,
         Regressions(
@@ -1183,7 +1185,7 @@ def test_classify_good_push_only_intermittent_failures(monkeypatch):
         are_cross_config,
     )
 
-    assert push.classify() == (
+    assert push.classify(consider_children_pushes_configs=False) == (
         PushStatus.GOOD,
         Regressions(
             real={},
@@ -1255,7 +1257,9 @@ def test_classify_almost_bad_push(
     )
 
     assert push.classify(
-        unknown_from_regressions=False, consistent_failures_counts=None
+        unknown_from_regressions=False,
+        consistent_failures_counts=None,
+        consider_children_pushes_configs=False,
     ) == (
         PushStatus.UNKNOWN,
         Regressions(
@@ -1413,7 +1417,9 @@ def test_classify_bad_push_some_real_failures(monkeypatch):
         are_cross_config,
     )
 
-    assert push.classify(unknown_from_regressions=False) == (
+    assert push.classify(
+        unknown_from_regressions=False, consider_children_pushes_configs=False
+    ) == (
         PushStatus.BAD,
         Regressions(
             # group1 & group3 were both selected by bugbug with high confidence, likely to regress

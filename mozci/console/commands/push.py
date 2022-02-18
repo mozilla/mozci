@@ -396,13 +396,19 @@ class ClassifyEvalCommand(Command):
         self.classifications = {}
         self.failures = {}
         for push in self.pushes:
-            # Pretend no tasks were classified to evaluate the model without any outside help.
-            for task in push.tasks:
-                task.classification = "not classified"
-                task.classification_note = None
-
             if self.option("recalculate"):
                 progress.set_message(f"Calc. {branch} {push.id}")
+
+                # Pretend no tasks were classified to run the model without any outside help.
+                old_classifications = {}
+                for task in push.tasks:
+                    old_classifications[task.id] = {
+                        "classification": task.classification,
+                        "note": task.classification_note,
+                    }
+                    task.classification = "not classified"
+                    task.classification_note = None
+
                 try:
                     self.classifications[push], regressions = push.classify(
                         intermittent_confidence_threshold=medium_conf,
@@ -418,6 +424,11 @@ class ClassifyEvalCommand(Command):
                         f"<error>Classification failed on {branch} {push.rev}: {e}</error>"
                     )
                     self.errors[push] = e
+
+                # Once the Mozci algorithm has run, restore Sheriffs classifications to be able to properly compare failures classifications.
+                for task in push.tasks:
+                    task.classification = old_classifications[task.id]["classification"]
+                    task.classification_note = old_classifications[task.id]["note"]
             else:
                 progress.set_message(f"Fetch {branch} {push.id}")
                 try:
@@ -483,42 +494,77 @@ class ClassifyEvalCommand(Command):
                 "total": 0,
                 "correct": 0,
                 "wrong": 0,
+                "pending": 0,
                 "conflicting": 0,
                 "missed": 0,
             }
             for push in self.pushes:
-                if self.failures.get(push) and (
-                    self.failures[push]["real"] or self.failures[push]["intermittent"]
-                ):
+                self.line(
+                    f"<comment>Printing detailed classifications comparison for push {push.branch}/{push.rev}</comment>"
+                )
+
+                # Compare real failures that were predicted by mozci with the ones classified by Sheriffs
+                try:
+                    sheriff_reals = set()
+                    # Get likely regressions of this push
+                    likely_regressions = push.get_likely_regressions("group", True)
+                    # Only consider groups that were classified as "fixed by commit" to exclude likely regressions mozci found via heuristics.
+                    for other in push._iterate_children():
+                        for name, group in other.group_summaries.items():
+                            classifications = set([c for c, _ in group.classifications])
+                            if (
+                                classifications == {"fixed by commit"}
+                                and name in likely_regressions
+                            ):
+                                sheriff_reals.add(name)
+                except Exception:
                     self.line(
-                        f"<comment>Printing detailed classifications comparison for push {push.branch}/{push.rev}</comment>"
+                        "<error>Failed to retrieve Sheriff classifications for the real failures of this push.</error>"
                     )
 
-                    try:
-                        push_real_stats = self.log_details(
-                            push, "real", {"fixed by commit"}
-                        )
-                        real_stats = {
-                            key: value + push_real_stats[key]
-                            for key, value in real_stats.items()
-                        }
-                    except Exception:
-                        self.line(
-                            "<error>Failed to retrieve Sheriff classifications for the intermittent failures of this push.</error>"
-                        )
+                try:
+                    push_real_stats = self.log_details(
+                        push,
+                        "real",
+                        sheriff_reals,
+                        {"fixed by commit"},
+                    )
+                    real_stats = {
+                        key: value + push_real_stats[key]
+                        for key, value in real_stats.items()
+                    }
+                except Exception:
+                    self.line(
+                        "<error>Failed to compare true and predicted real failures of this push.</error>"
+                    )
 
-                    try:
-                        push_intermittent_stats = self.log_details(
-                            push, "intermittent", {"intermittent"}
-                        )
-                        intermittent_stats = {
-                            key: value + push_intermittent_stats[key]
-                            for key, value in intermittent_stats.items()
-                        }
-                    except Exception:
-                        self.line(
-                            "<error>Failed to retrieve Sheriff classifications for the real failures of this push.</error>"
-                        )
+                # Compare intermittent failures that were predicted by mozci with the ones classified by Sheriffs
+                try:
+                    sheriff_intermittents = set()
+                    for name, group in push.group_summaries.items():
+                        classifications = set([c for c, _ in group.classifications])
+                        if classifications == {"intermittent"}:
+                            sheriff_intermittents.add(name)
+                except Exception:
+                    self.line(
+                        "<error>Failed to retrieve Sheriff classifications for the intermittent failures of this push.</error>"
+                    )
+
+                try:
+                    push_intermittent_stats = self.log_details(
+                        push,
+                        "intermittent",
+                        sheriff_intermittents,
+                        {"intermittent"},
+                    )
+                    intermittent_stats = {
+                        key: value + push_intermittent_stats[key]
+                        for key, value in intermittent_stats.items()
+                    }
+                except Exception:
+                    self.line(
+                        "<error>Failed to compare true and predicted intermittent failures of this push.</error>"
+                    )
 
             self.line(
                 f"\n<comment>Printing overall detailed classifications comparison for {len(self.pushes)} pushes</comment>"
@@ -526,12 +572,14 @@ class ClassifyEvalCommand(Command):
             detailed_stats = [
                 f"{real_stats['correct']} out of {real_stats['total']} real failures were correctly classified ('fixed by commit' by Sheriffs).",
                 f"{real_stats['wrong']} out of {real_stats['total']} real failures were wrongly classified ('intermittent' by Sheriffs).",
+                f"{real_stats['pending']} out of {real_stats['total']} real failures are waiting to be classified by Sheriffs.",
                 f"{real_stats['conflicting']} out of {real_stats['total']} real failures have conflicting classifications applied by Sheriffs.",
-                f"{real_stats['missed']} out of {real_stats['total']} real failures were missed.",
+                f"{real_stats['missed']} real failures were missed or classified as unknown by Mozci.",
                 f"{intermittent_stats['correct']} out of {intermittent_stats['total']} intermittent failures were correctly classified ('intermittent' by Sheriffs).",
                 f"{intermittent_stats['wrong']} out of {intermittent_stats['total']} intermittent failures were wrongly classified ('fixed by commit' by Sheriffs).",
+                f"{intermittent_stats['pending']} out of {intermittent_stats['total']} intermittent failures are waiting to be classified by Sheriffs.",
                 f"{intermittent_stats['conflicting']} out of {intermittent_stats['total']} intermittent failures have conflicting classifications applied by Sheriffs.",
-                f"{intermittent_stats['missed']} out of {intermittent_stats['total']} intermittent failures were missed.",
+                f"{intermittent_stats['missed']} intermittent failures were missed or classified as unknown by Mozci.",
             ]
             for line in detailed_stats:
                 self.line(line)
@@ -617,26 +665,48 @@ class ClassifyEvalCommand(Command):
             ),
         )
 
-    def log_details(self, push, state, expected):
-        total = len(self.failures[push][state])
-        if not total:
-            return {"total": 0, "correct": 0, "wrong": 0, "conflicting": 0, "missed": 0}
+    def log_details(self, push, state, sheriff_groups, expected):
+        predicted_groups = (
+            self.failures[push][state].keys() if self.failures.get(push) else []
+        )
+        total = len(predicted_groups)
 
-        missed = []
+        if not total:
+            if sheriff_groups:
+                self.line(
+                    f"{len(sheriff_groups)} groups were classified as {state} by Sheriffs and missed by Mozci, missed groups:"
+                )
+                self.line("  - " + "\n  - ".join(sheriff_groups))
+
+            return {
+                "total": 0,
+                "correct": 0,
+                "wrong": 0,
+                "pending": 0,
+                "conflicting": 0,
+                "missed": len(sheriff_groups),
+            }
+
         conflicting = []
         differing = []
-        for group in self.failures[push][state].keys():
+        pending = []
+        missed = []
+        for group in predicted_groups:
             classifications_set = set(
                 [c for c, _ in push.group_summaries[group].classifications]
             )
-            if len(classifications_set) == 0:
-                missed.append(group)
+            if classifications_set == {"not classified"}:
+                pending.append(group)
             elif len(classifications_set) != 1:
                 conflicting.append(group)
             elif classifications_set != expected:
                 differing.append(group)
 
-        correct = total - len(missed) - len(conflicting) - len(differing)
+        for group in sheriff_groups:
+            if group not in predicted_groups:
+                missed.append(group)
+
+        correct = total - len(conflicting) - len(differing) - len(pending)
         self.line(
             f"{correct} out of {total} {state} groups were also classified as {state} by Sheriffs."
         )
@@ -645,6 +715,10 @@ class ClassifyEvalCommand(Command):
                 f"{len(differing)} out of {total} {state} groups weren't classified as {state} by Sheriffs, differing groups:"
             )
             self.line("  - " + "\n  - ".join(differing))
+        if pending:
+            self.line(
+                f"{len(pending)} out of {total} {state} groups are waiting to be classified by Sheriffs."
+            )
         if conflicting:
             self.line(
                 f"{len(conflicting)} out of {total} {state} groups have conflicting classifications applied by Sheriffs, inconsistent groups:"
@@ -652,7 +726,7 @@ class ClassifyEvalCommand(Command):
             self.line("  - " + "\n  - ".join(conflicting))
         if missed:
             self.line(
-                f"{len(missed)} out of {total} {state} groups are missing a classification, missed groups:"
+                f"{len(missed)} groups were classified as {state} by Sheriffs and missed (or classified as unknown) by Mozci, missed groups:"
             )
             self.line("  - " + "\n  - ".join(missed))
 
@@ -660,6 +734,7 @@ class ClassifyEvalCommand(Command):
             "total": total,
             "correct": correct,
             "wrong": len(differing),
+            "pending": len(pending),
             "conflicting": len(conflicting),
             "missed": len(missed),
         }

@@ -464,7 +464,7 @@ class GroupSummary(RunnableSummary):
                 if result.group == self.name:
                     config_to_results[task.configuration].append(result.ok)
 
-        # If there is no config for which we have at least two runs, return None (that is, unknown).
+        # If there is no config for which we have at least 'minimum_count' runs, return None (that is, unknown).
         if all(len(results) < minimum_count for results in config_to_results.values()):
             return None
 
@@ -474,8 +474,7 @@ class GroupSummary(RunnableSummary):
             for results in config_to_results.values()
         )
 
-    @memoized_property
-    def is_cross_config_failure(self) -> Optional[bool]:
+    def is_cross_config_failure(self, minimum_count: int = 2) -> Optional[bool]:
         states = [
             result.ok
             for task in self.tasks
@@ -487,8 +486,8 @@ class GroupSummary(RunnableSummary):
         nb_passed = sum(states)  # Number of True booleans in the states list
         nb_failed = nb - nb_passed
 
-        # If the group run on a single task, we don't have enough information to tell.
-        if nb <= 1:
+        # If the group run on fewer than 'minimum_count' tasks, we don't have enough information to tell.
+        if nb < minimum_count:
             return None
 
         # A group is a cross config failure when it is failing in all tasks and not

@@ -57,7 +57,7 @@ class Regressions:
     unknown: Dict[str, List[TestTask]]
 
 
-def build_group_summaries(tasks) -> dict[str, GroupSummary]:
+def build_group_summaries(tasks) -> Dict[str, GroupSummary]:
     groups = defaultdict(list)
 
     for task in tasks:

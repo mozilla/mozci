@@ -1145,7 +1145,9 @@ def test_classify_almost_good_push(monkeypatch, test_selection_data, are_cross_c
         are_cross_config,
     )
 
-    assert push.classify(unknown_from_regressions=False, consistent_failures_counts=None) == (
+    assert push.classify(
+        unknown_from_regressions=False, consistent_failures_counts=None
+    ) == (
         PushStatus.UNKNOWN,
         Regressions(
             real={},
@@ -1248,7 +1250,9 @@ def test_classify_almost_bad_push(
         are_cross_config,
     )
 
-    assert push.classify(unknown_from_regressions=False, consistent_failures_counts=None) == (
+    assert push.classify(
+        unknown_from_regressions=False, consistent_failures_counts=None
+    ) == (
         PushStatus.UNKNOWN,
         Regressions(
             real={},

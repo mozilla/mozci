@@ -1355,7 +1355,7 @@ def make_push_objects(**kwargs):
     return pushes
 
 
-def retrigger(tasks: List[TestTask], repeat_retrigger: int=1) -> None:
+def retrigger(tasks: List[TestTask], repeat_retrigger: int = 1) -> None:
     """Utility function that retrigger a list of task "repeat_retrigger" times."""
     for task in tasks:
         for _ in range(0, repeat_retrigger):

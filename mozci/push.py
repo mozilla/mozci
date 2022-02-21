@@ -1051,6 +1051,7 @@ class Push:
         real_confidence_threshold: float = 0.9,
         use_possible_regressions: bool = False,
         unknown_from_regressions: bool = True,
+        cross_config_counts: Optional[Tuple[int, int]] = (2, 2),
         consistent_failures_counts: Optional[Tuple[int, int]] = (2, 3),
     ) -> Regressions:
         """
@@ -1103,7 +1104,10 @@ class Push:
         groups_relevant_failure = {
             g.name
             for g in all_groups
-            if g.is_cross_config_failure
+            if (
+                cross_config_counts is not None
+                and g.is_cross_config_failure(cross_config_counts[1])
+            )
             or (
                 consistent_failures_counts is not None
                 and g.is_config_consistent_failure(consistent_failures_counts[1])
@@ -1114,7 +1118,10 @@ class Push:
             for g in all_groups
             if g.status != Status.PASS
             and (
-                g.is_cross_config_failure is False
+                (
+                    cross_config_counts is not None
+                    and g.is_cross_config_failure(cross_config_counts[0]) is False
+                )
                 or (
                     consistent_failures_counts is not None
                     and g.is_config_consistent_failure(consistent_failures_counts[0])
@@ -1186,6 +1193,7 @@ class Push:
         real_confidence_threshold: float = 0.9,
         use_possible_regressions: bool = False,
         unknown_from_regressions: bool = True,
+        cross_config_counts: Optional[Tuple[int, int]] = (2, 2),
         consistent_failures_counts: Optional[Tuple[int, int]] = (2, 3),
     ) -> Tuple[PushStatus, Regressions]:
         """
@@ -1200,6 +1208,7 @@ class Push:
             real_confidence_threshold,
             use_possible_regressions,
             unknown_from_regressions,
+            cross_config_counts,
             consistent_failures_counts,
         )
 

@@ -1097,7 +1097,11 @@ def generate_mocks(
 
     push.group_summaries = GROUP_SUMMARIES_DEFAULT
     for index, group in enumerate(push.group_summaries.values()):
-        group.is_cross_config_failure = cross_config_values[index]
+        monkeypatch.setattr(
+            group,
+            "is_cross_config_failure",
+            lambda x, index=index: cross_config_values[index],
+        )
 
 
 @pytest.mark.parametrize(

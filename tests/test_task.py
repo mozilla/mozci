@@ -368,7 +368,7 @@ def test_results_for_incomplete_task(responses):
     ],
 )
 def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
-    assert group_summary.is_cross_config_failure == expected_result
+    assert group_summary.is_cross_config_failure(2) == expected_result
 
 
 @pytest.mark.parametrize(

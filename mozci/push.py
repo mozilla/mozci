@@ -1119,12 +1119,12 @@ class Push:
             if g.status != Status.PASS
             and (
                 (
-                    cross_config_counts is not None
-                    and g.is_cross_config_failure(cross_config_counts[0]) is False
+                    cross_config_counts is None
+                    or g.is_cross_config_failure(cross_config_counts[0]) is False
                 )
-                or (
-                    consistent_failures_counts is not None
-                    and g.is_config_consistent_failure(consistent_failures_counts[0])
+                and (
+                    consistent_failures_counts is None
+                    or g.is_config_consistent_failure(consistent_failures_counts[0])
                     is False
                 )
             )

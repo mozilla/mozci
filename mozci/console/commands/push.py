@@ -4,7 +4,7 @@ import datetime
 import json
 import os
 import re
-from typing import List, Optional
+from typing import Dict, List, Optional
 from urllib.parse import urlencode
 
 import arrow
@@ -16,7 +16,14 @@ from taskcluster.exceptions import TaskclusterRestFailure
 
 from mozci import config
 from mozci.errors import SourcesNotFound, TaskNotFound
-from mozci.push import Push, PushStatus, Regressions, make_push_objects, retrigger
+from mozci.push import (
+    MAX_DEPTH,
+    Push,
+    PushStatus,
+    Regressions,
+    make_push_objects,
+    retrigger,
+)
 from mozci.task import Task, TestTask
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
@@ -405,14 +412,21 @@ class ClassifyEvalCommand(Command):
                 progress.set_message(f"Calc. {branch} {push.id}")
 
                 # Pretend no tasks were classified to run the model without any outside help.
-                old_classifications = {}
-                for task in push.tasks:
-                    old_classifications[task.id] = {
-                        "classification": task.classification,
-                        "note": task.classification_note,
-                    }
-                    task.classification = "not classified"
-                    task.classification_note = None
+                old_classifications: Dict[str, Dict[str, Dict[str, str]]] = {}
+                all_pushes = set(
+                    [push]
+                    + [parent for parent in push._iterate_parents(max_depth=MAX_DEPTH)]
+                    + [child for child in push._iterate_children(max_depth=MAX_DEPTH)]
+                )
+                for p in all_pushes:
+                    old_classifications[p.id] = {}
+                    for task in p.tasks:
+                        old_classifications[p.id][task.id] = {
+                            "classification": task.classification,
+                            "note": task.classification_note,
+                        }
+                        task.classification = "not classified"
+                        task.classification_note = None
 
                 try:
                     self.classifications[push], regressions = push.classify(
@@ -431,9 +445,15 @@ class ClassifyEvalCommand(Command):
                     self.errors[push] = e
 
                 # Once the Mozci algorithm has run, restore Sheriffs classifications to be able to properly compare failures classifications.
-                for task in push.tasks:
-                    task.classification = old_classifications[task.id]["classification"]
-                    task.classification_note = old_classifications[task.id]["note"]
+                for p in all_pushes:
+                    for task in p.tasks:
+                        task.classification = old_classifications[p.id][task.id][
+                            "classification"
+                        ]
+                        task.classification_note = old_classifications[p.id][task.id][
+                            "note"
+                        ]
+
             else:
                 progress.set_message(f"Fetch {branch} {push.id}")
                 try:

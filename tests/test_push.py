@@ -1102,6 +1102,11 @@ def generate_mocks(
             "is_cross_config_failure",
             lambda x, index=index: cross_config_values[index],
         )
+        monkeypatch.setattr(
+            group,
+            "is_config_consistent_failure",
+            lambda x, index=index: cross_config_values[index],
+        )
 
 
 @pytest.mark.parametrize(

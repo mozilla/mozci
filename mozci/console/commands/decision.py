@@ -87,7 +87,6 @@ class DecisionCommand(Command):
                 f"docker-worker:cache:mozci-classifications-{environment}",
                 f"secrets:get:project/mozci/{environment}",
                 "notify:email:*",
-                "notify:matrix-room:#sheriff-notifications:mozilla.org",
                 "notify:matrix-room:!vNAdpBnFtfGfispLtR:mozilla.org",
             ],
             "metadata": {

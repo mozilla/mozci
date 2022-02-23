@@ -53,7 +53,7 @@ class ErrorSummarySource(DataSource):
 
                 group = line["group"]
                 if group not in group_results or line["status"] != "OK":
-                    group_results[group] = line["status"]
+                    group_results[group] = (line["status"], line["duration"])
 
             elif line["action"] == "log":
                 if task_id not in self.TASK_ERRORS:
@@ -69,8 +69,8 @@ class ErrorSummarySource(DataSource):
             )
 
         self.TASK_GROUPS[task_id] = {
-            group: result == "OK"
-            for group, result in group_results.items()
+            group: (result == "OK", duration)
+            for group, (result, duration) in group_results.items()
             if result != "SKIP"
         }
 

@@ -39,7 +39,10 @@ class BaseTreeherderSource(DataSource, ABC):
                 self.groups_cache.update(self.get_push_test_groups(branch, rev))
 
         try:
-            return self.groups_cache.pop(task.id)
+            return {
+                group: (status, None)
+                for group, status in self.groups_cache.pop(task.id).items()
+            }
         except KeyError:
             raise ContractNotFilled(self.name, "test_task_groups", "groups are missing")
 

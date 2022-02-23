@@ -260,6 +260,7 @@ class GroupResult:
 
     group: str
     ok: bool
+    duration: Optional[int]
 
 
 @dataclass
@@ -294,8 +295,8 @@ class TestTask(Task):
 
         if self.state == "completed":
             self._results = [
-                GroupResult(group, result)
-                for group, result in data.handler.get(
+                GroupResult(group, result, duration)
+                for group, (result, duration) in data.handler.get(
                     "test_task_groups", branch=push.branch, rev=push.rev, task=self
                 ).items()
             ]

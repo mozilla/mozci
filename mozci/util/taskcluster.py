@@ -147,9 +147,10 @@ def notify_email(subject, content, emails):
                 }
             )
         except Exception as e:
-            logger.warning(
+            logger.error(
                 f"Failed to send the report by email to address n°{idx} ({email}): {e}"
             )
+            raise
 
 
 def notify_matrix(body, room):
@@ -165,4 +166,5 @@ def notify_matrix(body, room):
     try:
         notify_service.matrix({"roomId": room, "body": body})
     except Exception as e:
-        logger.warning(f"Failed to send the report on the Matrix room {room}: {e}")
+        logger.error(f"Failed to send the report on the Matrix room {room}: {e}")
+        raise

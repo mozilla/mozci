@@ -183,6 +183,10 @@ class Task:
         return self.tags.get("action", "") == "backfill-task"
 
     @property
+    def is_retrigger(self) -> bool:
+        return self.tags.get("action", "").startswith("retrigger-")
+
+    @property
     def failed(self):
         return self.result in ("failed", "exception")
 

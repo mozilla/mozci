@@ -137,6 +137,7 @@ _contracts: Tuple[Contract, ...] = (
             }
         ),
         validate_out=v.Dict(
+            # TODO: 'nullable=True' can be removed once https://github.com/mozilla/mozci/issues/662 is fixed.
             extra=(v.Str(minlen=1), v.Tuple(v.Bool(), v.Int(nullable=True)))
         ),
     ),

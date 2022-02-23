@@ -260,6 +260,7 @@ class GroupResult:
 
     group: str
     ok: bool
+    # TODO: 'Optional' can be removed once https://github.com/mozilla/mozci/issues/662 is fixed.
     duration: Optional[int]
 
 

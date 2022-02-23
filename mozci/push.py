@@ -1378,8 +1378,8 @@ def make_summary_objects(from_date, to_date, branch, type):
     return a list of GroupSummary objects.
 
     Args:
-        from_date (str): String representing an acceptable date value in ActiveData.
-        to_date (str): String representing an acceptable date value in ActiveData.
+        from_date (str): String representing a date value.
+        to_date (str): String representing a date value.
         branch (str): String that references one of the Mozilla CI's repositories.
         type (str): String that references one of the supported Summary types.
 

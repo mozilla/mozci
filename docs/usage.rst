@@ -38,7 +38,7 @@ to "pre-seed" your own local cache, if you have the necessary scopes. To do so, 
     serializer = "compressedpickle"
 
     [mozci.cache.stores]
-    s3 = { driver = "s3", bucket = "communitytc-bugbug", prefix = "data/adr_cache/" }
+    s3 = { driver = "s3", bucket = "communitytc-bugbug", prefix = "data/mozci_cache/" }
 
 
 .. _autoland: https://treeherder.mozilla.org/#/jobs?repo=autoland

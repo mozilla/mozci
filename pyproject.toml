@@ -28,7 +28,6 @@ taskcluster = ">=38"
 lru-dict = "^1.1.7"
 
 # Optional dependencies
-adr = { version = "~0", optional = true }
 ValidX = "^0.7"
 cleo = "^0.8.1"
 tabulate = "^0.8.9"
@@ -42,7 +41,6 @@ responses = "^0.18"
 sphinx = "^4.3.2"
 
 [tool.poetry.extras]
-adr = ["adr"]
 cache = ["boto3", "python3-memcached", "redis", "zstandard"]
 cache-s3 = ["boto3"]
 cache-memcached = ["python3-memcached"]

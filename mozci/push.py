@@ -57,6 +57,19 @@ class Regressions:
     unknown: Dict[str, List[TestTask]]
 
 
+def build_group_summaries(tasks) -> Dict[str, GroupSummary]:
+    groups = defaultdict(list)
+
+    for task in tasks:
+        if not isinstance(task, TestTask):
+            continue
+
+        for group in task.groups:
+            groups[group].append(task)
+
+    return {group: GroupSummary(group, tasks) for group, tasks in groups.items()}
+
+
 class Push:
     """A representation of a single push.
 
@@ -459,16 +472,7 @@ class Push:
         Returns:
             dict: A dictionary of the form {<group>: [<GroupSummary>]}.
         """
-        groups = defaultdict(list)
-
-        for task in self.tasks:
-            if not isinstance(task, TestTask):
-                continue
-
-            for group in task.groups:
-                groups[group].append(task)
-
-        return {group: GroupSummary(group, tasks) for group, tasks in groups.items()}
+        return build_group_summaries(self.tasks)
 
     @memoized_property
     def label_summaries(self) -> Dict[str, LabelSummary]:
@@ -1051,6 +1055,7 @@ class Push:
         real_confidence_threshold: float = 0.9,
         use_possible_regressions: bool = False,
         unknown_from_regressions: bool = True,
+        consider_children_pushes_configs: bool = True,
         cross_config_counts: Optional[Tuple[int, int]] = (2, 2),
         consistent_failures_counts: Optional[Tuple[int, int]] = (2, 3),
     ) -> Regressions:
@@ -1100,7 +1105,15 @@ class Push:
         # Classify task groups regarding cross config failure and overall failure
         # - if a group is failing in all tasks, then it is a "cross-config" failure
         # - if a group is failing only in some tasks but not all, then it is not a "cross-config" failure
-        all_groups = self.group_summaries.values()
+        # Consider groups in following pushes too in case there is a failure due to this push in a child push.
+        push_groups = self.group_summaries.values()
+        if consider_children_pushes_configs:
+            all_groups = build_group_summaries(
+                sum((push.tasks for push in self._iterate_children(MAX_DEPTH)), [])
+            ).values()
+        else:
+            all_groups = push_groups
+
         groups_relevant_failure = {
             g.name
             for g in all_groups
@@ -1113,6 +1126,7 @@ class Push:
                 and g.is_config_consistent_failure(consistent_failures_counts[1])
             )
         }
+
         groups_non_relevant_failure = {
             g.name
             for g in all_groups
@@ -1129,9 +1143,9 @@ class Push:
                 )
             )
         }
-        groups_failing_in_the_push = {
-            g.name for g in all_groups if g.status != Status.PASS
-        }
+
+        groups_failing = {g.name for g in all_groups if g.status != Status.PASS}
+
         groups_no_confidence = {
             g.name
             for g in all_groups
@@ -1144,7 +1158,7 @@ class Push:
             f"Got {len(groups_non_relevant_failure)} groups with no cross-config and no config-consistent failures"
         )
         logger.debug(
-            f"Got {len(groups_failing_in_the_push)} groups failing in the push"
+            f"Got {len(groups_failing)} groups failing in the push or one of its children"
         )
         logger.debug(
             f"Got {len(groups_no_confidence)} groups without bugbug confidence"
@@ -1158,20 +1172,21 @@ class Push:
         # Intermittent failures are groups that were NOT selected (low confidence)
         # OR without any confidence from bugbug (too low confidence)
         # AND are not failing across config
-        intermittent_failures = groups_non_relevant_failure & groups_low.union(
+        # Only consider groups in this push because we don't care about intermittents in other pushes.
+        # We only use children pushes information to determine cross-config or config-consistent state.
+        all_intermittent_failures = groups_non_relevant_failure & groups_low.union(
             groups_no_confidence
+        )
+        intermittent_failures = (
+            set(g.name for g in push_groups) & all_intermittent_failures
         )
         logger.debug(f"Got {len(intermittent_failures)} intermittent failures")
 
         # Unknown failures all the remaining failing groups that are not real nor intermittent
         unknown_failures = (
-            (
-                groups_regressions
-                if unknown_from_regressions
-                else groups_failing_in_the_push
-            )
+            (groups_regressions if unknown_from_regressions else groups_failing)
             - real_failures
-            - intermittent_failures
+            - all_intermittent_failures
         )
         logger.debug(f"Got {len(unknown_failures)} unknown failures")
 
@@ -1193,6 +1208,7 @@ class Push:
         real_confidence_threshold: float = 0.9,
         use_possible_regressions: bool = False,
         unknown_from_regressions: bool = True,
+        consider_children_pushes_configs: bool = True,
         cross_config_counts: Optional[Tuple[int, int]] = (2, 2),
         consistent_failures_counts: Optional[Tuple[int, int]] = (2, 3),
     ) -> Tuple[PushStatus, Regressions]:
@@ -1208,6 +1224,7 @@ class Push:
             real_confidence_threshold,
             use_possible_regressions,
             unknown_from_regressions,
+            consider_children_pushes_configs,
             cross_config_counts,
             consistent_failures_counts,
         )

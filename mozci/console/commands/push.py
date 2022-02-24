@@ -411,14 +411,26 @@ class ClassifyEvalCommand(Command):
             if self.option("recalculate"):
                 progress.set_message(f"Calc. {branch} {push.id}")
 
-                # Pretend no tasks were classified to run the model without any outside help.
-                old_classifications: Dict[str, Dict[str, Dict[str, str]]] = {}
                 all_pushes = set(
                     [push]
                     + [parent for parent in push._iterate_parents(max_depth=MAX_DEPTH)]
                     + [child for child in push._iterate_children(max_depth=MAX_DEPTH)]
                 )
+
+                removed_tasks: Dict[str, List[Task]] = {}
+                old_classifications: Dict[str, Dict[str, Dict[str, str]]] = {}
                 for p in all_pushes:
+                    # Ignore retriggers and backfills on current push/its parents/its children.
+                    removed_tasks[p.id] = [
+                        task
+                        for task in p.tasks
+                        if task.is_backfill or task.is_retrigger
+                    ]
+                    p.tasks = [
+                        task for task in p.tasks if task not in removed_tasks[p.id]
+                    ]
+
+                    # Pretend no tasks were classified to run the model without any outside help.
                     old_classifications[p.id] = {}
                     for task in p.tasks:
                         old_classifications[p.id][task.id] = {
@@ -444,8 +456,8 @@ class ClassifyEvalCommand(Command):
                     )
                     self.errors[push] = e
 
-                # Once the Mozci algorithm has run, restore Sheriffs classifications to be able to properly compare failures classifications.
                 for p in all_pushes:
+                    # Once the Mozci algorithm has run, restore Sheriffs classifications to be able to properly compare failures classifications.
                     for task in p.tasks:
                         task.classification = old_classifications[p.id][task.id][
                             "classification"
@@ -454,6 +466,8 @@ class ClassifyEvalCommand(Command):
                             "note"
                         ]
 
+                    # And also restore tasks marked as a backfill or a retrigger.
+                    p.tasks = p.tasks + removed_tasks[p.id]
             else:
                 progress.set_message(f"Fetch {branch} {push.id}")
                 try:

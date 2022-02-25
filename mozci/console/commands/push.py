@@ -4,6 +4,7 @@ import datetime
 import json
 import os
 import re
+import traceback
 from typing import Dict, List, Optional
 from urllib.parse import urlencode
 
@@ -152,12 +153,12 @@ class ClassifyCommand(Command):
             medium_conf = float(self.option("medium-confidence"))
         except ValueError:
             self.line("<error>Provided --medium-confidence should be a float.</error>")
-            raise
+            exit(1)
         try:
             high_conf = float(self.option("high-confidence"))
         except ValueError:
             self.line("<error>Provided --high-confidence should be a float.</error>")
-            raise
+            exit(1)
 
         retrigger_unknown = True if self.option("retrigger-unknown") else False
         output = self.option("output")
@@ -168,17 +169,25 @@ class ClassifyCommand(Command):
             )
 
         for push in pushes:
-            classification, regressions = push.classify(
-                intermittent_confidence_threshold=medium_conf,
-                real_confidence_threshold=high_conf,
-            )
-            if retrigger_unknown:
-                for _, tasks in regressions.unknown.items():
-                    retrigger(tasks=tasks, repeat_retrigger=1)
-            self.line(
-                f"Push associated with the head revision {push.rev} on "
-                f"the branch {self.branch} is classified as {classification.name}"
-            )
+            try:
+                classification, regressions = push.classify(
+                    intermittent_confidence_threshold=medium_conf,
+                    real_confidence_threshold=high_conf,
+                )
+                if retrigger_unknown:
+                    for _, tasks in regressions.unknown.items():
+                        retrigger(tasks=tasks, repeat_retrigger=1)
+                self.line(
+                    f"Push associated with the head revision {push.rev} on "
+                    f"the branch {self.branch} is classified as {classification.name}"
+                )
+            except Exception as e:
+                self.line(
+                    f"<error>Couldn't classify push {push.push_uuid}: {e}.</error>"
+                )
+                # Print the error stacktrace in red
+                self.line(f"<error>{traceback.format_exc()}</error>")
+                continue
 
             if self.option("show-intermittents"):
                 self.line("-" * 50)
@@ -358,7 +367,7 @@ class ClassifyEvalCommand(Command):
                 self.line(
                     "<error>Provided --medium-confidence should be a float.</error>"
                 )
-                raise
+                exit(1)
             try:
                 high_conf = (
                     float(self.option("high-confidence"))
@@ -369,7 +378,7 @@ class ClassifyEvalCommand(Command):
                 self.line(
                     "<error>Provided --high-confidence should be a float.</error>"
                 )
-                raise
+                exit(1)
         elif self.option("medium-confidence") or self.option("high-confidence"):
             self.line(
                 "<error>--recalculate isn't set, you shouldn't provide either --medium-confidence nor --high-confidence attributes.</error>"

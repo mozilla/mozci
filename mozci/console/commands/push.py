@@ -172,23 +172,17 @@ class ClassifyCommand(Command):
             )
 
         for push in pushes:
-            try:
-                classification, regressions = push.classify(
-                    intermittent_confidence_threshold=medium_conf,
-                    real_confidence_threshold=high_conf,
-                )
-                if retrigger_unknown:
-                    for _, tasks in regressions.unknown.items():
-                        retrigger(tasks=tasks, repeat_retrigger=1)
-                self.line(
-                    f"Push associated with the head revision {push.rev} on "
-                    f"the branch {self.branch} is classified as {classification.name}"
-                )
-            except Exception as e:
-                self.line(
-                    f"<error>Couldn't classify push {push.push_uuid}: {e}.</error>"
-                )
-                continue
+            classification, regressions = push.classify(
+                intermittent_confidence_threshold=medium_conf,
+                real_confidence_threshold=high_conf,
+            )
+            if retrigger_unknown:
+                for _, tasks in regressions.unknown.items():
+                    retrigger(tasks=tasks, repeat_retrigger=1)
+            self.line(
+                f"Push associated with the head revision {push.rev} on "
+                f"the branch {self.branch} is classified as {classification.name}"
+            )
 
             if self.option("show-intermittents"):
                 self.line("-" * 50)

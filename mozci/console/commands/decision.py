@@ -86,6 +86,7 @@ class DecisionCommand(Command):
             "scopes": [
                 f"docker-worker:cache:mozci-classifications-{environment}",
                 f"secrets:get:project/mozci/{environment}",
+                "queue:route:notify.email.release-mgmt-analysis@mozilla.com.on-failed",
                 "notify:email:*",
                 "notify:matrix-room:!vNAdpBnFtfGfispLtR:mozilla.org",
             ],
@@ -128,6 +129,7 @@ class DecisionCommand(Command):
             "routes": [
                 f"{route_prefix}.{push.branch}.revision.{push.rev}",
                 f"{route_prefix}.{push.branch}.push.{push.id}",
+                "notify.email.release-mgmt-analysis@mozilla.com.on-failed",
             ],
             "provisionerId": self.current_task["provisionerId"],
             "workerType": self.current_task["workerType"],

@@ -63,7 +63,7 @@ GROUP_SUMMARIES_DEFAULT = {
                     id=j,
                     label=f"test-task{j}",
                     result="failed",
-                    _results=[GroupResult(group=f"group{i}", ok=False)],
+                    _results=[GroupResult(group=f"group{i}", ok=False, duration=42)],
                 )
                 for j in range(1, 4)
             ]
@@ -73,7 +73,7 @@ GROUP_SUMMARIES_DEFAULT = {
                         id=4,
                         label="test-task1",
                         result="passed",
-                        _results=[GroupResult(group=f"group{i}", ok=True)],
+                        _results=[GroupResult(group=f"group{i}", ok=True, duration=42)],
                     )
                 ]
                 if i <= NUMBER_OF_INTERMITTENT_GROUPS_IN_DEFAULT
@@ -107,7 +107,7 @@ def make_tasks(group_id):
             id=j,
             label=f"test-task{j}",
             result="failed",
-            _results=[GroupResult(group=group_id, ok=False)],
+            _results=[GroupResult(group=group_id, ok=False, duration=42)],
         )
         for j in range(1, 4)
     ]
@@ -1292,7 +1292,9 @@ def test_classify_almost_bad_push(
                             id="NjJqN07WQ9Cs6HvVLUJXnw",
                             label=f"test-task{id}",
                             result="failed",
-                            _results=[GroupResult(group=f"group{id}", ok=False)],
+                            _results=[
+                                GroupResult(group=f"group{id}", ok=False, duration=42)
+                            ],
                         )
                     ]
                 },
@@ -1315,7 +1317,9 @@ def test_classify_almost_bad_push(
                             id="NjJqN07WQ9Cs6HvVLUJXnw",
                             label=f"test-task{id}",
                             result="failed",
-                            _results=[GroupResult(group=f"group{id}", ok=False)],
+                            _results=[
+                                GroupResult(group=f"group{id}", ok=False, duration=42)
+                            ],
                         )
                     ]
                 },
@@ -1331,7 +1335,9 @@ def test_classify_almost_bad_push(
                             id="NjJqN07WQ9Cs6HvVLUJXnw",
                             label=f"test-task{id}",
                             result="failed",
-                            _results=[GroupResult(group=f"group{id}", ok=False)],
+                            _results=[
+                                GroupResult(group=f"group{id}", ok=False, duration=42)
+                            ],
                         )
                     ]
                 },

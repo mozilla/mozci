@@ -9,8 +9,8 @@ from mozci.errors import ArtifactNotFound, TaskNotFound
 from mozci.task import GroupResult, GroupSummary, Task
 from mozci.util.taskcluster import get_artifact_url, get_index_url
 
-GR_2 = GroupResult(group="group2", ok=True)
-GR_3 = GroupResult(group="group2", ok=True)
+GR_2 = GroupResult(group="group2", ok=True, duration=42)
+GR_3 = GroupResult(group="group2", ok=True, duration=42)
 
 
 class FakePush:
@@ -180,7 +180,7 @@ def test_GroupSummary_classifications():
         classification="fixed by commit",
         classification_note="xxx",
     )
-    task1._results = [GroupResult("group1", False)]
+    task1._results = [GroupResult("group1", False, duration=42)]
     assert GroupSummary("group1", [task1]).classifications == [
         ("fixed by commit", "xxx")
     ]
@@ -194,7 +194,10 @@ def test_GroupSummary_classifications():
         classification="fixed by commit",
         classification_note="xxx",
     )
-    task1._results = [GroupResult("group1", False), GroupResult("group2", False)]
+    task1._results = [
+        GroupResult("group1", False, duration=42),
+        GroupResult("group2", False, duration=42),
+    ]
     assert GroupSummary("group1", [task1]).classifications == [
         ("fixed by commit", "xxx")
     ]
@@ -205,7 +208,10 @@ def test_GroupSummary_classifications():
     task1 = Task.create(
         id=1, label="test-task1", result="failed", classification="intermittent"
     )
-    task1._results = [GroupResult("group1", False), GroupResult("group2", False)]
+    task1._results = [
+        GroupResult("group1", False, duration=42),
+        GroupResult("group2", False, duration=42),
+    ]
     assert GroupSummary("group1", [task1]).classifications == [("intermittent", None)]
     assert GroupSummary("group2", [task1]).classifications == [("intermittent", None)]
 
@@ -216,7 +222,10 @@ def test_GroupSummary_classifications():
         classification="fixed by commit",
         classification_note="xxx",
     )
-    task1._results = [GroupResult("group1", True), GroupResult("group2", False)]
+    task1._results = [
+        GroupResult("group1", True, duration=42),
+        GroupResult("group2", False, duration=42),
+    ]
     assert GroupSummary("group1", [task1]).classifications == []
     assert GroupSummary("group2", [task1]).classifications == [
         ("fixed by commit", "xxx")
@@ -229,11 +238,17 @@ def test_GroupSummary_classifications():
         classification="fixed by commit",
         classification_note="xxx",
     )
-    task1._results = [GroupResult("group1", True), GroupResult("group2", False)]
+    task1._results = [
+        GroupResult("group1", True, duration=42),
+        GroupResult("group2", False, duration=42),
+    ]
     task2 = Task.create(
         id=1, label="test-task1", result="failed", classification="intermittent"
     )
-    task2._results = [GroupResult("group1", False), GroupResult("group2", False)]
+    task2._results = [
+        GroupResult("group1", False, duration=42),
+        GroupResult("group2", False, duration=42),
+    ]
     assert GroupSummary("group1", [task1, task2]).classifications == [
         ("intermittent", None)
     ]
@@ -281,7 +296,7 @@ def test_results_for_incomplete_task(responses):
     )
     task.retrieve_results(push)
     assert task.results == [
-        GroupResult(group="layout/base/tests/browser.ini", ok=True),
+        GroupResult(group="layout/base/tests/browser.ini", ok=True, duration=12430),
     ]
 
 
@@ -295,7 +310,11 @@ def test_results_for_incomplete_task(responses):
                     Task.create(
                         id=1,
                         label="test-task1",
-                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
                     )
                 ],
             ),
@@ -308,12 +327,20 @@ def test_results_for_incomplete_task(responses):
                     Task.create(
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
-                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
                     ),
                     Task.create(
                         id=2,
                         label="test-macosx1015-64/opt-xpcshell-e10s-1",
-                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
                     ),
                 ],
             ),
@@ -326,7 +353,11 @@ def test_results_for_incomplete_task(responses):
                     Task.create(
                         id=i,
                         label=f"test-task{i}",
-                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
                     )
                     for i in range(1, 11)
                 ],
@@ -341,7 +372,9 @@ def test_results_for_incomplete_task(responses):
                         id=i,
                         label=f"test-task{i}",
                         _results=[
-                            GroupResult(group="group1", ok=False if i % 2 else True),
+                            GroupResult(
+                                group="group1", ok=False if i % 2 else True, duration=42
+                            ),
                             GR_2,
                             GR_3,
                         ],
@@ -358,7 +391,11 @@ def test_results_for_incomplete_task(responses):
                     Task.create(
                         id=i,
                         label=f"test-task{i}",
-                        _results=[GroupResult(group="group1", ok=True), GR_2, GR_3],
+                        _results=[
+                            GroupResult(group="group1", ok=True, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
                     )
                     for i in range(1, 11)
                 ],
@@ -381,7 +418,11 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                     Task.create(
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
-                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
                     )
                 ],
             ),
@@ -394,12 +435,20 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                     Task.create(
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
-                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
                     ),
                     Task.create(
                         id=2,
                         label="test-macosx1015-64/opt-xpcshell-e10s-1",
-                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
                     ),
                 ],
             ),
@@ -412,7 +461,11 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                     Task.create(
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
-                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
                     )
                     for i in range(1, 11)
                 ],
@@ -427,7 +480,9 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
                         _results=[
-                            GroupResult(group="group1", ok=False if i % 2 else True),
+                            GroupResult(
+                                group="group1", ok=False if i % 2 else True, duration=42
+                            ),
                             GR_2,
                             GR_3,
                         ],
@@ -444,7 +499,11 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                     Task.create(
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
-                        _results=[GroupResult(group="group1", ok=True), GR_2, GR_3],
+                        _results=[
+                            GroupResult(group="group1", ok=True, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
                     )
                     for i in range(1, 11)
                 ],
@@ -458,7 +517,11 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                     Task.create(
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
-                        _results=[GroupResult(group="group1", ok=False), GR_2, GR_3],
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
                     )
                     for i in range(1, 11)
                 ]
@@ -467,7 +530,9 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                         id=i,
                         label=f"test-macosx1015-64/opt-xpcshell-e10s-{i}",
                         _results=[
-                            GroupResult(group="group1", ok=False if i % 2 else True),
+                            GroupResult(
+                                group="group1", ok=False if i % 2 else True, duration=42
+                            ),
                             GR_2,
                             GR_3,
                         ],

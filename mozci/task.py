@@ -260,6 +260,8 @@ class GroupResult:
 
     group: str
     ok: bool
+    # TODO: 'Optional' can be removed once https://github.com/mozilla/mozci/issues/662 is fixed.
+    duration: Optional[int]
 
 
 @dataclass
@@ -294,8 +296,8 @@ class TestTask(Task):
 
         if self.state == "completed":
             self._results = [
-                GroupResult(group, result)
-                for group, result in data.handler.get(
+                GroupResult(group, result, duration)
+                for group, (result, duration) in data.handler.get(
                     "test_task_groups", branch=push.branch, rev=push.rev, task=self
                 ).items()
             ]
@@ -387,7 +389,6 @@ class GroupSummary(RunnableSummary):
 
     name: str
     tasks: List[TestTask]
-    _durations: Optional[List[float]] = field(default_factory=lambda: [0.0])
 
     def __post_init__(self):
         # WPT names are not normalized relative to topsrcdir, so subsequent check
@@ -406,8 +407,13 @@ class GroupSummary(RunnableSummary):
         ]
 
     @property
-    def durations(self):
-        return self._durations
+    def durations(self) -> List[int]:
+        data = []
+        for task in self.tasks:
+            for result in task.results:
+                if result.group == self.name:
+                    data.append(result.duration)
+        return data
 
     @property
     def total_duration(self):

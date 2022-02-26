@@ -31,7 +31,7 @@ The ``mozci`` module uses `cachy`_ to handle caching. Therefore the following st
 
 To enable caching, you'll need to configure at least one store using the ``cache.stores`` key.
 Follow `cachy's configuration format`_ identically. In addition to the options ``cachy`` supports,
-you can set the ``adr.cache.retention`` key to the time in minutes before stored queries are
+you can set the ``mozci.cache.retention`` key to the time in minutes before stored queries are
 invalidated.
 
 For example:
@@ -51,11 +51,11 @@ In addition, ``mozci`` defines several custom cache stores:
 
 .. code-block:: toml
 
-    [adr.cache.stores]
+    [mozci.cache.stores]
     file = {
         driver = "seeded-file",
         path = "/path/to/dir/to/keep/cache",
-        url = "https://example.com/adr_cache.tar.gz"
+        url = "https://example.com/mozci_cache.tar.gz"
     }
 
 Supported archive formats include ``.zip``, ``.tar``, ``.tar.gz``, ``.tar.bz2`` and ``.tar.zst``.
@@ -75,11 +75,11 @@ archive. Otherwise the cache data is assumed to be right at the root of the arch
 
 .. code-block:: toml
 
-    [adr.cache.stores]
+    [mozci.cache.stores]
     s3 = {
         driver = "s3",
         bucket = "myBucket",
-        prefix = "data/adr_cache/"
+        prefix = "data/mozci_cache/"
     }
 
 data_sources

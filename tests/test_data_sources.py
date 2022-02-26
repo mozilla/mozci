@@ -240,10 +240,10 @@ class Responses:
                 "AMHoZy9eRE2_l7xPabtwiw": {"devtools/client/netmonitor/test": True},
                 "amn79ZnzQbWAbrSvxJ-GBQ": {"dom/media/test": False},
                 "anz5vAGSTqOEDk9pjAxyxg": {
-                    "devtools/client/inspector/flexbox/test": True,
-                    "devtools/client/netmonitor/src/har/test": False,
                     "devtools/client/application/test/browser": True,
+                    "devtools/client/inspector/flexbox/test": True,
                     "devtools/client/inspector/rules/test": False,
+                    "devtools/client/netmonitor/src/har/test": False,
                 },
                 "a0Lw1AH_T9mSnvHxKKKCBg": {"": True, "default": False},
             },
@@ -389,10 +389,10 @@ class Responses:
             },
             # expected output
             {
-                "devtools/client/inspector/flexbox/test": True,
-                "devtools/client/netmonitor/src/har/test": False,
-                "devtools/client/application/test/browser": True,
-                "devtools/client/inspector/rules/test": False,
+                "devtools/client/application/test/browser": (True, None),
+                "devtools/client/inspector/flexbox/test": (True, None),
+                "devtools/client/inspector/rules/test": (False, None),
+                "devtools/client/netmonitor/src/har/test": (False, None),
             },
             id="treeherder_client.test_task_groups",
         ),
@@ -408,7 +408,7 @@ class Responses:
                 "task": create_task("AMHoZy9eRE2_l7xPabtwiw"),
             },
             # expected output
-            {"devtools/client/netmonitor/test": True},
+            {"devtools/client/netmonitor/test": (True, None)},
             id="treeherder_client.test_task_groups",
         ),
         # treeherder_db
@@ -425,7 +425,7 @@ class Responses:
                 "task": create_task("amn79ZnzQbWAbrSvxJ-GBQ"),
             },
             # expected output
-            {"dom/media/test": False},
+            {"dom/media/test": (False, None)},
             id="treeherder_db.test_task_groups",
         ),
         # errorsummary
@@ -438,17 +438,23 @@ class Responses:
             {"branch": "autoland", "rev": "abcdef", "task": create_task("1" * 22)},
             # expected output
             {
-                "browser/base/content/test/general/browser.ini": True,
-                "browser/base/content/test/sanitize/browser.ini": True,
-                "browser/components/customizableui/test/browser.ini": True,
-                "browser/components/shell/test/browser.ini": True,
-                "browser/components/urlbar/tests/browser-tips/browser.ini": True,
-                "layout/base/tests/browser.ini": True,
-                "toolkit/components/certviewer/tests/browser/browser.ini": True,
-                "toolkit/components/nimbus/test/browser/browser.ini": True,
-                "toolkit/components/pictureinpicture/tests/browser.ini": True,
-                "toolkit/content/tests/browser/browser.ini": False,
-                "tools/profiler/tests/browser/browser.ini": True,
+                "browser/base/content/test/general/browser.ini": (True, 227333),
+                "browser/base/content/test/sanitize/browser.ini": (True, 7657),
+                "browser/components/customizableui/test/browser.ini": (True, 371201),
+                "browser/components/shell/test/browser.ini": (True, 405460),
+                "browser/components/urlbar/tests/browser-tips/browser.ini": (
+                    True,
+                    44998,
+                ),
+                "layout/base/tests/browser.ini": (True, 12430),
+                "toolkit/components/certviewer/tests/browser/browser.ini": (
+                    True,
+                    50884,
+                ),
+                "toolkit/components/nimbus/test/browser/browser.ini": (True, 351),
+                "toolkit/components/pictureinpicture/tests/browser.ini": (True, 686860),
+                "toolkit/content/tests/browser/browser.ini": (False, 822508),
+                "tools/profiler/tests/browser/browser.ini": (True, 8906),
             },
             id="errorsummary.test_task_groups",
         ),

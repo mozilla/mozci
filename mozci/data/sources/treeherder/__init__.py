@@ -39,7 +39,11 @@ class BaseTreeherderSource(DataSource, ABC):
                 self.groups_cache.update(self.get_push_test_groups(branch, rev))
 
         try:
-            return self.groups_cache.pop(task.id)
+            # TODO: Once https://github.com/mozilla/mozci/issues/662 is fixed, we should return the actual duration instead of None.
+            return {
+                group: (status, None)
+                for group, status in self.groups_cache.pop(task.id).items()
+            }
         except KeyError:
             raise ContractNotFilled(self.name, "test_task_groups", "groups are missing")
 

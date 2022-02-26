@@ -128,7 +128,7 @@ _contracts: Tuple[Contract, ...] = (
     ),
     Contract(
         name="test_task_groups",
-        description="A dict of test groups and their results for a given TestTask.",
+        description="A dict of test groups and their results and durations for a given TestTask.",
         validate_in=v.Dict(
             {
                 "branch": v.Str(),
@@ -136,7 +136,10 @@ _contracts: Tuple[Contract, ...] = (
                 "task": v.Type(TestTask),
             }
         ),
-        validate_out=v.Dict(extra=(v.Str(minlen=1), v.Bool())),
+        validate_out=v.Dict(
+            # TODO: 'nullable=True' can be removed once https://github.com/mozilla/mozci/issues/662 is fixed.
+            extra=(v.Str(minlen=1), v.Tuple(v.Bool(), v.Int(nullable=True)))
+        ),
     ),
     Contract(
         name="test_task_errors",

@@ -23,7 +23,7 @@ python3-memcached = {version = "~1", optional = true}
 redis = {version = "~3", optional = true}
 requests = "~2"
 flake8 = ">=3,<5"
-pyyaml = "~5"
+pyyaml = ">=5,<7"
 taskcluster = ">=38"
 lru-dict = "^1.1.7"
 

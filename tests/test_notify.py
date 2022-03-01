@@ -2,6 +2,7 @@
 
 import json
 
+import markdown2
 import pytest
 
 from mozci.console.commands.push import ClassifyCommand
@@ -144,6 +145,8 @@ def test_classification_evolution(
         assert json.loads(matrix_call.request.body) == {
             "roomId": "!tEsTmAtRIxRooM:mozilla.org",
             "body": email_content,
+            "formattedBody": markdown2.markdown(email_content),
+            "format": "org.matrix.custom.html",
         }
     else:
         # Check no email was sent

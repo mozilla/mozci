@@ -396,6 +396,14 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "markdown2"
+version = "2.4.2"
+description = "A fast and complete Python implementation of Markdown"
+category = "main"
+optional = false
+python-versions = ">=3.5, <4"
+
+[[package]]
 name = "markupsafe"
 version = "2.1.0"
 description = "Safely add untrusted strings to HTML/XML markup."
@@ -1009,7 +1017,7 @@ cache-seeded-file = ["zstandard"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7,<4"
-content-hash = "fbbab8cccf1104a0ed311b25bbb4187f41a8ad6aa31179d1fb18bd8aa828e096"
+content-hash = "7d89ada30078b13498ba8e10e4fd72a91021733ac548e39d172848e32c8c9625"
 
 [metadata.files]
 aiohttp = [
@@ -1329,6 +1337,10 @@ loguru = [
 ]
 lru-dict = [
     {file = "lru-dict-1.1.7.tar.gz", hash = "sha256:45b81f67d75341d4433abade799a47e9c42a9e22a118531dcb5e549864032d7c"},
+]
+markdown2 = [
+    {file = "markdown2-2.4.2-py2.py3-none-any.whl", hash = "sha256:8f4ac8d9a124ab408c67361090ed512deda746c04362c36c2ec16190c720c2b0"},
+    {file = "markdown2-2.4.2.tar.gz", hash = "sha256:91113caf23aa662570fe21984f08fe74f814695c0a0ea8e863a8b4c4f63f9f6e"},
 ]
 markupsafe = [
     {file = "MarkupSafe-2.1.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:3028252424c72b2602a323f70fbf50aa80a5d3aa616ea6add4ba21ae9cc9da4c"},

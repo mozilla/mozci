@@ -5,6 +5,7 @@
 
 import os
 
+import markdown2
 import taskcluster
 import taskcluster_urls as liburls
 from loguru import logger
@@ -162,9 +163,18 @@ def notify_matrix(body, room):
         logger.warning("No Matrix room available in configuration")
         return
 
+    formatted_body = markdown2.markdown(body)
+
     notify_service = taskcluster.Notify(get_taskcluster_options())
     try:
-        notify_service.matrix({"roomId": room, "body": body})
+        notify_service.matrix(
+            {
+                "roomId": room,
+                "body": body,
+                "format": "org.matrix.custom.html",
+                "formattedBody": formatted_body,
+            }
+        )
     except Exception as e:
         logger.error(f"Failed to send the report on the Matrix room {room}: {e}")
         raise

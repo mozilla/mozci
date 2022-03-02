@@ -4,6 +4,7 @@ import datetime
 import json
 import os
 import re
+import traceback
 from typing import Dict, List, Optional
 from urllib.parse import urlencode
 
@@ -141,27 +142,23 @@ class ClassifyCommand(Command):
     def handle(self) -> None:
         self.branch = self.argument("branch")
 
-        try:
-            pushes = classify_commands_pushes(
-                self.branch,
-                self.option("from-date"),
-                self.option("to-date"),
-                self.option("rev"),
-            )
-        except Exception as error:
-            self.line(f"<error>{error}</error>")
-            return
+        pushes = classify_commands_pushes(
+            self.branch,
+            self.option("from-date"),
+            self.option("to-date"),
+            self.option("rev"),
+        )
 
         try:
             medium_conf = float(self.option("medium-confidence"))
         except ValueError:
             self.line("<error>Provided --medium-confidence should be a float.</error>")
-            return
+            exit(1)
         try:
             high_conf = float(self.option("high-confidence"))
         except ValueError:
             self.line("<error>Provided --high-confidence should be a float.</error>")
-            return
+            exit(1)
 
         retrigger_unknown = True if self.option("retrigger-unknown") else False
         output = self.option("output")
@@ -188,6 +185,8 @@ class ClassifyCommand(Command):
                 self.line(
                     f"<error>Couldn't classify push {push.push_uuid}: {e}.</error>"
                 )
+                # Print the error stacktrace in red
+                self.line(f"<error>{traceback.format_exc()}</error>")
                 continue
 
             if self.option("show-intermittents"):
@@ -349,17 +348,13 @@ class ClassifyEvalCommand(Command):
     def handle(self) -> None:
         branch = self.argument("branch")
 
-        try:
-            self.line("<comment>Loading pushes...</comment>")
-            self.pushes = classify_commands_pushes(
-                branch,
-                self.option("from-date"),
-                self.option("to-date"),
-                self.option("rev"),
-            )
-        except Exception as error:
-            self.line(f"<error>{error}</error>")
-            return
+        self.line("<comment>Loading pushes...</comment>")
+        self.pushes = classify_commands_pushes(
+            branch,
+            self.option("from-date"),
+            self.option("to-date"),
+            self.option("rev"),
+        )
 
         if self.option("recalculate"):
             try:
@@ -372,7 +367,7 @@ class ClassifyEvalCommand(Command):
                 self.line(
                     "<error>Provided --medium-confidence should be a float.</error>"
                 )
-                return
+                exit(1)
             try:
                 high_conf = (
                     float(self.option("high-confidence"))
@@ -383,7 +378,7 @@ class ClassifyEvalCommand(Command):
                 self.line(
                     "<error>Provided --high-confidence should be a float.</error>"
                 )
-                return
+                exit(1)
         elif self.option("medium-confidence") or self.option("high-confidence"):
             self.line(
                 "<error>--recalculate isn't set, you shouldn't provide either --medium-confidence nor --high-confidence attributes.</error>"

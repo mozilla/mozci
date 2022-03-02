@@ -173,6 +173,7 @@ def notify_matrix(body, room):
                 "body": body,
                 "format": "org.matrix.custom.html",
                 "formattedBody": formatted_body,
+                "msgtype": "m.text",
             }
         )
     except Exception as e:

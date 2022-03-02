@@ -732,8 +732,12 @@ class ClassifyEvalCommand(Command):
         missed = []
         for group in predicted_groups:
             classifications_set = set(
-                [c for c, _ in push.group_summaries[group].classifications]
+                task.classification
+                for task in push.group_summaries[group].tasks
+                if task.failed
             )
+            if len(classifications_set) == 0:
+                continue
             if classifications_set == {"not classified"}:
                 pending.append(group)
             elif len(classifications_set) != 1:

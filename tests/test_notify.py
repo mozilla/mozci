@@ -147,6 +147,7 @@ def test_classification_evolution(
             "body": email_content,
             "formattedBody": markdown2.markdown(email_content),
             "format": "org.matrix.custom.html",
+            "msgtype": "m.text",
         }
     else:
         # Check no email was sent

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import collections
+import fnmatch
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -15,7 +16,7 @@ import requests
 import taskcluster
 from loguru import logger
 
-from mozci import data
+from mozci import config, data
 from mozci.errors import ArtifactNotFound, TaskNotFound
 from mozci.util.memoize import memoized_property
 from mozci.util.taskcluster import (
@@ -194,6 +195,19 @@ class Task:
     def artifacts(self):
         """List the artifacts that were uploaded by this task."""
         return [artifact["name"] for artifact in list_artifacts(self.id)]
+
+    @property
+    def autoclassify(self):
+        """Check this task is enabled for auto-classification
+        by applying glob patterns from configuration
+        """
+        if not self.label or not config["autoclassification"]["enabled"]:
+            return False
+
+        return any(
+            fnmatch.fnmatch(self.label, pattern)
+            for pattern in config["autoclassification"]["test-suite-names"]
+        )
 
     def get_artifact(self, path, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
         """Downloads and returns the content of an artifact.

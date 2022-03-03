@@ -199,33 +199,32 @@ class ClassifyCommand(Command):
                 self.line("-" * 50)
 
             if output:
+
+                def _serialize_regressions(regressions):
+                    return {
+                        group: [
+                            {
+                                "task_id": task.id,
+                                "label": task.label,
+                                "autoclassify": task.autoclassify,
+                            }
+                            for task in failing_tasks
+                        ]
+                        for group, failing_tasks in regressions.items()
+                    }
+
                 to_save = {
+                    "autoclassification": config["autoclassification"]["enabled"],
                     "push": {
                         "id": push.push_uuid,
                         "classification": classification.name,
                     },
                     "failures": {
-                        "real": {
-                            group: [
-                                {"task_id": task.id, "label": task.label}
-                                for task in failing_tasks
-                            ]
-                            for group, failing_tasks in regressions.real.items()
-                        },
-                        "intermittent": {
-                            group: [
-                                {"task_id": task.id, "label": task.label}
-                                for task in failing_tasks
-                            ]
-                            for group, failing_tasks in regressions.intermittent.items()
-                        },
-                        "unknown": {
-                            group: [
-                                {"task_id": task.id, "label": task.label}
-                                for task in failing_tasks
-                            ]
-                            for group, failing_tasks in regressions.unknown.items()
-                        },
+                        "real": _serialize_regressions(regressions.real),
+                        "intermittent": _serialize_regressions(
+                            regressions.intermittent
+                        ),
+                        "unknown": _serialize_regressions(regressions.unknown),
                     },
                 }
 

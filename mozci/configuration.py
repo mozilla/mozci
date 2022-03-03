@@ -109,6 +109,10 @@ class Configuration(Mapping):
     ) or os.environ.get("TASKCLUSTER_SECRET")
     DEFAULTS = {
         "merge": {
+            "autoclassification": {
+                "enabled": False,
+                "test-suite-names": [],
+            },
             "cache": {"retention": 1440},
         },  # minutes
         "replace": {
@@ -148,6 +152,9 @@ class Configuration(Mapping):
 
         self.cache = CustomCacheManager(self._config["cache"])
         self.locked = True
+
+        # Check auto classification settings
+        assert isinstance(self._config["autoclassification"]["enabled"], bool)
 
     def __len__(self):
         return len(self._config)

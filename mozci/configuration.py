@@ -155,6 +155,7 @@ class Configuration(Mapping):
 
         # Check auto classification settings
         assert isinstance(self._config["autoclassification"]["enabled"], bool)
+        assert isinstance(self._config["autoclassification"]["test-suite-names"], list)
 
     def __len__(self):
         return len(self._config)

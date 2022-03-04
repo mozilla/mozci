@@ -5,6 +5,7 @@ import re
 
 import pytest
 
+from mozci import config
 from mozci.errors import ArtifactNotFound, TaskNotFound
 from mozci.task import GroupResult, GroupSummary, Task
 from mozci.util.taskcluster import get_artifact_url, get_index_url
@@ -546,3 +547,49 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
 )
 def test_GroupSummary_is_config_consistent_failure(group_summary, expected_result):
     assert group_summary.is_config_consistent_failure(2) == expected_result
+
+
+@pytest.mark.parametrize(
+    "enabled, filters, result",
+    [
+        # Disabled feature
+        (False, [], False),
+        (False, ["*"], False),
+        (False, ["test-macosx*/opt-*"], False),
+        (False, ["test-macosx1015-64/opt-xpcshell-e10s-something"], False),
+        # Enabled feature
+        (True, [], False),
+        (True, ["*"], True),
+        (True, ["test-macosx*/opt-*"], True),
+        (True, ["test-macosx1015-64/opt-xpcshell-e10s-something"], True),
+        # Multiple filters
+        (True, ["*linux*/*", "test-mac*/*"], True),
+        (True, ["*linux*/*", "*/opt-xpcshell-e10s-*"], True),
+        (True, ["whatever/*", "test-macosx1015-64/opt-*-e10s-*"], True),
+        # Invalid filters
+        (
+            True,
+            [
+                "test-macosx1015-64/another-*",
+                "*-MacOsX-*",
+                "test-macosx1234*/*",
+                "*/*-suffix",
+            ],
+            False,
+        ),
+        # Support both wildcard and single character replacement
+        (True, ["test-macosx1015-?4/opt-*"], True),
+    ],
+)
+def test_autoclassify(enabled, filters, result):
+    """Check autoclassification filtering algorithm"""
+
+    # Update configuration
+    config._config["autoclassification"]["enabled"] = enabled
+    config._config["autoclassification"]["test-suite-names"] = filters
+
+    # Configure task with static label
+    task = Task.create(
+        id="someId", label="test-macosx1015-64/opt-xpcshell-e10s-something"
+    )
+    assert task.autoclassify is result

@@ -214,7 +214,6 @@ class ClassifyCommand(Command):
                     }
 
                 to_save = {
-                    "autoclassification": config["autoclassification"]["enabled"],
                     "push": {
                         "id": push.push_uuid,
                         "classification": classification.name,

@@ -124,6 +124,19 @@ def is_bad_group(task_id: str, group: str) -> bool:
     return bad_group
 
 
+def is_autoclassifiable(task: Task) -> bool:
+    """Check a task is enabled for auto-classification
+    by applying glob patterns from configuration
+    """
+    if not task.label or not config["autoclassification"]["enabled"]:
+        return False
+
+    return any(
+        fnmatch.fnmatch(task.label, pattern)
+        for pattern in config["autoclassification"]["test-suite-names"]
+    )
+
+
 # Transform WPT group names to a full relative path in mozilla-central.
 def wpt_workaround(group: str) -> str:
     # No need to transform empty groups (also, they will be filtered out
@@ -195,19 +208,6 @@ class Task:
     def artifacts(self):
         """List the artifacts that were uploaded by this task."""
         return [artifact["name"] for artifact in list_artifacts(self.id)]
-
-    @property
-    def autoclassify(self):
-        """Check this task is enabled for auto-classification
-        by applying glob patterns from configuration
-        """
-        if not self.label or not config["autoclassification"]["enabled"]:
-            return False
-
-        return any(
-            fnmatch.fnmatch(self.label, pattern)
-            for pattern in config["autoclassification"]["test-suite-names"]
-        )
 
     def get_artifact(self, path, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
         """Downloads and returns the content of an artifact.

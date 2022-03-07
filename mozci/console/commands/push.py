@@ -25,7 +25,7 @@ from mozci.push import (
     make_push_objects,
     retrigger,
 )
-from mozci.task import Task, TestTask
+from mozci.task import Task, TestTask, is_autoclassifiable
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
     get_taskcluster_options,
@@ -206,7 +206,7 @@ class ClassifyCommand(Command):
                             {
                                 "task_id": task.id,
                                 "label": task.label,
-                                "autoclassify": task.autoclassify,
+                                "autoclassify": is_autoclassifiable(task),
                             }
                             for task in failing_tasks
                         ]

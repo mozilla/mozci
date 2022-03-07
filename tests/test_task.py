@@ -7,7 +7,7 @@ import pytest
 
 from mozci import config
 from mozci.errors import ArtifactNotFound, TaskNotFound
-from mozci.task import GroupResult, GroupSummary, Task
+from mozci.task import GroupResult, GroupSummary, Task, is_autoclassifiable
 from mozci.util.taskcluster import get_artifact_url, get_index_url
 
 GR_2 = GroupResult(group="group2", ok=True, duration=42)
@@ -592,4 +592,4 @@ def test_autoclassify(enabled, filters, result):
     task = Task.create(
         id="someId", label="test-macosx1015-64/opt-xpcshell-e10s-something"
     )
-    assert task.autoclassify is result
+    assert is_autoclassifiable(task) is result

@@ -128,7 +128,9 @@ def is_autoclassifiable(task: Task) -> bool:
     """Check a task is enabled for auto-classification
     by applying glob patterns from configuration
     """
-    if not task.label or not config["autoclassification"]["enabled"]:
+    assert task.label, "Missing task label"
+
+    if not config["autoclassification"]["enabled"]:
         return False
 
     return any(

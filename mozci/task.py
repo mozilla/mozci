@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import collections
+import fnmatch
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -15,7 +16,7 @@ import requests
 import taskcluster
 from loguru import logger
 
-from mozci import data
+from mozci import config, data
 from mozci.errors import ArtifactNotFound, TaskNotFound
 from mozci.util.memoize import memoized_property
 from mozci.util.taskcluster import (
@@ -121,6 +122,21 @@ def is_bad_group(task_id: str, group: str) -> bool:
         logger.error(f"Bad group name in task {task_id}: '{group}'")
 
     return bad_group
+
+
+def is_autoclassifiable(task: Task) -> bool:
+    """Check a task is enabled for auto-classification
+    by applying glob patterns from configuration
+    """
+    assert task.label, "Missing task label"
+
+    if not config["autoclassification"]["enabled"]:
+        return False
+
+    return any(
+        fnmatch.fnmatch(task.label, pattern)
+        for pattern in config["autoclassification"]["test-suite-names"]
+    )
 
 
 # Transform WPT group names to a full relative path in mozilla-central.

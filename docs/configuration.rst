@@ -112,3 +112,26 @@ logging, while setting it to ``2`` enables trace logging.
 .. _TOML: http://github.com/toml-lang/toml
 .. _cachy: https://github.com/sdispater/cachy
 .. _cachy's configuration format: https://cachy.readthedocs.io/en/latest/configuration.html
+
+autoclassification
+``````````````````
+
+Mozci controls which push classification results can be automatically processed by third-party tools (like Treeherder), using a feature flag and a set of filters for test names.
+
+The feature can be fully disabled by setting `enabled` to `false`.
+
+.. code-block:: toml
+
+    [mozci.autoclassification]
+    enabled = true
+    test-suite-names = [
+      "test-linux64-*/opt-mochitest-*",
+      "*wpt*",
+    ]
+
+
+Each value in the list of `test-suite-names` support [fnmatch](https://docs.python.org/3/library/fnmatch.html#fnmatch.fnmatch) syntax to allow glob-like syntax (using `*` for wildcard and `?` for single characters).
+
+The configuration above will enable autoclassification for tests matching `test-linux64-*/opt-mochitest-*` or `*wpt*`
+
+Finally, the JSON classification output is extended to have an `autoclassify` boolean flag on each failure details payload, to check if this specific result should be processed.

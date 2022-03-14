@@ -16,8 +16,9 @@ Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 
 ## Real failures
 
-- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
-- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - Tasks No tasks available
+- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks:
+  - [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
+- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - No tasks available
 
 """
 
@@ -28,8 +29,9 @@ Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 
 ## Real failures
 
-- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
-- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - Tasks No tasks available
+- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks:
+  - [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
+- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - No tasks available
 
 """
 
@@ -40,8 +42,9 @@ Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 
 ## Real failures
 
-- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
-- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - Tasks No tasks available
+- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks:
+  - [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
+- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - No tasks available
 
 """
 
@@ -52,8 +55,9 @@ Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 
 ## Real failures
 
-- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
-- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - Tasks No tasks available
+- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks:
+  - [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
+- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - No tasks available
 
 """
 
@@ -64,8 +68,9 @@ Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 
 ## Real failures
 
-- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
-- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - Tasks No tasks available
+- Group [group1](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group1) - Tasks:
+  - [random-test-task](https://treeherder.mozilla.org/#/jobs?repo=unittest&revision=rev1&selectedTaskRun=taskIdXXX-0)
+- Group [group2](https://treeherder.mozilla.org/#/jobs?repo=unittest&tochange=rev1&test_paths=group2) - No tasks available
 
 """
 

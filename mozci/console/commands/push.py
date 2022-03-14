@@ -602,15 +602,15 @@ class ClassifyEvalCommand(Command):
                 f"\n<comment>Printing overall detailed classifications comparison for {len(self.pushes)} pushes</comment>"
             )
             detailed_stats = [
-                f"{real_stats['correct']} out of {real_stats['total']} real failures were correctly classified ('fixed by commit' by Sheriffs).",
-                f"{real_stats['wrong']} out of {real_stats['total']} real failures were wrongly classified ('intermittent' by Sheriffs).",
-                f"{real_stats['pending']} out of {real_stats['total']} real failures are waiting to be classified by Sheriffs.",
-                f"{real_stats['conflicting']} out of {real_stats['total']} real failures have conflicting classifications applied by Sheriffs.",
+                f"{real_stats['correct']} out of {real_stats['total']} failures were correctly classified as real ('fixed by commit' by Sheriffs).",
+                f"{real_stats['wrong']} out of {real_stats['total']} failures were wrongly classified as real ('intermittent' by Sheriffs).",
+                f"{real_stats['pending']} out of {real_stats['total']} failures classified as real are waiting to be classified by Sheriffs.",
+                f"{real_stats['conflicting']} out of {real_stats['total']} failures classified as real have conflicting classifications applied by Sheriffs.",
                 f"{real_stats['missed']} real failures were missed or classified as unknown by Mozci.",
-                f"{intermittent_stats['correct']} out of {intermittent_stats['total']} intermittent failures were correctly classified ('intermittent' by Sheriffs).",
-                f"{intermittent_stats['wrong']} out of {intermittent_stats['total']} intermittent failures were wrongly classified ('fixed by commit' by Sheriffs).",
-                f"{intermittent_stats['pending']} out of {intermittent_stats['total']} intermittent failures are waiting to be classified by Sheriffs.",
-                f"{intermittent_stats['conflicting']} out of {intermittent_stats['total']} intermittent failures have conflicting classifications applied by Sheriffs.",
+                f"{intermittent_stats['correct']} out of {intermittent_stats['total']} failures were correctly classified as intermittent ('intermittent' by Sheriffs).",
+                f"{intermittent_stats['wrong']} out of {intermittent_stats['total']} failures were wrongly classified as intermittent ('fixed by commit' by Sheriffs).",
+                f"{intermittent_stats['pending']} out of {intermittent_stats['total']} failures classified as intermittent are waiting to be classified by Sheriffs.",
+                f"{intermittent_stats['conflicting']} out of {intermittent_stats['total']} failures classified as intermittent have conflicting classifications applied by Sheriffs.",
                 f"{intermittent_stats['missed']} intermittent failures were missed or classified as unknown by Mozci.",
             ]
             for line in detailed_stats:

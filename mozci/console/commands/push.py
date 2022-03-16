@@ -289,7 +289,7 @@ class ClassifyCommand(Command):
             if not tasks:
                 return "No tasks available"
 
-            return ", ".join(
+            return "Tasks:\n  - " + "\n  - ".join(
                 [f"[{task.label}]({_get_task_url(task)})" for task in tasks]
             )
 
@@ -307,7 +307,7 @@ class ClassifyCommand(Command):
                 branch=self.branch,
                 real_failures="\n- ".join(
                     [
-                        f"Group [{group}]({_get_group_url(group)}) - Tasks {_list_tasks(tasks)}"
+                        f"Group [{group}]({_get_group_url(group)}) - {_list_tasks(tasks)}"
                         for group, tasks in regressions.real.items()
                     ]
                 ),

@@ -10,7 +10,7 @@ from datetime import datetime
 from enum import Enum
 from inspect import signature
 from statistics import median
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import requests
 import taskcluster
@@ -280,12 +280,21 @@ class GroupResult:
     duration: Optional[int]
 
 
+class FailureType(Enum):
+    TIMEOUT = "timeout"
+    CRASH = "crash"
+    GENERIC = "generic"
+
+
 @dataclass
 class TestTask(Task):
     """Subclass containing additional information only relevant to 'test' tasks."""
 
     _results: Optional[List[GroupResult]] = field(default=None)
     _errors: Optional[List] = field(default=None)
+    _failure_types: Optional[Dict[str, List[Tuple[str, FailureType]]]] = field(
+        default=None
+    )
 
     @property
     def is_wpt(self):
@@ -357,6 +366,14 @@ class TestTask(Task):
         if self._errors is None:
             self._errors = data.handler.get("test_task_errors", task=self)
         return self._errors
+
+    @property
+    def failure_types(self):
+        if self._failure_types is None:
+            self._failure_types = data.handler.get(
+                "test_task_failure_types", task_id=self.id
+            )
+        return self._failure_types
 
     @property
     def configuration(self) -> str:

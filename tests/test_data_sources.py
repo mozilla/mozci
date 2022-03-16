@@ -8,7 +8,7 @@ import responses
 from mozci.data import DataHandler
 from mozci.data.contract import all_contracts
 from mozci.data.sources.treeherder import TreeherderClientSource
-from mozci.task import TestTask
+from mozci.task import FailureType, TestTask
 
 
 def create_task(task_id):
@@ -287,6 +287,36 @@ class Responses:
         },
     )
 
+    errorsummary_test_task_failure_types = (
+        {
+            "method": responses.GET,
+            "url": "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/2222222222222222222222/artifacts",
+            "status": 200,
+            "json": {
+                "artifacts": [{"name": "errorsummary.log"}],
+            },
+        },
+        {
+            "method": responses.GET,
+            "url": "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/2222222222222222222222/artifacts/errorsummary.log",
+            "status": 200,
+            "body": dedent(
+                r"""
+                {"action": "test_groups", "line": 3, "groups": ["toolkit/content/tests/browser/browser.ini", "browser/base/content/test/general/browser.ini", "toolkit/components/nimbus/test/browser/browser.ini"]}
+                {"test": "toolkit/content/tests/browser/browser_findbar_marks.js", "group": "toolkit/content/tests/browser/browser.ini", "subtest": null, "status": "TIMEOUT", "expected": "PASS", "message": "Test timed out", "stack": null, "known_intermittent": [], "action": "test_result", "line": 2294}
+                {"test": "toolkit/content/tests/browser/browser_findbar_marks.js", "group": "toolkit/content/tests/browser/browser.ini", "subtest": null, "status": "TIMEOUT", "expected": "PASS", "message": "Test timed out", "stack": null, "known_intermittent": [], "action": "test_result", "line": 2383}
+                {"test": "toolkit/content/tests/browser/browser_findbar_marks.js", "group": "toolkit/content/tests/browser/browser.ini", "subtest": null, "status": "FAIL", "expected": "PASS", "stack": null, "known_intermittent": [], "action": "test_result", "line": 210}
+                {"test": "browser/base/content/test/general/tests1.js", "group": "browser/base/content/test/general/browser.ini", "subtest": null, "status": "TIMEOUT", "expected": "PASS", "message": "Test timed out", "stack": null, "known_intermittent": [], "action": "test_result", "line": 554}
+                {"test": "browser/base/content/test/general/tests2.js", "group": "browser/base/content/test/general/browser.ini", "signature": "@ mozilla::dom::IDBTransaction::~IDBTransaction()", "stackwalk_stdout": "(....)", "stackwalk_stderr": null, "action": "crash", "line": 1102}
+                {"test": "browser/base/content/test/general/tests3.js", "group": "browser/base/content/test/general/browser.ini", "subtest": null, "status": "FAIL", "expected": "PASS", "stack": null, "known_intermittent": [], "action": "test_result", "line": 210}
+                {"status": "ERROR", "duration": 822508, "line": 4465, "group": "toolkit/content/tests/browser/browser.ini", "action": "group_result"}
+                {"status": "SKIP", "duration": 2, "line": 4465, "group": "browser/base/content/test/general/browser.ini", "action": "group_result"}
+                {"status": "OK", "duration": 351, "line": 4465, "group": "toolkit/components/nimbus/test/browser/browser.ini", "action": "group_result"}
+            """.strip()
+            ),
+        },
+    )
+
 
 @pytest.mark.parametrize(
     "source,contract,rsps,data_in,expected",
@@ -468,6 +498,46 @@ class Responses:
             # expected output
             ["oh no!", "error!"],
             id="errorsummary.test_task_errors",
+        ),
+        pytest.param(
+            "errorsummary",
+            "test_task_failure_types",
+            # responses
+            Responses.errorsummary_test_task_failure_types,
+            # input
+            {"task_id": "2" * 22},
+            # expected output
+            {
+                "toolkit/content/tests/browser/browser.ini": [
+                    (
+                        "toolkit/content/tests/browser/browser_findbar_marks.js",
+                        FailureType.TIMEOUT,
+                    ),
+                    (
+                        "toolkit/content/tests/browser/browser_findbar_marks.js",
+                        FailureType.TIMEOUT,
+                    ),
+                    (
+                        "toolkit/content/tests/browser/browser_findbar_marks.js",
+                        FailureType.GENERIC,
+                    ),
+                ],
+                "browser/base/content/test/general/browser.ini": [
+                    (
+                        "browser/base/content/test/general/tests1.js",
+                        FailureType.TIMEOUT,
+                    ),
+                    (
+                        "browser/base/content/test/general/tests2.js",
+                        FailureType.CRASH,
+                    ),
+                    (
+                        "browser/base/content/test/general/tests3.js",
+                        FailureType.GENERIC,
+                    ),
+                ],
+            },
+            id="errorsummary.test_task_failure_types",
         ),
     ),
 )

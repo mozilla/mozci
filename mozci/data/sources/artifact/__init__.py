@@ -1,23 +1,29 @@
 # -*- coding: utf-8 -*-
 
 import json
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple
 
 import requests
 from loguru import logger
 from lru import LRU
 
 from mozci.data.base import DataSource
+from mozci.task import FailureType
 from mozci.util.taskcluster import get_artifact, list_artifacts
 
 
 class ErrorSummarySource(DataSource):
     name = "errorsummary"
     is_try = False
-    supported_contracts = ("test_task_groups", "test_task_errors")
+    supported_contracts = (
+        "test_task_groups",
+        "test_task_errors",
+        "test_task_failure_types",
+    )
 
     TASK_GROUPS: Dict[str, Any] = LRU(2000)
     TASK_ERRORS: Dict[str, Any] = LRU(2000)
+    TASK_FAILURE_TYPES: Dict[str, Any] = LRU(2000)
 
     def _load_errorsummary(self, task_id) -> None:
         """Load the task's errorsummary.log.
@@ -37,6 +43,7 @@ class ErrorSummarySource(DataSource):
 
         groups = set()
         group_results = {}
+        test_results: Dict[str, List[Tuple[str, FailureType]]] = {}
 
         lines = (
             json.loads(line)
@@ -60,6 +67,24 @@ class ErrorSummarySource(DataSource):
                     self.TASK_ERRORS[task_id] = []
                 self.TASK_ERRORS[task_id].append(line["message"])
 
+            if line.get("test") and line.get("group"):
+                if not test_results.get(line["group"]):
+                    test_results[line["group"]] = []
+
+                if (
+                    line.get("status") != line.get("expected")
+                    and line.get("status") == "TIMEOUT"
+                ):
+                    failure_type = FailureType.TIMEOUT
+                elif (
+                    line.get("signature") is not None and line.get("action") == "crash"
+                ):
+                    failure_type = FailureType.CRASH
+                else:
+                    failure_type = FailureType.GENERIC
+
+                test_results[line["group"]].append((line["test"], failure_type))
+
         missing_groups = groups - set(group_results)
         if len(missing_groups) > 0:
             log_level = "DEBUG" if self.is_try else "WARNING"
@@ -74,6 +99,8 @@ class ErrorSummarySource(DataSource):
             if result != "SKIP"
         }
 
+        self.TASK_FAILURE_TYPES[task_id] = test_results
+
     def run_test_task_groups(self, branch, rev, task):
         if branch == "try":
             self.is_try = True
@@ -86,3 +113,8 @@ class ErrorSummarySource(DataSource):
         if task.id not in self.TASK_ERRORS:
             self._load_errorsummary(task.id)
         return self.TASK_ERRORS.pop(task.id, {})
+
+    def run_test_task_failure_types(self, task_id):
+        if task_id not in self.TASK_FAILURE_TYPES:
+            self._load_errorsummary(task_id)
+        return self.TASK_FAILURE_TYPES.pop(task_id, {})

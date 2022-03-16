@@ -9,6 +9,7 @@ authors = [
 
 [tool.poetry.scripts]
 mozci = 'mozci.console.application:cli'
+classify_batch_execution = "mozci.util.classify_batch_execution:main"
 
 [tool.poetry.dependencies]
 python = ">=3.7,<4"

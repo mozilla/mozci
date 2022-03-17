@@ -6,7 +6,7 @@ from typing import Tuple, Union
 
 import validx as v
 
-from mozci.task import TestTask
+from mozci.task import FailureType, TestTask
 
 
 @dataclass
@@ -150,6 +150,21 @@ _contracts: Tuple[Contract, ...] = (
             }
         ),
         validate_out=v.List(v.Str(minlen=1)),
+    ),
+    Contract(
+        name="test_task_failure_types",
+        description="A list of failures with their associated type grouped by test group for a given TestTask.",
+        validate_in=v.Dict(
+            {
+                "task_id": v.Str(),
+            }
+        ),
+        validate_out=v.Dict(
+            extra=(
+                v.Str(minlen=1),
+                v.List(v.Tuple(v.Str(minlen=1), v.Type(FailureType))),
+            )
+        ),
     ),
     Contract(
         name="push_test_selection_data",

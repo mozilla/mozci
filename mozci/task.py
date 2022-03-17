@@ -10,7 +10,7 @@ from datetime import datetime
 from enum import Enum
 from inspect import signature
 from statistics import median
-from typing import Dict, List, Optional
+from typing import Dict, List, NewType, Optional, Tuple
 
 import requests
 import taskcluster
@@ -280,12 +280,25 @@ class GroupResult:
     duration: Optional[int]
 
 
+class FailureType(Enum):
+    TIMEOUT = "timeout"
+    CRASH = "crash"
+    GENERIC = "generic"
+
+
+TestName = NewType("TestName", str)
+GroupName = NewType("GroupName", str)
+
+
 @dataclass
 class TestTask(Task):
     """Subclass containing additional information only relevant to 'test' tasks."""
 
     _results: Optional[List[GroupResult]] = field(default=None)
     _errors: Optional[List] = field(default=None)
+    _failure_types: Optional[
+        Dict[GroupName, List[Tuple[TestName, FailureType]]]
+    ] = field(default=None)
 
     @property
     def is_wpt(self):
@@ -357,6 +370,24 @@ class TestTask(Task):
         if self._errors is None:
             self._errors = data.handler.get("test_task_errors", task=self)
         return self._errors
+
+    @property
+    def failure_types(self):
+        """
+        Returns a dict mapping each failing group on this TestTask
+        to a list of its failing test names and their FailureType.
+
+        e.g:
+        {"group/failing/on-this-task.ini": [
+            ("group/failing/test-file-1.js", "timeout"),
+            ("group/failing/test-file-2.js", "crash"),
+        ]}
+        """
+        if self._failure_types is None:
+            self._failure_types = data.handler.get(
+                "test_task_failure_types", task_id=self.id
+            )
+        return self._failure_types
 
     @property
     def configuration(self) -> str:

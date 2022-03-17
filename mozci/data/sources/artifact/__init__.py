@@ -8,7 +8,7 @@ from loguru import logger
 from lru import LRU
 
 from mozci.data.base import DataSource
-from mozci.task import FailureType
+from mozci.task import FailureType, GroupName, TestName
 from mozci.util.taskcluster import get_artifact, list_artifacts
 
 
@@ -43,7 +43,7 @@ class ErrorSummarySource(DataSource):
 
         groups = set()
         group_results = {}
-        test_results: Dict[str, List[Tuple[str, FailureType]]] = {}
+        test_results: Dict[GroupName, List[Tuple[TestName, FailureType]]] = {}
 
         lines = (
             json.loads(line)

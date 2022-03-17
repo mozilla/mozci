@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import argparse
 import csv
 import datetime
 import itertools
@@ -6,6 +7,7 @@ import json
 import os
 import time
 import uuid
+from multiprocessing import Pool
 
 from loguru import logger
 
@@ -24,11 +26,24 @@ PARAMETERS_NAMES = [
     "cross_config_counts",
     "consistent_failures_counts",
 ]
+PARAMETERS_COMBINATIONS = [
+    dict(zip(PARAMETERS_NAMES, parameters_values))
+    for parameters_values in itertools.product(
+        [0.5, 0.7, 0.9],  # intermittent_confidence_threshold
+        [0.7, 0.8, 0.9],  # real_confidence_threshold
+        [True, False],  # use_possible_regressions
+        [True, False],  # unknown_from_regressions
+        [True, False],  # consider_children_pushes_configs
+        [(2, 2), (2, 3), (2, 5)],  # cross_config_counts
+        [(2, 3), (2, 5)],  # consistent_failures_counts
+    )
+]
 CSV_HEADER = (
     ["run_uuid", "push_uuid"]
     + PARAMETERS_NAMES
     + ["classification", "time_spent", "now"]
 )
+MAXIMUM_PROCESSES = os.cpu_count()
 
 
 def retrieve_pushes():
@@ -62,11 +77,70 @@ def create_json_file(push, run_id, classification_name, regressions):
         json.dump(to_save, file, indent=2)
 
 
+def run_combinations_for_push(push):
+    push_dir = f"{BASE_OUTPUT_DIR}/{push.id}"
+    if not os.path.exists(push_dir):
+        os.makedirs(push_dir)
+
+    csv_rows = []
+    for parameters in PARAMETERS_COMBINATIONS:
+        run_id = uuid.uuid4()
+
+        start = time.time()
+        try:
+            classification, regressions = push.classify(**parameters)
+            end = time.time()
+
+            # Only save results to a JSON file if the execution was successful
+            classification_name = classification.name
+            create_json_file(push, run_id, classification_name, regressions)
+        except Exception as e:
+            end = time.time()
+            classification_name = "SYSTEM_ERROR"
+            logger.error(
+                f"An error occurred during the classification of push {push.push_uuid}: {e}"
+            )
+
+        csv_rows.append(
+            {
+                "run_uuid": run_id,
+                "push_uuid": push.push_uuid,
+                **parameters,
+                "classification": classification_name,
+                "time_spent": round(end - start, 3),
+                "now": datetime.datetime.now(),
+            }
+        )
+
+    return csv_rows
+
+
 def main():
-    if not os.path.exists(BASE_OUTPUT_DIR):
-        os.makedirs(BASE_OUTPUT_DIR)
+    parser = argparse.ArgumentParser(
+        description=f"Run the classification algorithm with various parameters combinations for all submitted pushes within the last {DAYS_FROM_TODAY} days"
+    )
+    parser.add_argument(
+        "--workers",
+        help="Number of workers to use in order to parallelise the executions",
+        type=int,
+        default=MAXIMUM_PROCESSES,
+    )
+    args = vars(parser.parse_args())
+
+    workers_count = args["workers"]
+    if workers_count > MAXIMUM_PROCESSES:
+        logger.warning(
+            f"Parallelisation over {workers_count} workers was requested but only {MAXIMUM_PROCESSES} CPUs are available, falling back to using only {MAXIMUM_PROCESSES} workers."
+        )
+        workers_count = MAXIMUM_PROCESSES
 
     pushes = retrieve_pushes()
+    logger.info(
+        f"{len(pushes)} pushes will be classified using {len(PARAMETERS_COMBINATIONS)} parameters combinations."
+    )
+
+    if not os.path.exists(BASE_OUTPUT_DIR):
+        os.makedirs(BASE_OUTPUT_DIR)
 
     with open(
         BASE_OUTPUT_DIR + "/all_executions.csv", "w", encoding="UTF8", newline=""
@@ -74,49 +148,11 @@ def main():
         writer = csv.DictWriter(f, fieldnames=CSV_HEADER)
         writer.writeheader()
 
-        for parameters_values in itertools.product(
-            [0.5, 0.7, 0.9],  # intermittent_confidence_threshold
-            [0.7, 0.8, 0.9],  # real_confidence_threshold
-            [True, False],  # use_possible_regressions
-            [True, False],  # unknown_from_regressions
-            [True, False],  # consider_children_pushes_configs
-            [(2, 2), (2, 3), (2, 5)],  # cross_config_counts
-            [(2, 3), (2, 5)],  # consistent_failures_counts
-        ):
-            parameters = dict(zip(PARAMETERS_NAMES, parameters_values))
-            for push in pushes:
-                push_dir = f"{BASE_OUTPUT_DIR}/{push.id}"
-                if not os.path.exists(push_dir):
-                    os.makedirs(push_dir)
-
-                run_id = uuid.uuid4()
-
-                try:
-                    start = time.time()
-                    classification, regressions = push.classify(**parameters)
-                    end = time.time()
-
-                    classification_name = classification.name
-                    create_json_file(push, run_id, classification_name, regressions)
-                except Exception as e:
-                    end = time.time()
-                    logger.error(
-                        f"An error occurred during the classification of push {push.push_uuid}: {e}"
-                    )
-                    classification_name = "SYSTEM_ERROR"
-
-                writer.writerows(
-                    [
-                        {
-                            "run_uuid": run_id,
-                            "push_uuid": push.push_uuid,
-                            **parameters,
-                            "classification": classification_name,
-                            "time_spent": round(end - start, 3),
-                            "now": datetime.datetime.now(),
-                        }
-                    ]
-                )
+        with Pool(workers_count) as pool:
+            # Each time an execution ends (execution = all combinations for a single push),
+            # its result will be appended to the CSV
+            for csv_rows in pool.imap(run_combinations_for_push, pushes):
+                writer.writerows(csv_rows)
 
 
 if __name__ == "__main__":

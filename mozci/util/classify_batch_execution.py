@@ -11,7 +11,7 @@ from multiprocessing import Pool
 
 from loguru import logger
 
-from mozci.push import make_push_objects
+from mozci.push import Push, make_push_objects
 
 BASE_OUTPUT_DIR = (
     os.path.dirname(os.path.realpath(__file__)) + "/classify_batch_results"
@@ -50,7 +50,8 @@ def retrieve_pushes():
     now = datetime.datetime.today()
     to_date = now.strftime("%Y-%m-%d")
     from_date = (now - datetime.timedelta(days=DAYS_FROM_TODAY)).strftime("%Y-%m-%d")
-    return make_push_objects(from_date=from_date, to_date=to_date, branch="autoland")
+    pushes = make_push_objects(from_date=from_date, to_date=to_date, branch="autoland")
+    return [{"rev": push.rev, "branch": push.branch} for push in pushes]
 
 
 def _serialize_regressions(regressions):
@@ -78,6 +79,8 @@ def create_json_file(push, run_id, classification_name, regressions):
 
 
 def run_combinations_for_push(push):
+    push = Push(push["rev"], branch=push["branch"])
+
     push_dir = f"{BASE_OUTPUT_DIR}/{push.id}"
     if not os.path.exists(push_dir):
         os.makedirs(push_dir)

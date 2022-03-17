@@ -423,6 +423,9 @@ class ClassifyEvalCommand(Command):
                         task for task in p.tasks if task not in removed_tasks[p.id]
                     ]
 
+                    # Pretend push was not finalized yet.
+                    p._date = datetime.datetime.now().timestamp()
+
                     # Pretend no tasks were classified to run the model without any outside help.
                     old_classifications[p.id] = {}
                     for task in p.tasks:

@@ -411,6 +411,7 @@ class ClassifyEvalCommand(Command):
                 )
 
                 removed_tasks: Dict[str, List[Task]] = {}
+                backedoutby: Dict[str, str] = {}
                 old_classifications: Dict[str, Dict[str, Dict[str, str]]] = {}
                 for p in all_pushes:
                     # Ignore retriggers and backfills on current push/its parents/its children.
@@ -422,6 +423,13 @@ class ClassifyEvalCommand(Command):
                     p.tasks = [
                         task for task in p.tasks if task not in removed_tasks[p.id]
                     ]
+
+                    # Pretend push was not backed out.
+                    backedoutby[p.id] = p.backedoutby
+                    p.backedoutby = None
+
+                    # Pretend push was not finalized yet.
+                    p._date = datetime.datetime.now().timestamp()
 
                     # Pretend no tasks were classified to run the model without any outside help.
                     old_classifications[p.id] = {}
@@ -458,6 +466,9 @@ class ClassifyEvalCommand(Command):
                         task.classification_note = old_classifications[p.id][task.id][
                             "note"
                         ]
+
+                    # Restore backout information.
+                    p.backedoutby = backedoutby[p.id]
 
                     # And also restore tasks marked as a backfill or a retrigger.
                     p.tasks = p.tasks + removed_tasks[p.id]

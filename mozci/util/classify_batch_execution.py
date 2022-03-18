@@ -11,7 +11,7 @@ from multiprocessing import Pool
 
 from loguru import logger
 
-from mozci.push import Push, make_push_objects
+from mozci.push import MAX_DEPTH, Push, make_push_objects
 
 BASE_OUTPUT_DIR = (
     os.path.dirname(os.path.realpath(__file__)) + "/classify_batch_results"
@@ -52,6 +52,32 @@ def retrieve_pushes():
     from_date = (now - datetime.timedelta(days=DAYS_FROM_TODAY)).strftime("%Y-%m-%d")
     pushes = make_push_objects(from_date=from_date, to_date=to_date, branch="autoland")
     return [{"rev": push.rev, "branch": push.branch} for push in pushes]
+
+
+def prepare_for_analysis(push):
+    push = Push(push["rev"], branch=push["branch"])
+
+    all_pushes = set(
+        [push]
+        + [parent for parent in push._iterate_parents(max_depth=MAX_DEPTH)]
+        + [child for child in push._iterate_children(max_depth=MAX_DEPTH)]
+    )
+    for p in all_pushes:
+        # Ignore retriggers and backfills on current push/its parents/its children.
+        p.tasks = [
+            task for task in p.tasks if not task.is_backfill and not task.is_retrigger
+        ]
+
+        # Pretend push was not backed out.
+        p.backedoutby = None
+
+        # Pretend push was not finalized yet.
+        p._date = datetime.datetime.now().timestamp()
+
+        # Pretend no tasks were classified to run the model without any outside help.
+        for task in p.tasks:
+            task.classification = "not classified"
+            task.classification_note = None
 
 
 def _serialize_regressions(regressions):
@@ -141,6 +167,10 @@ def main():
     logger.info(
         f"{len(pushes)} pushes will be classified using {len(PARAMETERS_COMBINATIONS)} parameters combinations."
     )
+
+    with Pool(workers_count) as pool:
+        # Populate the cache + Clean up potential biases
+        pool.map(prepare_for_analysis, pushes)
 
     if not os.path.exists(BASE_OUTPUT_DIR):
         os.makedirs(BASE_OUTPUT_DIR)

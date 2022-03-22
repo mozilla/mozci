@@ -7,7 +7,14 @@ import pytest
 
 from mozci import config
 from mozci.errors import ArtifactNotFound, TaskNotFound
-from mozci.task import GroupResult, GroupSummary, Task, is_autoclassifiable
+from mozci.task import (
+    FailureType,
+    GroupResult,
+    GroupSummary,
+    Task,
+    TestTask,
+    is_autoclassifiable,
+)
 from mozci.util.taskcluster import get_artifact_url, get_index_url
 
 GR_2 = GroupResult(group="group2", ok=True, duration=42)
@@ -550,24 +557,103 @@ def test_GroupSummary_is_config_consistent_failure(group_summary, expected_resul
 
 
 @pytest.mark.parametrize(
-    "enabled, filters, result",
+    "autoclassification_config, expected_error, error_mesage",
+    [
+        ({}, KeyError, "'enabled'"),
+        ({"enabled": True}, KeyError, "'failure-types'"),
+        (
+            {"enabled": True, "failure-types": ["crash"]},
+            KeyError,
+            "'test-suite-names'",
+        ),
+        (
+            {"enabled": True, "test-suite-names": [], "failure-types": "not a list"},
+            AssertionError,
+            "Unsupported failure types in configuration",
+        ),
+        (
+            {
+                "enabled": True,
+                "test-suite-names": [],
+                "failure-types": ["unknown type"],
+            },
+            AssertionError,
+            "Unsupported failure types in configuration",
+        ),
+    ],
+)
+def test_autoclassify_errors(autoclassification_config, expected_error, error_mesage):
+    # Update configuration
+    config._config["autoclassification"] = autoclassification_config
+
+    # Assert that errors are properly raised when the configuration isn't well formatted
+    task = TestTask.create(
+        id="someId", label="test-macosx1015-64/opt-xpcshell-e10s-something"
+    )
+    task._failure_types = {}
+    with pytest.raises(expected_error) as e:
+        is_autoclassifiable(task)
+    assert str(e.value) == error_mesage
+
+
+ONE_FAILURE_TYPE_CRASH = {"group1": [("test1.js", FailureType.CRASH)]}
+ONE_FAILURE_TYPE_TIMEOUT = {"group1": [("test1.js", FailureType.TIMEOUT)]}
+ONE_FAILURE_TYPE_GENERIC = {"group1": [("test1.js", FailureType.GENERIC)]}
+MULTIPLE_FAILURE_TYPES = {
+    "group1": [("test1.js", FailureType.CRASH), ("test2.js", FailureType.CRASH)],
+    "group2": [("test1.js", FailureType.GENERIC), ("test2.js", FailureType.TIMEOUT)],
+}
+
+
+@pytest.mark.parametrize(
+    "task_failure_types, enabled, test_suite_names, failure_types, result",
     [
         # Disabled feature
-        (False, [], False),
-        (False, ["*"], False),
-        (False, ["test-macosx*/opt-*"], False),
-        (False, ["test-macosx1015-64/opt-xpcshell-e10s-something"], False),
-        # Enabled feature
-        (True, [], False),
-        (True, ["*"], True),
-        (True, ["test-macosx*/opt-*"], True),
-        (True, ["test-macosx1015-64/opt-xpcshell-e10s-something"], True),
-        # Multiple filters
-        (True, ["*linux*/*", "test-mac*/*"], True),
-        (True, ["*linux*/*", "*/opt-xpcshell-e10s-*"], True),
-        (True, ["whatever/*", "test-macosx1015-64/opt-*-e10s-*"], True),
-        # Invalid filters
+        (ONE_FAILURE_TYPE_CRASH, False, [], [], False),
+        (ONE_FAILURE_TYPE_CRASH, False, ["*"], ["crash"], False),
+        (ONE_FAILURE_TYPE_CRASH, False, ["test-macosx*/opt-*"], ["crash"], False),
         (
+            ONE_FAILURE_TYPE_CRASH,
+            False,
+            ["test-macosx1015-64/opt-xpcshell-e10s-something"],
+            ["crash"],
+            False,
+        ),
+        # Enabled feature
+        (ONE_FAILURE_TYPE_CRASH, True, [], ["crash"], False),
+        (ONE_FAILURE_TYPE_CRASH, True, ["*"], ["crash"], True),
+        (ONE_FAILURE_TYPE_CRASH, True, ["test-macosx*/opt-*"], ["crash"], True),
+        (
+            ONE_FAILURE_TYPE_CRASH,
+            True,
+            ["test-macosx1015-64/opt-xpcshell-e10s-something"],
+            ["crash"],
+            True,
+        ),
+        (ONE_FAILURE_TYPE_CRASH, True, ["*"], ["crash", "timeout", "generic"], True),
+        (ONE_FAILURE_TYPE_TIMEOUT, True, ["*"], ["timeout"], True),
+        (ONE_FAILURE_TYPE_TIMEOUT, True, ["*"], ["crash", "timeout", "generic"], True),
+        (ONE_FAILURE_TYPE_GENERIC, True, ["*"], ["generic"], True),
+        (ONE_FAILURE_TYPE_GENERIC, True, ["*"], ["crash", "timeout", "generic"], True),
+        # Multiple names
+        (ONE_FAILURE_TYPE_CRASH, True, ["*linux*/*", "test-mac*/*"], ["crash"], True),
+        (
+            ONE_FAILURE_TYPE_CRASH,
+            True,
+            ["*linux*/*", "*/opt-xpcshell-e10s-*"],
+            ["crash"],
+            True,
+        ),
+        (
+            ONE_FAILURE_TYPE_CRASH,
+            True,
+            ["whatever/*", "test-macosx1015-64/opt-*-e10s-*"],
+            ["crash"],
+            True,
+        ),
+        # Invalid names
+        (
+            ONE_FAILURE_TYPE_CRASH,
             True,
             [
                 "test-macosx1015-64/another-*",
@@ -575,21 +661,32 @@ def test_GroupSummary_is_config_consistent_failure(group_summary, expected_resul
                 "test-macosx1234*/*",
                 "*/*-suffix",
             ],
+            ["crash"],
             False,
         ),
         # Support both wildcard and single character replacement
-        (True, ["test-macosx1015-?4/opt-*"], True),
+        (ONE_FAILURE_TYPE_CRASH, True, ["test-macosx1015-?4/opt-*"], ["crash"], True),
+        # Invalid combination for failure types
+        (ONE_FAILURE_TYPE_CRASH, True, ["*"], ["timeout", "generic"], False),
+        (ONE_FAILURE_TYPE_TIMEOUT, True, ["*"], ["crash", "generic"], False),
+        (ONE_FAILURE_TYPE_GENERIC, True, ["*"], ["crash", "timeout"], False),
+        ({}, True, ["*"], ["crash"], False),
+        (MULTIPLE_FAILURE_TYPES, True, ["*"], ["crash"], False),
     ],
 )
-def test_autoclassify(enabled, filters, result):
+def test_autoclassify(
+    task_failure_types, enabled, test_suite_names, failure_types, result
+):
     """Check autoclassification filtering algorithm"""
 
     # Update configuration
     config._config["autoclassification"]["enabled"] = enabled
-    config._config["autoclassification"]["test-suite-names"] = filters
+    config._config["autoclassification"]["test-suite-names"] = test_suite_names
+    config._config["autoclassification"]["failure-types"] = failure_types
 
     # Configure task with static label
-    task = Task.create(
+    task = TestTask.create(
         id="someId", label="test-macosx1015-64/opt-xpcshell-e10s-something"
     )
+    task._failure_types = task_failure_types
     assert is_autoclassifiable(task) is result

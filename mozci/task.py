@@ -124,7 +124,7 @@ def is_bad_group(task_id: str, group: str) -> bool:
     return bad_group
 
 
-def is_autoclassifiable(task: Task) -> bool:
+def is_autoclassifiable(task: TestTask) -> bool:
     """Check a task is enabled for auto-classification
     by applying glob patterns from configuration
     """
@@ -133,9 +133,25 @@ def is_autoclassifiable(task: Task) -> bool:
     if not config["autoclassification"]["enabled"]:
         return False
 
-    return any(
-        fnmatch.fnmatch(task.label, pattern)
-        for pattern in config["autoclassification"]["test-suite-names"]
+    allowed_values = set(failure_type.value for failure_type in FailureType)
+    filtered_failure_types = config["autoclassification"]["failure-types"]
+    assert isinstance(filtered_failure_types, list) and set(
+        filtered_failure_types
+    ).issubset(allowed_values), "Unsupported failure types in configuration"
+
+    flat_failure_types = [
+        test_and_type
+        for group in task.failure_types.values()
+        for test_and_type in group
+    ]
+
+    return (
+        any(
+            fnmatch.fnmatch(task.label, pattern)
+            for pattern in config["autoclassification"]["test-suite-names"]
+        )
+        and len(flat_failure_types) == 1
+        and flat_failure_types[0][1].value in filtered_failure_types
     )
 
 

@@ -207,6 +207,11 @@ class ClassifyCommand(Command):
                                 "task_id": task.id,
                                 "label": task.label,
                                 "autoclassify": is_autoclassifiable(task),
+                                "tests": [
+                                    test_name
+                                    for group_failures in task.failure_types.values()
+                                    for test_name, _ in group_failures
+                                ],
                             }
                             for task in failing_tasks
                         ]

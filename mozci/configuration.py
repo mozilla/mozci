@@ -112,6 +112,7 @@ class Configuration(Mapping):
             "autoclassification": {
                 "enabled": False,
                 "test-suite-names": [],
+                "failure-types": [],
             },
             "cache": {"retention": 1440},
         },  # minutes

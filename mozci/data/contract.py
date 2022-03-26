@@ -137,8 +137,9 @@ _contracts: Tuple[Contract, ...] = (
             }
         ),
         validate_out=v.Dict(
+            # TODO: 'minlen=1' can be added to v.Str(), the group name, once we stop seeing groups with empty names.
             # TODO: 'nullable=True' can be removed once https://github.com/mozilla/mozci/issues/662 is fixed.
-            extra=(v.Str(minlen=1), v.Tuple(v.Bool(), v.Int(nullable=True)))
+            extra=(v.Str(), v.Tuple(v.Bool(), v.Int(nullable=True)))
         ),
     ),
     Contract(

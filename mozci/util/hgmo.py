@@ -182,6 +182,10 @@ class HgRev:
         return self.changesets[0]["pushdate"][0]
 
     @property
+    def pushauthor(self):
+        return self.changesets[0]["author"]
+
+    @property
     def backedoutby(self):
         self_changeset = self._find_self()
         return (

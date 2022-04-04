@@ -14,7 +14,7 @@ EMAIL_EMPTY_TO_BAD = """
 
 Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 Author: Bob Bob bbob@mozilla.com
-Date: Pushed at 11 hours 45 minutes
+Date: Pushed at 09 hours 45 minutes +0000
 
 ## Real failures
 
@@ -29,7 +29,7 @@ EMAIL_UNKNOWN_TO_BAD = """
 
 Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 Author: Bob Bob bbob@mozilla.com
-Date: Pushed at 11 hours 45 minutes
+Date: Pushed at 09 hours 45 minutes +0000
 
 ## Real failures
 
@@ -44,7 +44,7 @@ EMAIL_BAD_TO_UNKNOWN = """
 
 Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 Author: Bob Bob bbob@mozilla.com
-Date: Pushed at 11 hours 45 minutes
+Date: Pushed at 09 hours 45 minutes +0000
 
 ## Real failures
 
@@ -59,7 +59,7 @@ EMAIL_BAD_TO_GOOD = """
 
 Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 Author: Bob Bob bbob@mozilla.com
-Date: Pushed at 11 hours 45 minutes
+Date: Pushed at 09 hours 45 minutes +0000
 
 ## Real failures
 
@@ -74,7 +74,7 @@ EMAIL_GOOD_TO_BAD = """
 
 Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
 Author: Bob Bob bbob@mozilla.com
-Date: Pushed at 11 hours 45 minutes
+Date: Pushed at 09 hours 45 minutes +0000
 
 ## Real failures
 

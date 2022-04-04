@@ -307,9 +307,9 @@ class ClassifyCommand(Command):
             previous == PushStatus.BAD
             and current in (PushStatus.GOOD, PushStatus.UNKNOWN)
         ):
-            formatted_date = datetime.datetime.fromtimestamp(push.date).strftime(
-                "Pushed at %H hours %M minutes"
-            )
+            formatted_date = datetime.datetime.fromtimestamp(
+                push.date, tz=datetime.timezone.utc
+            ).strftime("Pushed at %H hours %M minutes %z")
             email_content = EMAIL_PUSH_EVOLUTION.format(
                 previous=previous.name if previous else "no classification",
                 current=current.name,

@@ -50,7 +50,7 @@ EMAIL_PUSH_EVOLUTION = """
 
 Rev: [{push.rev}](https://treeherder.mozilla.org/jobs?repo={branch}&revision={push.rev})
 Author: {push.author}
-Date: {date}
+Time: {date}
 
 ## Real failures
 
@@ -309,7 +309,7 @@ class ClassifyCommand(Command):
         ):
             formatted_date = datetime.datetime.fromtimestamp(
                 push.date, tz=datetime.timezone.utc
-            ).strftime("Pushed at %H hours %M minutes %z")
+            ).strftime("%H:%M")
             email_content = EMAIL_PUSH_EVOLUTION.format(
                 previous=previous.name if previous else "no classification",
                 current=current.name,

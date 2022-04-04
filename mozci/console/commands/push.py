@@ -309,7 +309,7 @@ class ClassifyCommand(Command):
         ):
             formatted_date = datetime.datetime.fromtimestamp(
                 push.date, tz=datetime.timezone.utc
-            ).strftime("%H:%M")
+            ).strftime("%H:%M:%S")
             email_content = EMAIL_PUSH_EVOLUTION.format(
                 previous=previous.name if previous else "no classification",
                 current=current.name,

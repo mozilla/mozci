@@ -109,6 +109,7 @@ class Push:
 
         self._id = None
         self._date = None
+        self._author = None
 
         # Need to use full hash in the index.
         if len(head_revision) == 40:
@@ -182,6 +183,19 @@ class Push:
 
         self._id = self._hgmo.pushid
         return self._id
+
+    @property
+    def author(self):
+        """The push author.
+
+        Returns:
+            str: The push author.
+        """
+        if self._author:
+            return self._author
+
+        self._author = self._hgmo.pushauthor
+        return self._author
 
     @property
     def is_finalized(self):

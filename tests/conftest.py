@@ -59,6 +59,16 @@ def create_push(monkeypatch, responses):
 
     monkeypatch.setattr(HgRev, "node", property(mock_node))
 
+    def mock_pushdate(cls):
+        return 1649065502
+
+    monkeypatch.setattr(HgRev, "pushdate", property(mock_pushdate))
+
+    def mock_pushauthor(cls):
+        return "Bob Bob bbob@mozilla.com"
+
+    monkeypatch.setattr(HgRev, "pushauthor", property(mock_pushauthor))
+
     def inner(rev=None, branch="integration/autoland"):
         nonlocal prev_push, push_id
 
@@ -70,6 +80,7 @@ def create_push(monkeypatch, responses):
             body = {
                 "changesets": [
                     {
+                        "author": "Bob Bob bbob@mozilla.com",
                         "node": rev,
                         "bugs": [{"no": bug_id} for bug_id in push.bugs],
                         "backsoutnodes": [],

@@ -49,6 +49,8 @@ EMAIL_PUSH_EVOLUTION = """
 # Push {push.id} evolved from {previous} to {current}
 
 Rev: [{push.rev}](https://treeherder.mozilla.org/jobs?repo={branch}&revision={push.rev})
+Author: {push.author}
+Time: {date}
 
 ## Real failures
 
@@ -305,10 +307,14 @@ class ClassifyCommand(Command):
             previous == PushStatus.BAD
             and current in (PushStatus.GOOD, PushStatus.UNKNOWN)
         ):
+            formatted_date = datetime.datetime.fromtimestamp(
+                push.date, tz=datetime.timezone.utc
+            ).strftime("%H:%M:%S")
             email_content = EMAIL_PUSH_EVOLUTION.format(
                 previous=previous.name if previous else "no classification",
                 current=current.name,
                 push=push,
+                date=formatted_date,
                 branch=self.branch,
                 real_failures="\n- ".join(
                     [

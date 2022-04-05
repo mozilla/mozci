@@ -48,8 +48,8 @@ The report contains statistics about pushes that were classified by Mozci.
 EMAIL_PUSH_EVOLUTION = """
 # Push {push.id} evolved from {previous} to {current}
 
-Rev: [{push.rev}](https://treeherder.mozilla.org/jobs?repo={branch}&revision={push.rev})
-Author: {push.author}
+Rev: [{push.rev}](https://treeherder.mozilla.org/jobs?repo={branch}&revision={push.rev})\n
+Author: {push.author}\n
 Time: {date}
 
 ## Real failures

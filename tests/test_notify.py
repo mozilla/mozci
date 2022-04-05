@@ -12,8 +12,8 @@ from mozci.task import TestTask
 EMAIL_EMPTY_TO_BAD = """
 # Push 1 evolved from no classification to BAD
 
-Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
-Author: Bob Bob bbob@mozilla.com
+Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)\n
+Author: Bob Bob bbob@mozilla.com\n
 Time: 09:45:02
 
 ## Real failures
@@ -27,8 +27,8 @@ Time: 09:45:02
 EMAIL_UNKNOWN_TO_BAD = """
 # Push 1 evolved from UNKNOWN to BAD
 
-Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
-Author: Bob Bob bbob@mozilla.com
+Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)\n
+Author: Bob Bob bbob@mozilla.com\n
 Time: 09:45:02
 
 ## Real failures
@@ -42,8 +42,8 @@ Time: 09:45:02
 EMAIL_BAD_TO_UNKNOWN = """
 # Push 1 evolved from BAD to UNKNOWN
 
-Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
-Author: Bob Bob bbob@mozilla.com
+Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)\n
+Author: Bob Bob bbob@mozilla.com\n
 Time: 09:45:02
 
 ## Real failures
@@ -57,8 +57,8 @@ Time: 09:45:02
 EMAIL_BAD_TO_GOOD = """
 # Push 1 evolved from BAD to GOOD
 
-Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
-Author: Bob Bob bbob@mozilla.com
+Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)\n
+Author: Bob Bob bbob@mozilla.com\n
 Time: 09:45:02
 
 ## Real failures
@@ -72,8 +72,8 @@ Time: 09:45:02
 EMAIL_GOOD_TO_BAD = """
 # Push 1 evolved from GOOD to BAD
 
-Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)
-Author: Bob Bob bbob@mozilla.com
+Rev: [rev1](https://treeherder.mozilla.org/jobs?repo=unittest&revision=rev1)\n
+Author: Bob Bob bbob@mozilla.com\n
 Time: 09:45:02
 
 ## Real failures

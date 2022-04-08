@@ -2,7 +2,7 @@
 import json
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from responses import RequestsMock
@@ -60,7 +60,9 @@ def create_push(monkeypatch, responses):
     monkeypatch.setattr(HgRev, "node", property(mock_node))
 
     def mock_pushdate(cls):
-        return 1649065502
+        return int(
+            datetime.now(timezone.utc).replace(hour=9, minute=45, second=2).timestamp()
+        )
 
     monkeypatch.setattr(HgRev, "pushdate", property(mock_pushdate))
 

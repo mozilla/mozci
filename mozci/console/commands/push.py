@@ -5,10 +5,12 @@ import json
 import os
 import re
 import traceback
+from itertools import groupby
 from typing import Dict, List, Optional
 from urllib.parse import urlencode
 
 import arrow
+import requests
 import taskcluster
 from cleo import Command
 from loguru import logger
@@ -29,6 +31,9 @@ from mozci.task import Task, TestTask, is_autoclassifiable
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
     get_taskcluster_options,
+    insert_task,
+    list_dependent_tasks,
+    list_indexed_tasks,
     notify_email,
     notify_matrix,
 )
@@ -57,6 +62,10 @@ Time: {date}
 - {real_failures}
 
 """
+
+NOTIFICATION_BACKFILL_GROUP_COMPLETED = (
+    "Backfill group {group_id} for push {push.branch}/{push.rev} completed."
+)
 
 
 class PushTasksCommand(Command):
@@ -946,6 +955,107 @@ class ClassifyPerfCommand(Command):
             config.cache.add(cache_key, tasks, int(config["cache"]["retention"]))
 
 
+class CheckBackfillsCommand(Command):
+    """
+    Check if backfills on last pushes are finished and notify Sheriffs when they are.
+
+    check-backfills
+        {--branch=autoland : Branch the pushes belongs to (e.g autoland, try, etc).}
+        {--nb-pushes=100 : Number of recent pushes to retrieve for the check.}
+        {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
+    """
+
+    def handle(self) -> None:
+        branch = self.option("branch")
+        environment = self.option("environment")
+        matrix_room = config.get("matrix-room-id", None)
+
+        try:
+            nb_pushes = int(self.option("nb-pushes"))
+        except ValueError:
+            self.line("<error>Provided --nb-pushes should be an int.</error>")
+            exit(1)
+
+        self.line("<comment>Loading pushes...</comment>")
+        self.pushes = make_push_objects(nb=nb_pushes, branch=branch)
+
+        for push in self.pushes:
+            backfill_tasks = []
+
+            try:
+                indexed_tasks = list_indexed_tasks(
+                    f"gecko.v2.{push.branch}.revision.{push.rev}.taskgraph.actions"
+                )
+            except requests.exceptions.HTTPError as e:
+                self.line(
+                    f"<error>Couldn't fetch indexed tasks on push {push.push_uuid}: {e}</error>"
+                )
+                continue
+
+            for indexed_task in indexed_tasks:
+                task_id = indexed_task["taskId"]
+                try:
+                    children_tasks = list_dependent_tasks(task_id)
+                except requests.exceptions.HTTPError as e:
+                    self.line(
+                        f"<error>Couldn't fetch dependent tasks of indexed task {task_id} on push {push.push_uuid}: {e}</error>"
+                    )
+                    continue
+
+                for child_task in children_tasks:
+                    task_action = (
+                        child_task.get("task", {}).get("tags", {}).get("action", "")
+                    )
+                    th_symbol = (
+                        child_task.get("task", {})
+                        .get("extra", {})
+                        .get("treeherder", {})
+                        .get("symbol", "")
+                    )
+                    if task_action == "backfill-task" and th_symbol.endswith("-bk"):
+                        status = child_task.get("status", {})
+                        backfill_tasks.append(
+                            {
+                                "taskId": status.get("taskId"),
+                                "taskGroupId": status.get("taskGroupId"),
+                                "state": status.get("state"),
+                            }
+                        )
+
+            def group_key(task):
+                return task["taskGroupId"]
+
+            backfill_tasks = sorted(backfill_tasks, key=group_key)
+            for group_id, value in groupby(backfill_tasks, group_key):
+                tasks = list(value)
+                if all(task["state"] == "completed" for task in tasks):
+                    index_path = f"project.mozci.check-backfill.{environment}.{push.branch}.{push.rev}.{group_id}"
+                    already_indexed = list_indexed_tasks(
+                        index_path, root_url=COMMUNITY_TASKCLUSTER_ROOT_URL
+                    )
+                    if already_indexed:
+                        continue
+
+                    # Populating the index with the current task to prevent sending the following notification once again
+                    insert_task(
+                        index_path,
+                        os.environ.get("TASK_ID"),
+                        root_url=COMMUNITY_TASKCLUSTER_ROOT_URL,
+                    )
+
+                    if not matrix_room:
+                        continue
+
+                    # Sending a notification to the Matrix channel defined in secret
+                    notify_matrix(
+                        room=matrix_room,
+                        body=NOTIFICATION_BACKFILL_GROUP_COMPLETED.format(
+                            group_id=group_id,
+                            push=push,
+                        ),
+                    )
+
+
 class PushCommands(Command):
     """
     Contains commands that operate on a single push.
@@ -958,6 +1068,7 @@ class PushCommands(Command):
         ClassifyCommand(),
         ClassifyEvalCommand(),
         ClassifyPerfCommand(),
+        CheckBackfillsCommand(),
     ]
 
     def handle(self):

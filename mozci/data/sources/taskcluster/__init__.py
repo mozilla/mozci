@@ -132,6 +132,8 @@ class TaskclusterSource(DataSource):
             else f"project.mozci.{environment}.classification"
         )
 
+        # We use buildUrl and manual requests.get instead of directly findArtifactFromTask from the taskcluster library
+        # because the taskcluster library fails with redirects (https://github.com/taskcluster/taskcluster/issues/4998).
         try:
             # Proxy authentication does not seem to work here
             index = Index({"rootUrl": taskcluster.COMMUNITY_TASKCLUSTER_ROOT_URL})

@@ -6,7 +6,7 @@ import os
 
 from loguru import logger
 
-from mozci.push import Push
+from mozci.push import MAX_DEPTH, Push, PushStatus
 from mozci.util.classify_batch_execution import BASE_OUTPUT_DIR, PARAMETERS_NAMES
 
 CSV_HEADER = [
@@ -14,6 +14,10 @@ CSV_HEADER = [
     "total_pushes",
     "classify_errors",
     "evaluate_errors",
+    "correct_good",
+    "wrong_good",
+    "correct_bad",
+    "wrong_bad",
     "total_real",
     "correct_real",
     "wrong_real",
@@ -25,7 +29,9 @@ CSV_HEADER = [
 ]
 
 
-def evaluate_groups(push, predicted_groups, sheriff_groups, expected, suffix):
+def evaluate_groups(
+    group_summaries, predicted_groups, sheriff_groups, expected, suffix
+):
     """
     Compare annotated groups with predicted ones to output an evaluation with total
     (predicted)/correctly (predicted)/wrongly (predicted)/missed (annotated) counts
@@ -42,9 +48,7 @@ def evaluate_groups(push, predicted_groups, sheriff_groups, expected, suffix):
     differing = 0
     for group in predicted_groups:
         classifications_set = set(
-            task.classification
-            for task in push.group_summaries[group].tasks
-            if task.failed
+            task.classification for task in group_summaries[group].tasks if task.failed
         )
         if len(classifications_set) == 0:
             continue
@@ -65,11 +69,11 @@ def evaluate_groups(push, predicted_groups, sheriff_groups, expected, suffix):
     }
 
 
-def evaluate_push(push, run_uuid, sheriff_data):
+def evaluate_push_failures(push_id, run_uuid, push_group_summaries, sheriff_data):
     """
     Evaluate real/intermittent failures on a Push
     """
-    with open(f"{BASE_OUTPUT_DIR}/{push.id}/{run_uuid}.json") as f:
+    with open(f"{BASE_OUTPUT_DIR}/{push_id}/{run_uuid}.json") as f:
         classify_results = json.load(f)
         predicted_reals = classify_results["failures"]["real"].keys()
         predicted_intermittents = classify_results["failures"]["intermittent"].keys()
@@ -78,7 +82,7 @@ def evaluate_push(push, run_uuid, sheriff_data):
     evaluation.update(
         # Evaluate real failures that were predicted
         evaluate_groups(
-            push,
+            push_group_summaries,
             predicted_reals,
             sheriff_data["reals"],
             {"fixed by commit"},
@@ -88,7 +92,7 @@ def evaluate_push(push, run_uuid, sheriff_data):
     evaluation.update(
         # Evaluate intermittent failures that were predicted
         evaluate_groups(
-            push,
+            push_group_summaries,
             predicted_intermittents,
             sheriff_data["intermittents"],
             {"intermittent"},
@@ -99,7 +103,7 @@ def evaluate_push(push, run_uuid, sheriff_data):
     return evaluation
 
 
-def retrieve_sheriff_data(push):
+def retrieve_sheriff_data(pushes_group_summaries, push):
     """
     Retrieve annotations from sheriffs for real/intermittent failures on a Push
     """
@@ -108,20 +112,26 @@ def retrieve_sheriff_data(push):
     # Get likely regressions of this push
     likely_regressions = push.get_likely_regressions("group", True)
     # Only consider groups that were classified as "fixed by commit" to exclude likely regressions mozci found via heuristics.
-    for other in push._iterate_children():
-        for name, group in other.group_summaries.items():
+    max_depth = None if push.backedout or push.bustage_fixed_by else MAX_DEPTH
+    for other in push._iterate_children(max_depth=max_depth):
+        if other.push_uuid not in pushes_group_summaries:
+            pushes_group_summaries[other.push_uuid] = other.group_summaries
+
+        for name, group in pushes_group_summaries[other.push_uuid].items():
             classifications = set([c for c, _ in group.classifications])
             if classifications == {"fixed by commit"} and name in likely_regressions:
                 sheriff_reals.add(name)
 
+    if push.push_uuid not in pushes_group_summaries:
+        pushes_group_summaries[push.push_uuid] = push.group_summaries
     # Compare intermittent failures that were predicted by mozci with the ones classified by Sheriffs
     sheriff_intermittents = set()
-    for name, group in push.group_summaries.items():
+    for name, group in pushes_group_summaries[push.push_uuid].items():
         classifications = set([c for c, _ in group.classifications])
         if classifications == {"intermittent"}:
             sheriff_intermittents.add(name)
 
-    return {
+    return pushes_group_summaries, {
         "reals": sheriff_reals,
         "intermittents": sheriff_intermittents,
     }
@@ -131,10 +141,12 @@ def parse_csv(reader):
     """
     Parse the CSV file and evaluate each classify result for a specific configuration and Push
     """
+    pushes_group_summaries = {}
     pushes_sheriff_data = {}
 
     configs = {}
-    for row in reader:
+    for i, row in enumerate(reader, start=2):
+        logger.debug(f"Evaluating line {i} of the CSV")
         config = ",".join(["=".join([param, row[param]]) for param in PARAMETERS_NAMES])
 
         if config not in configs:
@@ -153,14 +165,34 @@ def parse_csv(reader):
             branch, rev = push_uuid.split("/")
             push = Push(rev, branch=branch)
 
+            if row["classification"] == PushStatus.GOOD.name:
+                if push.backedout:
+                    configs[config]["wrong_good"] += 1
+                else:
+                    configs[config]["correct_good"] += 1
+            elif row["classification"] == PushStatus.BAD.name:
+                if push.backedout:
+                    configs[config]["correct_bad"] += 1
+                else:
+                    configs[config]["wrong_bad"] += 1
+
+            if push_uuid not in pushes_group_summaries:
+                pushes_group_summaries[push_uuid] = push.group_summaries
+
             if push_uuid not in pushes_sheriff_data:
                 # By storing sheriffs annotations here, we will only have to run
                 # retrieve_sheriff_data once per push, since it can take a long
                 # time to fetch everything, this helps speed up the evaluation
-                pushes_sheriff_data[push_uuid] = retrieve_sheriff_data(push)
+                (
+                    pushes_group_summaries,
+                    pushes_sheriff_data[push_uuid],
+                ) = retrieve_sheriff_data(pushes_group_summaries, push)
 
-            evaluation = evaluate_push(
-                push, row["run_uuid"], pushes_sheriff_data[push_uuid]
+            evaluation = evaluate_push_failures(
+                push.id,
+                row["run_uuid"],
+                pushes_group_summaries[push_uuid],
+                pushes_sheriff_data[push_uuid],
             )
             for key, value in evaluation.items():
                 configs[config][key] += value

@@ -135,7 +135,8 @@ class TaskclusterSource(DataSource):
         try:
             # Proxy authentication does not seem to work here
             index = Index({"rootUrl": taskcluster.COMMUNITY_TASKCLUSTER_ROOT_URL})
-            response = index.findArtifactFromTask(
+            url = index.buildUrl(
+                "findArtifactFromTask",
                 f"{route_prefix}.{branch}.revision.{rev}",
                 "public/classification.json",
             )
@@ -147,7 +148,17 @@ class TaskclusterSource(DataSource):
             )
 
         try:
-            return response["push"]["classification"]
+            r = requests.get(url)
+            r.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            raise ContractNotFilled(
+                self.name,
+                "push_existing_classification",
+                f"Failed to load existing classification for {branch} {rev}: {e}",
+            )
+
+        try:
+            return r.json()["push"]["classification"]
         except KeyError:
             raise ContractNotFilled(
                 self.name, "push_existing_classification", "Invalid classification data"

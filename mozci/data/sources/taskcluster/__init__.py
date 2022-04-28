@@ -150,7 +150,7 @@ class TaskclusterSource(DataSource):
             )
 
         try:
-            r = requests.get(url)
+            r = requests.get(url, allow_redirects=True)
             r.raise_for_status()
         except requests.exceptions.HTTPError as e:
             raise ContractNotFilled(

@@ -50,7 +50,8 @@ def evaluate_groups(
         classifications_set = set(
             task.classification for task in group_summaries[group].tasks if task.failed
         )
-        if len(classifications_set) == 0:
+        if len(classifications_set) != 1 or classifications_set == {"not classified"}:
+            # Ignore pending/conflicting classifications
             continue
 
         if classifications_set != expected:

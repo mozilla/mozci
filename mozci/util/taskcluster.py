@@ -83,13 +83,11 @@ def find_task_id(index_path, use_proxy=False, root_url=PRODUCTION_TASKCLUSTER_RO
     return response.json()["taskId"]
 
 
-def insert_task(
+def index_current_task(
     index_path,
-    task_id,
     rank=0,
     expires=None,
     data={},
-    use_proxy=False,
     root_url=PRODUCTION_TASKCLUSTER_ROOT_URL,
 ):
     if expires is None:
@@ -101,7 +99,7 @@ def insert_task(
             "data": data,
             "expires": expires,
             "rank": rank,
-            "taskId": task_id,
+            "taskId": os.environ["TASK_ID"],
         },
     )
     return response.json()
@@ -116,20 +114,15 @@ def get_indexed_tasks_url(namespace, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
     )
 
 
-def list_indexed_tasks(
-    namespace, use_proxy=False, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL
-):
+def list_indexed_tasks(namespace, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
     url = get_indexed_tasks_url(namespace, root_url=root_url)
-    tasks = []
     token = False
     # Support pagination using continuation token
     while token is not None:
         extra_params = "?" + urlencode({"continuationToken": token}) if token else ""
         results = _do_request(url + extra_params).json()
-        tasks += results.get("tasks")
+        yield from results.get("tasks", [])
         token = results.get("continuationToken")
-
-    return tasks
 
 
 def get_task_url(task_id):
@@ -142,24 +135,19 @@ def get_task(task_id, use_proxy=False):
     return queue.task(task_id)
 
 
-def get_dependent_tasks_url(task_id):
-    return liburls.api(
-        PRODUCTION_TASKCLUSTER_ROOT_URL, "queue", "v1", f"task/{task_id}/dependents"
-    )
+def get_dependent_tasks_url(task_id, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
+    return liburls.api(root_url, "queue", "v1", f"task/{task_id}/dependents")
 
 
-def list_dependent_tasks(task_id, use_proxy=False):
-    url = get_dependent_tasks_url(task_id)
-    tasks = []
+def list_dependent_tasks(task_id, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
+    url = get_dependent_tasks_url(task_id, root_url=root_url)
     token = False
     # Support pagination using continuation token
     while token is not None:
         extra_params = "?" + urlencode({"continuationToken": token}) if token else ""
         results = _do_request(url + extra_params).json()
-        tasks += results.get("tasks")
+        yield from results.get("tasks", [])
         token = results.get("continuationToken")
-
-    return tasks
 
 
 def create_task(task_id, task):

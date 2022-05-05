@@ -29,7 +29,7 @@ class CheckBackfillsCommand(Command):
 
     check-backfills
         {--branch=autoland : Branch the pushes belongs to (e.g autoland, try, etc).}
-        {--nb-pushes=100 : Number of recent pushes to retrieve for the check.}
+        {--nb-pushes=40 : Number of recent pushes to retrieve for the check.}
         {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
 
     The command will execute the following workflow:

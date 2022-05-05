@@ -11,17 +11,16 @@ from mozci import config
 from mozci.push import make_push_objects
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
+    find_task_id,
     index_current_task,
     list_dependent_tasks,
     list_indexed_tasks,
     notify_matrix,
 )
 
-BackfillTask = namedtuple("BackfillTask", ["task_id", "group_id", "state"])
+BackfillTask = namedtuple("BackfillTask", ["task_id", "th_symbol", "state"])
 
-NOTIFICATION_BACKFILL_GROUP_COMPLETED = (
-    "Backfill group {group_id} for push {push.branch}/{push.rev} completed."
-)
+NOTIFICATION_BACKFILL_GROUP_COMPLETED = "Backfill tasks associated to the Treeherder symbol {th_symbol} for push {push.branch}/{push.rev} are all completed."
 
 
 class CheckBackfillsCommand(Command):
@@ -105,15 +104,10 @@ class CheckBackfillsCommand(Command):
                             "taskId"
                         ), "Missing taskId attribute in backfill task status"
                         assert status.get(
-                            "taskGroupId"
-                        ), "Missing taskGroupId attribute in backfill task status"
-                        assert status.get(
                             "state"
                         ), "Missing state attribute in backfill task status"
                         backfill_tasks.append(
-                            BackfillTask(
-                                status["taskId"], status["taskGroupId"], status["state"]
-                            )
+                            BackfillTask(status["taskId"], th_symbol, status["state"])
                         )
                     else:
                         logger.debug(
@@ -121,35 +115,35 @@ class CheckBackfillsCommand(Command):
                         )
 
             def group_key(task):
-                return task.group_id
+                return task.th_symbol
 
-            # Sorting backfill tasks by their Taskcluster backfill group_id
+            # Sorting backfill tasks by their Treeherder symbol
             backfill_tasks = sorted(backfill_tasks, key=group_key)
-            # Grouping ordered backfill tasks by their associated Taskcluster backfill group
-            for group_id, value in groupby(backfill_tasks, group_key):
+            # Grouping ordered backfill tasks by their associated Treeherder symbol
+            for th_symbol, value in groupby(backfill_tasks, group_key):
                 tasks = list(value)
                 if all(task.state == "completed" for task in tasks):
-                    index_path = f"project.mozci.check-backfill.{environment}.{push.branch}.{push.rev}.{group_id}"
-                    already_indexed = [
-                        indexed
-                        for indexed in list_indexed_tasks(
+                    index_path = f"project.mozci.check-backfill.{environment}.{push.branch}.{push.rev}.{th_symbol}"
+                    try:
+                        find_task_id(
                             index_path, root_url=COMMUNITY_TASKCLUSTER_ROOT_URL
                         )
-                    ]
-                    if already_indexed:
+                    except requests.exceptions.HTTPError:
+                        pass
+                    else:
                         logger.debug(
-                            f"A notification was already sent for the backfill group {group_id}."
+                            f"A notification was already sent for the backfill tasks associated to the Treeherder symbol {th_symbol}."
                         )
                         continue
 
                     notification = NOTIFICATION_BACKFILL_GROUP_COMPLETED.format(
-                        group_id=group_id,
+                        th_symbol=th_symbol,
                         push=push,
                     )
 
                     if not matrix_room:
                         self.line(
-                            f"<comment>A notification should be sent for the backfill group {group_id} but no matrix room was provided in the secret.</comment>"
+                            f"<comment>A notification should be sent for the backfill tasks associated to the Treeherder symbol {th_symbol} but no matrix room was provided in the secret.</comment>"
                         )
                         logger.debug(f"The notification: {notification}")
                         continue

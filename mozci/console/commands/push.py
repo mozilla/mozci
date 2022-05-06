@@ -33,6 +33,16 @@ from mozci.util.taskcluster import (
     notify_matrix,
 )
 
+CLASSIFY_PARAMETERS = [
+    "intermittent_confidence_threshold",
+    "real_confidence_threshold",
+    "use_possible_regressions",
+    "unknown_from_regressions",
+    "consider_children_pushes_configs",
+    "cross_config_counts",
+    "consistent_failures_counts",
+]
+
 EMAIL_CLASSIFY_EVAL = """
 # classify-eval report generated on the {today}
 
@@ -124,6 +134,40 @@ def classify_commands_pushes(
     return pushes
 
 
+def retrieve_classify_parameters(medium_conf_option, high_conf_option):
+    classify_parameters = {}
+
+    for parameter_name in CLASSIFY_PARAMETERS:
+        if config.get(parameter_name) is not None:
+            classify_parameters[parameter_name] = config[parameter_name]
+
+    parameter_name = "intermittent_confidence_threshold"
+    if medium_conf_option is not None:
+        if classify_parameters.get(parameter_name) is not None:
+            raise Exception(
+                f"You should provide either --medium-confidence CLI option OR '{parameter_name}' in the config secret not both."
+            )
+
+        try:
+            classify_parameters[parameter_name] = float(medium_conf_option)
+        except ValueError:
+            raise Exception("Provided --medium-confidence should be a float.")
+
+    parameter_name = "real_confidence_threshold"
+    if high_conf_option is not None:
+        if classify_parameters.get(parameter_name) is not None:
+            raise Exception(
+                f"You should provide either --high-confidence CLI option OR '{parameter_name}' in the config secret not both."
+            )
+
+        try:
+            classify_parameters[parameter_name] = float(high_conf_option)
+        except ValueError:
+            raise Exception("Provided --high-confidence should be a float.")
+
+    return classify_parameters
+
+
 class ClassifyCommand(Command):
     """
     Display the classification for a given push (or a range of pushes) as GOOD, BAD or UNKNOWN.
@@ -133,8 +177,8 @@ class ClassifyCommand(Command):
         {--rev= : Head revision of the push.}
         {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").}
         {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.}
-        {--medium-confidence=0.8 : Medium confidence threshold used to classify the regressions.}
-        {--high-confidence=0.9 : High confidence threshold used to classify the regressions.}
+        {--medium-confidence= : Medium confidence threshold used to classify the regressions.}
+        {--high-confidence= : High confidence threshold used to classify the regressions.}
         {--output= : Path towards a directory to save a JSON file containing classification and regressions details in.}
         {--show-intermittents : If set, print tasks that should be marked as intermittent.}
         {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
@@ -150,17 +194,9 @@ class ClassifyCommand(Command):
             self.option("to-date"),
             self.option("rev"),
         )
-
-        try:
-            medium_conf = float(self.option("medium-confidence"))
-        except ValueError:
-            self.line("<error>Provided --medium-confidence should be a float.</error>")
-            exit(1)
-        try:
-            high_conf = float(self.option("high-confidence"))
-        except ValueError:
-            self.line("<error>Provided --high-confidence should be a float.</error>")
-            exit(1)
+        classify_parameters = retrieve_classify_parameters(
+            self.option("medium-confidence"), self.option("high-confidence")
+        )
 
         retrigger_unknown = True if self.option("retrigger-unknown") else False
         output = self.option("output")
@@ -172,10 +208,7 @@ class ClassifyCommand(Command):
 
         for push in pushes:
             try:
-                classification, regressions = push.classify(
-                    intermittent_confidence_threshold=medium_conf,
-                    real_confidence_threshold=high_conf,
-                )
+                classification, regressions = push.classify(**classify_parameters)
                 if retrigger_unknown:
                     for _, tasks in regressions.unknown.items():
                         retrigger(tasks=tasks, repeat_retrigger=1)
@@ -366,28 +399,9 @@ class ClassifyEvalCommand(Command):
         )
 
         if self.option("recalculate"):
-            try:
-                medium_conf = (
-                    float(self.option("medium-confidence"))
-                    if self.option("medium-confidence")
-                    else 0.8
-                )
-            except ValueError:
-                self.line(
-                    "<error>Provided --medium-confidence should be a float.</error>"
-                )
-                exit(1)
-            try:
-                high_conf = (
-                    float(self.option("high-confidence"))
-                    if self.option("high-confidence")
-                    else 0.9
-                )
-            except ValueError:
-                self.line(
-                    "<error>Provided --high-confidence should be a float.</error>"
-                )
-                exit(1)
+            classify_parameters = retrieve_classify_parameters(
+                self.option("medium-confidence"), self.option("high-confidence")
+            )
         elif self.option("medium-confidence") or self.option("high-confidence"):
             self.line(
                 "<error>--recalculate isn't set, you shouldn't provide either --medium-confidence nor --high-confidence attributes.</error>"
@@ -454,8 +468,7 @@ class ClassifyEvalCommand(Command):
 
                 try:
                     self.classifications[push], regressions = push.classify(
-                        intermittent_confidence_threshold=medium_conf,
-                        real_confidence_threshold=high_conf,
+                        **classify_parameters
                     )
                     self.failures[push] = {
                         "real": regressions.real,

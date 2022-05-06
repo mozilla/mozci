@@ -3,7 +3,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import datetime
 import os
+from urllib.parse import urlencode
 
 import markdown2
 import taskcluster
@@ -81,6 +83,48 @@ def find_task_id(index_path, use_proxy=False, root_url=PRODUCTION_TASKCLUSTER_RO
     return response.json()["taskId"]
 
 
+def index_current_task(
+    index_path,
+    rank=0,
+    expires=None,
+    data={},
+    root_url=PRODUCTION_TASKCLUSTER_ROOT_URL,
+):
+    if expires is None:
+        expires = datetime.datetime.now() + datetime.timedelta(days=1 * 365)
+
+    response = _do_request(
+        get_index_url(index_path, root_url=root_url),
+        data={
+            "data": data,
+            "expires": expires,
+            "rank": rank,
+            "taskId": os.environ["TASK_ID"],
+        },
+    )
+    return response.json()
+
+
+def get_indexed_tasks_url(namespace, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
+    return liburls.api(
+        root_url,
+        "index",
+        "v1",
+        f"tasks/{namespace}",
+    )
+
+
+def list_indexed_tasks(namespace, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
+    url = get_indexed_tasks_url(namespace, root_url=root_url)
+    token = False
+    # Support pagination using continuation token
+    while token is not None:
+        extra_params = "?" + urlencode({"continuationToken": token}) if token else ""
+        results = _do_request(url + extra_params).json()
+        yield from results.get("tasks", [])
+        token = results.get("continuationToken")
+
+
 def get_task_url(task_id):
     return liburls.api(
         PRODUCTION_TASKCLUSTER_ROOT_URL, "queue", "v1", f"task/{task_id}"
@@ -89,6 +133,21 @@ def get_task_url(task_id):
 
 def get_task(task_id, use_proxy=False):
     return queue.task(task_id)
+
+
+def get_dependent_tasks_url(task_id, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
+    return liburls.api(root_url, "queue", "v1", f"task/{task_id}/dependents")
+
+
+def list_dependent_tasks(task_id, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
+    url = get_dependent_tasks_url(task_id, root_url=root_url)
+    token = False
+    # Support pagination using continuation token
+    while token is not None:
+        extra_params = "?" + urlencode({"continuationToken": token}) if token else ""
+        results = _do_request(url + extra_params).json()
+        yield from results.get("tasks", [])
+        token = results.get("continuationToken")
 
 
 def create_task(task_id, task):

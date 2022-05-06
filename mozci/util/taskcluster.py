@@ -96,17 +96,16 @@ def index_current_task(
     if expires is None:
         expires = datetime.datetime.now() + datetime.timedelta(days=1 * 365)
 
-    response = _do_request(
-        get_index_url(index_path, root_url=root_url),
-        use_put=True,
-        data={
+    index_service = taskcluster.Index(get_taskcluster_options())
+    index_service.insertTask(
+        index_path,
+        {
             "data": data,
             "expires": expires,
             "rank": rank,
             "taskId": os.environ["TASK_ID"],
         },
     )
-    return response.json()
 
 
 def get_indexed_tasks_url(namespace, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):

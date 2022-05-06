@@ -20,10 +20,13 @@ queue = taskcluster.Queue({"rootUrl": PRODUCTION_TASKCLUSTER_ROOT_URL})
 COMMUNITY_TASKCLUSTER_ROOT_URL = "https://community-tc.services.mozilla.com"
 
 
-def _do_request(url, force_get=False, **kwargs):
+def _do_request(url, force_get=False, use_put=False, **kwargs):
     session = get_session()
     if kwargs and not force_get:
-        response = session.post(url, **kwargs)
+        if not use_put:
+            response = session.post(url, **kwargs)
+        else:
+            response = session.put(url, **kwargs)
     else:
         response = session.get(url, stream=True, **kwargs)
     if response.status_code >= 400:
@@ -95,6 +98,7 @@ def index_current_task(
 
     response = _do_request(
         get_index_url(index_path, root_url=root_url),
+        use_put=True,
         data={
             "data": data,
             "expires": expires,

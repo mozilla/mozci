@@ -20,7 +20,7 @@ from mozci.util.taskcluster import (
 
 BackfillTask = namedtuple("BackfillTask", ["task_id", "th_symbol", "state"])
 
-NOTIFICATION_BACKFILL_GROUP_COMPLETED = "Backfill tasks associated to the Treeherder symbol {th_symbol} for push {push.branch}/{push.rev} are all completed."
+NOTIFICATION_BACKFILL_GROUP_COMPLETED = "Backfill tasks associated to the Treeherder symbol {th_symbol} for push [{push.branch}/{push.rev}](https://treeherder.mozilla.org/jobs?repo={push.branch}&tochange={push.rev}{extra_with_twentieth_parent}) are all completed."
 
 
 class CheckBackfillsCommand(Command):
@@ -60,6 +60,7 @@ class CheckBackfillsCommand(Command):
         self.pushes = make_push_objects(nb=nb_pushes, branch=branch)
         nb_pushes = len(self.pushes)
 
+        to_notify = {}
         for index, push in enumerate(self.pushes, start=1):
             self.line(
                 f"<comment>Processing push {index}/{nb_pushes}: {push.push_uuid}</comment>"
@@ -123,45 +124,61 @@ class CheckBackfillsCommand(Command):
             for th_symbol, value in groupby(backfill_tasks, group_key):
                 tasks = list(value)
                 if all(task.state == "completed" for task in tasks):
-                    index_path = f"project.mozci.check-backfill.{environment}.{push.branch}.{push.rev}.{th_symbol}"
-                    try:
-                        find_task_id(
-                            index_path, root_url=COMMUNITY_TASKCLUSTER_ROOT_URL
-                        )
-                    except requests.exceptions.HTTPError:
-                        pass
-                    else:
-                        logger.debug(
-                            f"A notification was already sent for the backfill tasks associated to the Treeherder symbol {th_symbol}."
-                        )
-                        continue
+                    # make_push_objects returns the latest pushes in chronological order from oldest to newest
+                    # We only need to store the newest Push that appeared for this Treeherder symbol
+                    to_notify[th_symbol] = push
 
-                    notification = NOTIFICATION_BACKFILL_GROUP_COMPLETED.format(
-                        th_symbol=th_symbol,
-                        push=push,
-                    )
+        for th_symbol, newest_push in to_notify.items():
+            index_path = f"project.mozci.check-backfill.{environment}.{th_symbol}"
+            try:
+                find_task_id(index_path, root_url=COMMUNITY_TASKCLUSTER_ROOT_URL)
+            except requests.exceptions.HTTPError:
+                pass
+            else:
+                logger.debug(
+                    f"A notification was already sent for the backfill tasks associated to the Treeherder symbol {th_symbol}."
+                )
+                continue
 
-                    if not matrix_room:
-                        self.line(
-                            f"<comment>A notification should be sent for the backfill tasks associated to the Treeherder symbol {th_symbol} but no matrix room was provided in the secret.</comment>"
-                        )
-                        logger.debug(f"The notification: {notification}")
-                        continue
+            try:
+                parents = [
+                    parent for parent in newest_push._iterate_parents(max_depth=20)
+                ]
+            except Exception as e:
+                logger.debug(
+                    f"Failed to load the last twenty parent pushes for push {push.push_uuid}, because: {e}."
+                )
+                parents = None
 
-                    # Sending a notification to the Matrix channel defined in secret
-                    notify_matrix(
-                        room=matrix_room,
-                        body=notification,
-                    )
+            notification = NOTIFICATION_BACKFILL_GROUP_COMPLETED.format(
+                th_symbol=th_symbol,
+                push=newest_push,
+                extra_with_twentieth_parent=f"&fromchange={parents[-1].rev}"
+                if parents
+                else "",
+            )
 
-                    if not current_task_id:
-                        self.line(
-                            f"<comment>The current task should be indexed in {index_path} but TASK_ID environment variable isn't set.</comment>"
-                        )
-                        continue
+            if not matrix_room:
+                self.line(
+                    f"<comment>A notification should be sent for the backfill tasks associated to the Treeherder symbol {th_symbol} but no matrix room was provided in the secret.</comment>"
+                )
+                logger.debug(f"The notification: {notification}")
+                continue
 
-                    # Populating the index with the current task to prevent sending the notification once again
-                    index_current_task(
-                        index_path,
-                        root_url=COMMUNITY_TASKCLUSTER_ROOT_URL,
-                    )
+            # Sending a notification to the Matrix channel defined in secret
+            notify_matrix(
+                room=matrix_room,
+                body=notification,
+            )
+
+            if not current_task_id:
+                self.line(
+                    f"<comment>The current task should be indexed in {index_path} but TASK_ID environment variable isn't set.</comment>"
+                )
+                continue
+
+            # Populating the index with the current task to prevent sending the notification once again
+            index_current_task(
+                index_path,
+                root_url=COMMUNITY_TASKCLUSTER_ROOT_URL,
+            )

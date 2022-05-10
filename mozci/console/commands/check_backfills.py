@@ -122,7 +122,7 @@ class CheckBackfillsCommand(Command):
             # Sorting backfill tasks by their Treeherder symbol
             backfill_tasks = sorted(backfill_tasks, key=group_key)
             # Grouping ordered backfill tasks by their associated Treeherder symbol
-            for th_symbol, value in groupby(backfill_tasks, group_key):
+            for th_symbol, tasks_iter in groupby(backfill_tasks, group_key):
                 if th_symbol not in to_notify:
                     to_notify[th_symbol] = {
                         "newest_push": None,
@@ -132,9 +132,8 @@ class CheckBackfillsCommand(Command):
                 # make_push_objects returns the latest pushes in chronological order from oldest to newest
                 # We only need to store the newest Push that appeared for this Treeherder symbol
                 to_notify[th_symbol]["newest_push"] = push
-                tasks = list(value)
                 # Storing all backfill tasks for this symbol across multiple pushes
-                to_notify[th_symbol]["backfill_tasks"].update(tasks)
+                to_notify[th_symbol]["backfill_tasks"].update(tasks_iter)
 
         for th_symbol, data in to_notify.items():
             all_backfill_tasks = data["backfill_tasks"]

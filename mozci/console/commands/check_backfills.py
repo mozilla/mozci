@@ -145,7 +145,6 @@ class CheckBackfillsCommand(Command):
             ):
                 logger.debug(
                     f"Not all backfill tasks for the Treeherder symbol {th_symbol} are in a final state, not notifying now."
-                    # Checking that all backfill tasks for this symbol are in a "final" state
                 )
                 continue
 

@@ -5,12 +5,14 @@ import json
 import os
 import re
 import traceback
+from inspect import signature
 from typing import Dict, List, Optional
 from urllib.parse import urlencode
 
 import arrow
 import taskcluster
 from cleo import Command
+from clikit.api.args.exceptions import NoSuchOptionException
 from loguru import logger
 from tabulate import tabulate
 from taskcluster.exceptions import TaskclusterRestFailure
@@ -32,16 +34,6 @@ from mozci.util.taskcluster import (
     notify_email,
     notify_matrix,
 )
-
-CLASSIFY_PARAMETERS = [
-    "intermittent_confidence_threshold",
-    "real_confidence_threshold",
-    "use_possible_regressions",
-    "unknown_from_regressions",
-    "consider_children_pushes_configs",
-    "cross_config_counts",
-    "consistent_failures_counts",
-]
 
 EMAIL_CLASSIFY_EVAL = """
 # classify-eval report generated on the {today}
@@ -134,36 +126,49 @@ def classify_commands_pushes(
     return pushes
 
 
-def retrieve_classify_parameters(medium_conf_option, high_conf_option):
+def check_type(parameter_type, hint, value):
+    try:
+        if parameter_type == bool:
+            parameter = value not in [False, 0, "0", "False", "false", "f"]
+        else:
+            parameter = parameter_type(value)
+    except ValueError:
+        raise Exception(f"Provided {hint} should be a {parameter_type.__name__}.")
+
+    return parameter
+
+
+def retrieve_classify_parameters(options):
+    default_parameters = []
+    for name, parameter in signature(Push.classify).parameters.items():
+        if name != "self":
+            default_parameters.append(parameter)
+
     classify_parameters = {}
+    for parameter in default_parameters:
+        parameter_name = parameter.name
+        parameter_type = parameter.annotation
+        option_name = parameter_name.replace("_", "-")
+        try:
+            option = options(option_name)
+        except NoSuchOptionException:
+            option = None
 
-    for parameter_name in CLASSIFY_PARAMETERS:
+        if config.get(parameter_name) is not None and option is not None:
+            raise Exception(
+                f"You should provide either --{option_name} CLI option OR '{parameter_name}' in the config secret not both."
+            )
+
         if config.get(parameter_name) is not None:
-            classify_parameters[parameter_name] = config[parameter_name]
-
-    parameter_name = "intermittent_confidence_threshold"
-    if medium_conf_option is not None:
-        if classify_parameters.get(parameter_name) is not None:
-            raise Exception(
-                f"You should provide either --medium-confidence CLI option OR '{parameter_name}' in the config secret not both."
+            classify_parameters[parameter_name] = check_type(
+                parameter_type,
+                f"'{parameter_name}' in the config secret",
+                config[parameter_name],
             )
-
-        try:
-            classify_parameters[parameter_name] = float(medium_conf_option)
-        except ValueError:
-            raise Exception("Provided --medium-confidence should be a float.")
-
-    parameter_name = "real_confidence_threshold"
-    if high_conf_option is not None:
-        if classify_parameters.get(parameter_name) is not None:
-            raise Exception(
-                f"You should provide either --high-confidence CLI option OR '{parameter_name}' in the config secret not both."
+        elif option is not None:
+            classify_parameters[parameter_name] = check_type(
+                parameter_type, f"--{option_name}", option
             )
-
-        try:
-            classify_parameters[parameter_name] = float(high_conf_option)
-        except ValueError:
-            raise Exception("Provided --high-confidence should be a float.")
 
     return classify_parameters
 
@@ -177,8 +182,13 @@ class ClassifyCommand(Command):
         {--rev= : Head revision of the push.}
         {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").}
         {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.}
-        {--medium-confidence= : Medium confidence threshold used to classify the regressions.}
-        {--high-confidence= : High confidence threshold used to classify the regressions.}
+        {--intermittent-confidence-threshold= : Medium confidence threshold used to classify the regressions.}
+        {--real-confidence-threshold= : High confidence threshold used to classify the regressions.}
+        {--use-possible-regressions= : Use possible regressions while classifying the regressions.}
+        {--unknown-from-regressions= : Unknown from regressions while classifying the regressions.}
+        {--consider-children-pushes-configs= : Consider children pushes configs while classifying the regressions.}
+        {--cross-config-counts= : Cross-config counts used to classify the regressions.}
+        {--consistent-failures-counts= : Consistent failures counts used to classify the regressions.}
         {--output= : Path towards a directory to save a JSON file containing classification and regressions details in.}
         {--show-intermittents : If set, print tasks that should be marked as intermittent.}
         {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
@@ -194,9 +204,7 @@ class ClassifyCommand(Command):
             self.option("to-date"),
             self.option("rev"),
         )
-        classify_parameters = retrieve_classify_parameters(
-            self.option("medium-confidence"), self.option("high-confidence")
-        )
+        classify_parameters = retrieve_classify_parameters(self.option)
 
         retrigger_unknown = True if self.option("retrigger-unknown") else False
         output = self.option("output")
@@ -378,8 +386,13 @@ class ClassifyEvalCommand(Command):
         {--rev= : Head revision of the push.}
         {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").}
         {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.}
-        {--medium-confidence= : If recalculate parameter is set, medium confidence threshold used to classify the regressions.}
-        {--high-confidence= : If recalculate parameter is set, high confidence threshold used to classify the regressions.}
+        {--intermittent-confidence-threshold= : Medium confidence threshold used to classify the regressions.}
+        {--real-confidence-threshold= : High confidence threshold used to classify the regressions.}
+        {--use-possible-regressions= : Use possible regressions while classifying the regressions.}
+        {--unknown-from-regressions= : Unknown from regressions while classifying the regressions.}
+        {--consider-children-pushes-configs= : Consider children pushes configs while classifying the regressions.}
+        {--cross-config-counts= : Cross-config counts used to classify the regressions.}
+        {--consistent-failures-counts= : Consistent failures counts used to classify the regressions.}
         {--recalculate : If set, recalculate the classification instead of fetching an artifact.}
         {--output= : Path towards a path to save a CSV file with classification states for various pushes.}
         {--send-email : If set, also send the evaluation report by email instead of just logging it.}
@@ -399,12 +412,12 @@ class ClassifyEvalCommand(Command):
         )
 
         if self.option("recalculate"):
-            classify_parameters = retrieve_classify_parameters(
-                self.option("medium-confidence"), self.option("high-confidence")
-            )
-        elif self.option("medium-confidence") or self.option("high-confidence"):
+            classify_parameters = retrieve_classify_parameters(self.option)
+        elif self.option("intermittent-confidence-threshold") or self.option(
+            "real-confidence-threshold"
+        ):
             self.line(
-                "<error>--recalculate isn't set, you shouldn't provide either --medium-confidence nor --high-confidence attributes.</error>"
+                "<error>--recalculate isn't set, you shouldn't provide either --intermittent-confidence-threshold nor --real-confidence-threshold attributes.</error>"
             )
             return
 

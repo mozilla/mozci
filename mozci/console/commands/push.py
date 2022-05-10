@@ -5,12 +5,14 @@ import json
 import os
 import re
 import traceback
-from typing import Dict, List, Optional
+from inspect import signature
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlencode
 
 import arrow
 import taskcluster
 from cleo import Command
+from clikit.api.args.exceptions import NoSuchOptionException
 from loguru import logger
 from tabulate import tabulate
 from taskcluster.exceptions import TaskclusterRestFailure
@@ -57,6 +59,8 @@ Time: {date}
 - {real_failures}
 
 """
+
+TWO_INTS_TUPLE_REGEXP = r"^\((\d+), ?(\d+)\)$"
 
 
 class PushTasksCommand(Command):
@@ -124,6 +128,62 @@ def classify_commands_pushes(
     return pushes
 
 
+def check_type(parameter_type, hint, value):
+    try:
+        if parameter_type == bool:
+            parameter = value not in [False, 0, "0", "False", "false", "f"]
+        elif parameter_type == Optional[Tuple[int, int]]:
+            match = re.match(TWO_INTS_TUPLE_REGEXP, value)
+
+            if not match or len(match.groups()) != 2:
+                raise ValueError
+
+            parameter = tuple([int(number) for number in match.groups()])
+        else:
+            parameter = parameter_type(value)
+    except ValueError:
+        raise Exception(
+            f"Provided {hint} should be a {parameter_type.__name__ if hasattr(parameter_type, '__name__') else parameter_type}."
+        )
+
+    return parameter
+
+
+def retrieve_classify_parameters(options):
+    default_parameters = []
+    for name, parameter in signature(Push.classify).parameters.items():
+        if name != "self":
+            default_parameters.append(parameter)
+
+    classify_parameters = {}
+    for parameter in default_parameters:
+        parameter_name = parameter.name
+        parameter_type = parameter.annotation
+        option_name = parameter_name.replace("_", "-")
+        try:
+            option = options(option_name)
+        except NoSuchOptionException:
+            option = None
+
+        if config.get(parameter_name) is not None and option is not None:
+            raise Exception(
+                f"You should provide either --{option_name} CLI option OR '{parameter_name}' in the config secret not both."
+            )
+
+        if config.get(parameter_name) is not None:
+            classify_parameters[parameter_name] = check_type(
+                parameter_type,
+                f"'{parameter_name}' in the config secret",
+                config[parameter_name],
+            )
+        elif option is not None:
+            classify_parameters[parameter_name] = check_type(
+                parameter_type, f"--{option_name}", option
+            )
+
+    return classify_parameters
+
+
 class ClassifyCommand(Command):
     """
     Display the classification for a given push (or a range of pushes) as GOOD, BAD or UNKNOWN.
@@ -133,8 +193,13 @@ class ClassifyCommand(Command):
         {--rev= : Head revision of the push.}
         {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").}
         {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.}
-        {--medium-confidence=0.8 : Medium confidence threshold used to classify the regressions.}
-        {--high-confidence=0.9 : High confidence threshold used to classify the regressions.}
+        {--intermittent-confidence-threshold= : Medium confidence threshold used to classify the regressions.}
+        {--real-confidence-threshold= : High confidence threshold used to classify the regressions.}
+        {--use-possible-regressions= : Use possible regressions while classifying the regressions.}
+        {--unknown-from-regressions= : Unknown from regressions while classifying the regressions.}
+        {--consider-children-pushes-configs= : Consider children pushes configs while classifying the regressions.}
+        {--cross-config-counts= : Cross-config counts used to classify the regressions.}
+        {--consistent-failures-counts= : Consistent failures counts used to classify the regressions.}
         {--output= : Path towards a directory to save a JSON file containing classification and regressions details in.}
         {--show-intermittents : If set, print tasks that should be marked as intermittent.}
         {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
@@ -150,17 +215,7 @@ class ClassifyCommand(Command):
             self.option("to-date"),
             self.option("rev"),
         )
-
-        try:
-            medium_conf = float(self.option("medium-confidence"))
-        except ValueError:
-            self.line("<error>Provided --medium-confidence should be a float.</error>")
-            exit(1)
-        try:
-            high_conf = float(self.option("high-confidence"))
-        except ValueError:
-            self.line("<error>Provided --high-confidence should be a float.</error>")
-            exit(1)
+        classify_parameters = retrieve_classify_parameters(self.option)
 
         retrigger_unknown = True if self.option("retrigger-unknown") else False
         output = self.option("output")
@@ -172,10 +227,7 @@ class ClassifyCommand(Command):
 
         for push in pushes:
             try:
-                classification, regressions = push.classify(
-                    intermittent_confidence_threshold=medium_conf,
-                    real_confidence_threshold=high_conf,
-                )
+                classification, regressions = push.classify(**classify_parameters)
                 if retrigger_unknown:
                     for _, tasks in regressions.unknown.items():
                         retrigger(tasks=tasks, repeat_retrigger=1)
@@ -345,8 +397,13 @@ class ClassifyEvalCommand(Command):
         {--rev= : Head revision of the push.}
         {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").}
         {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.}
-        {--medium-confidence= : If recalculate parameter is set, medium confidence threshold used to classify the regressions.}
-        {--high-confidence= : If recalculate parameter is set, high confidence threshold used to classify the regressions.}
+        {--intermittent-confidence-threshold= : Medium confidence threshold used to classify the regressions.}
+        {--real-confidence-threshold= : High confidence threshold used to classify the regressions.}
+        {--use-possible-regressions= : Use possible regressions while classifying the regressions.}
+        {--unknown-from-regressions= : Unknown from regressions while classifying the regressions.}
+        {--consider-children-pushes-configs= : Consider children pushes configs while classifying the regressions.}
+        {--cross-config-counts= : Cross-config counts used to classify the regressions.}
+        {--consistent-failures-counts= : Consistent failures counts used to classify the regressions.}
         {--recalculate : If set, recalculate the classification instead of fetching an artifact.}
         {--output= : Path towards a path to save a CSV file with classification states for various pushes.}
         {--send-email : If set, also send the evaluation report by email instead of just logging it.}
@@ -365,32 +422,16 @@ class ClassifyEvalCommand(Command):
             self.option("rev"),
         )
 
+        option_names = [
+            name.replace("_", "-")
+            for name, _ in signature(Push.classify).parameters.items()
+            if name != "self"
+        ]
         if self.option("recalculate"):
-            try:
-                medium_conf = (
-                    float(self.option("medium-confidence"))
-                    if self.option("medium-confidence")
-                    else 0.8
-                )
-            except ValueError:
-                self.line(
-                    "<error>Provided --medium-confidence should be a float.</error>"
-                )
-                exit(1)
-            try:
-                high_conf = (
-                    float(self.option("high-confidence"))
-                    if self.option("high-confidence")
-                    else 0.9
-                )
-            except ValueError:
-                self.line(
-                    "<error>Provided --high-confidence should be a float.</error>"
-                )
-                exit(1)
-        elif self.option("medium-confidence") or self.option("high-confidence"):
+            classify_parameters = retrieve_classify_parameters(self.option)
+        elif any(self.option(name) for name in option_names):
             self.line(
-                "<error>--recalculate isn't set, you shouldn't provide either --medium-confidence nor --high-confidence attributes.</error>"
+                f"<error>--recalculate isn't set, you shouldn't provide --{', --'.join(option_names)} CLI options.</error>"
             )
             return
 
@@ -454,8 +495,7 @@ class ClassifyEvalCommand(Command):
 
                 try:
                     self.classifications[push], regressions = push.classify(
-                        intermittent_confidence_threshold=medium_conf,
-                        real_confidence_threshold=high_conf,
+                        **classify_parameters
                     )
                     self.failures[push] = {
                         "real": regressions.real,

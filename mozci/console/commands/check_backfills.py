@@ -2,6 +2,7 @@
 import os
 from collections import namedtuple
 from itertools import groupby
+from typing import Any, Dict
 
 import requests
 from cleo import Command
@@ -20,7 +21,7 @@ from mozci.util.taskcluster import (
 
 BackfillTask = namedtuple("BackfillTask", ["task_id", "th_symbol", "state"])
 
-NOTIFICATION_BACKFILL_GROUP_COMPLETED = "Backfill tasks associated to the Treeherder symbol {th_symbol} for push [{push.branch}/{push.rev}](https://treeherder.mozilla.org/jobs?repo={push.branch}&tochange={push.rev}{extra_with_twentieth_parent}) are all completed."
+NOTIFICATION_BACKFILL_GROUP_COMPLETED = "Backfill tasks associated to the Treeherder symbol {th_symbol} for push [{push.branch}/{push.rev}](https://treeherder.mozilla.org/jobs?repo={push.branch}&tochange={push.rev}{extra_with_twentieth_parent}) are all in a final state."
 
 
 class CheckBackfillsCommand(Command):
@@ -60,7 +61,7 @@ class CheckBackfillsCommand(Command):
         self.pushes = make_push_objects(nb=nb_pushes, branch=branch)
         nb_pushes = len(self.pushes)
 
-        to_notify = {}
+        to_notify: Dict[str, Dict[str, Any]] = {}
         for index, push in enumerate(self.pushes, start=1):
             self.line(
                 f"<comment>Processing push {index}/{nb_pushes}: {push.push_uuid}</comment>"
@@ -122,14 +123,34 @@ class CheckBackfillsCommand(Command):
             backfill_tasks = sorted(backfill_tasks, key=group_key)
             # Grouping ordered backfill tasks by their associated Treeherder symbol
             for th_symbol, value in groupby(backfill_tasks, group_key):
-                tasks = list(value)
-                if all(task.state == "completed" for task in tasks):
-                    # make_push_objects returns the latest pushes in chronological order from oldest to newest
-                    # We only need to store the newest Push that appeared for this Treeherder symbol
-                    to_notify[th_symbol] = push
+                if th_symbol not in to_notify:
+                    to_notify[th_symbol] = {
+                        "newest_push": None,
+                        "backfill_tasks": set(),
+                    }
 
-        for th_symbol, newest_push in to_notify.items():
-            index_path = f"project.mozci.check-backfill.{environment}.{th_symbol}"
+                # make_push_objects returns the latest pushes in chronological order from oldest to newest
+                # We only need to store the newest Push that appeared for this Treeherder symbol
+                to_notify[th_symbol]["newest_push"] = push
+                tasks = list(value)
+                # Storing all backfill tasks for this symbol across multiple pushes
+                to_notify[th_symbol]["backfill_tasks"].update(tasks)
+
+        for th_symbol, data in to_notify.items():
+            all_backfill_tasks = data["backfill_tasks"]
+            # Checking that all backfill tasks for this symbol are in a "final" state
+            if not all(
+                task.state in ["completed", "failed", "exception"]
+                for task in all_backfill_tasks
+            ):
+                logger.debug(
+                    f"Not all backfill tasks for the Treeherder symbol {th_symbol} are in a final state, not notifying now."
+                    # Checking that all backfill tasks for this symbol are in a "final" state
+                )
+                continue
+
+            newest_push = data["newest_push"]
+            index_path = f"project.mozci.check-backfill.{environment}.{newest_push.branch}.{newest_push.rev}.{th_symbol}"
             try:
                 find_task_id(index_path, root_url=COMMUNITY_TASKCLUSTER_ROOT_URL)
             except requests.exceptions.HTTPError:
@@ -146,7 +167,7 @@ class CheckBackfillsCommand(Command):
                 ]
             except Exception as e:
                 logger.debug(
-                    f"Failed to load the last twenty parent pushes for push {push.push_uuid}, because: {e}."
+                    f"Failed to load the last twenty parent pushes for push {newest_push.push_uuid}, because: {e}."
                 )
                 parents = None
 

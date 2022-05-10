@@ -6,7 +6,7 @@ import os
 import re
 import traceback
 from inspect import signature
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlencode
 
 import arrow
@@ -59,6 +59,8 @@ Time: {date}
 - {real_failures}
 
 """
+
+TWO_INTS_TUPLE_REGEXP = r"^\((\d+), ?(\d+)\)$"
 
 
 class PushTasksCommand(Command):
@@ -130,10 +132,19 @@ def check_type(parameter_type, hint, value):
     try:
         if parameter_type == bool:
             parameter = value not in [False, 0, "0", "False", "false", "f"]
+        elif parameter_type == Optional[Tuple[int, int]]:
+            match = re.match(TWO_INTS_TUPLE_REGEXP, value)
+
+            if not match or len(match.groups()) != 2:
+                raise ValueError
+
+            parameter = tuple([int(number) for number in match.groups()])
         else:
             parameter = parameter_type(value)
     except ValueError:
-        raise Exception(f"Provided {hint} should be a {parameter_type.__name__}.")
+        raise Exception(
+            f"Provided {hint} should be a {parameter_type.__name__ if hasattr(parameter_type, '__name__') else parameter_type}."
+        )
 
     return parameter
 
@@ -411,13 +422,20 @@ class ClassifyEvalCommand(Command):
             self.option("rev"),
         )
 
+        option_names = [
+            "intermittent-confidence-threshold",
+            "real-confidence-threshold",
+            "use-possible-regressions",
+            "unknown-from-regressions",
+            "consider-children-pushes-configs",
+            "cross-config-counts",
+            "consistent-failures-counts",
+        ]
         if self.option("recalculate"):
             classify_parameters = retrieve_classify_parameters(self.option)
-        elif self.option("intermittent-confidence-threshold") or self.option(
-            "real-confidence-threshold"
-        ):
+        elif any(self.option(name) for name in option_names):
             self.line(
-                "<error>--recalculate isn't set, you shouldn't provide either --intermittent-confidence-threshold nor --real-confidence-threshold attributes.</error>"
+                f"<error>--recalculate isn't set, you shouldn't provide --{', --'.join(option_names)} CLI options.</error>"
             )
             return
 

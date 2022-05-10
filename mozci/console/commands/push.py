@@ -423,13 +423,9 @@ class ClassifyEvalCommand(Command):
         )
 
         option_names = [
-            "intermittent-confidence-threshold",
-            "real-confidence-threshold",
-            "use-possible-regressions",
-            "unknown-from-regressions",
-            "consider-children-pushes-configs",
-            "cross-config-counts",
-            "consistent-failures-counts",
+            name.replace("_", "-")
+            for name, _ in signature(Push.classify).parameters.items()
+            if name != "self"
         ]
         if self.option("recalculate"):
             classify_parameters = retrieve_classify_parameters(self.option)

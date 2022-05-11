@@ -21,7 +21,7 @@ from mozci.util.taskcluster import (
 
 BackfillTask = namedtuple("BackfillTask", ["task_id", "th_symbol", "state"])
 
-NOTIFICATION_BACKFILL_GROUP_COMPLETED = "Backfill tasks associated to the Treeherder symbol {th_symbol} for push [{push.branch}/{push.rev}](https://treeherder.mozilla.org/jobs?repo={push.branch}&tochange={push.rev}{extra_with_twentieth_parent}) are all in a final state."
+NOTIFICATION_BACKFILL_GROUP_COMPLETED = "Backfill tasks associated to the Treeherder symbol {th_symbol} for push [{push.branch}/{push.rev}](https://treeherder.mozilla.org/jobs?repo={push.branch}&tochange={push.rev}{extra_with_twentieth_parent}&group_state=expanded) are all in a final state."
 
 
 class CheckBackfillsCommand(Command):

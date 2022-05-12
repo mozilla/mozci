@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import re
 from collections import namedtuple
 from itertools import groupby
 from typing import Any, Dict
@@ -19,9 +20,9 @@ from mozci.util.taskcluster import (
     notify_matrix,
 )
 
-BackfillTask = namedtuple("BackfillTask", ["task_id", "th_symbol", "state"])
+BackfillTask = namedtuple("BackfillTask", ["task_id", "label", "th_symbol", "state"])
 
-NOTIFICATION_BACKFILL_GROUP_COMPLETED = "Backfill tasks associated to the Treeherder symbol {th_symbol} for push [{push.branch}/{push.rev}](https://treeherder.mozilla.org/jobs?repo={push.branch}&tochange={push.rev}{extra_with_twentieth_parent}&group_state=expanded) are all in a final state."
+NOTIFICATION_BACKFILL_GROUP_COMPLETED = "Backfill tasks associated to the Treeherder symbol {th_symbol} for push [{push.branch}/{push.rev}](https://treeherder.mozilla.org/jobs?repo={push.branch}&tochange={push.rev}{fromchange}{searchstr}&group_state=expanded) are all in a final state."
 
 
 class CheckBackfillsCommand(Command):
@@ -89,14 +90,12 @@ class CheckBackfillsCommand(Command):
                     continue
 
                 for child_task in children_tasks:
-                    task_action = (
-                        child_task.get("task", {}).get("tags", {}).get("action", "")
-                    )
+                    task_section = child_task.get("task", {})
+                    task_action = task_section.get("tags", {}).get("action", "")
                     # We are looking for the Treeherder symbol because Sheriffs are
                     # only interested in backfill-tasks holding the '-bk' suffix in TH
                     th_symbol = (
-                        child_task.get("task", {})
-                        .get("extra", {})
+                        task_section.get("extra", {})
                         .get("treeherder", {})
                         .get("symbol", "")
                     )
@@ -105,11 +104,19 @@ class CheckBackfillsCommand(Command):
                         assert status.get(
                             "taskId"
                         ), "Missing taskId attribute in backfill task status"
+                        label = task_section.get("tags", {}).get(
+                            "label"
+                        ) or task_section.get("metadata", {}).get("name")
+                        assert (
+                            label
+                        ), "Missing label attribute in backfill task tags or name attribute in backfill task metadata"
                         assert status.get(
                             "state"
                         ), "Missing state attribute in backfill task status"
                         backfill_tasks.append(
-                            BackfillTask(status["taskId"], th_symbol, status["state"])
+                            BackfillTask(
+                                status["taskId"], label, th_symbol, status["state"]
+                            )
                         )
                     else:
                         logger.debug(
@@ -169,12 +176,14 @@ class CheckBackfillsCommand(Command):
                 )
                 parents = None
 
+            cleaned_label = re.sub(
+                r"(-e10s|-1proc)?(-\d+)?$", "", all_backfill_tasks.pop().label
+            )
             notification = NOTIFICATION_BACKFILL_GROUP_COMPLETED.format(
                 th_symbol=th_symbol,
                 push=newest_push,
-                extra_with_twentieth_parent=f"&fromchange={parents[-1].rev}"
-                if parents
-                else "",
+                fromchange=f"&fromchange={parents[-1].rev}" if parents else "",
+                searchstr=f"&searchStr={cleaned_label}",
             )
 
             if not matrix_room:

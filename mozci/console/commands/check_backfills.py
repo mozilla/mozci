@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import re
 from collections import namedtuple
 from itertools import groupby
 from typing import Any, Dict
@@ -175,11 +176,14 @@ class CheckBackfillsCommand(Command):
                 )
                 parents = None
 
+            cleaned_label = re.sub(
+                r"(-e10s|-1proc)?(-\d+)?$", "", all_backfill_tasks.pop().label
+            )
             notification = NOTIFICATION_BACKFILL_GROUP_COMPLETED.format(
                 th_symbol=th_symbol,
                 push=newest_push,
                 fromchange=f"&fromchange={parents[-1].rev}" if parents else "",
-                searchstr=f"&searchStr={all_backfill_tasks.pop().label.split('-e10s')[0]}",
+                searchstr=f"&searchStr={cleaned_label}",
             )
 
             if not matrix_room:

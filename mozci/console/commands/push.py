@@ -552,6 +552,23 @@ class ClassifyEvalCommand(Command):
                     )
                     self.errors[push] = e
 
+            all_pushes = set(
+                [push] + [child for child in push._iterate_children(max_depth=50)]
+            )
+            all_failures_classifications = [
+                set([c for c, _ in group.classifications])
+                for p in all_pushes
+                for group in p.group_summaries.values()
+            ]
+            if push.backedout and all(
+                failure_classifications == {"intermittent"}
+                for failure_classifications in all_failures_classifications
+            ):
+                self.line(
+                    f"<comment>Push {push.branch}/{push.rev} was backedout and all of its failures and the ones of its children were marked as intermittent by Sheriffs</comment>"
+                )
+                # Build the graph, etc
+
             # Advance the overall progress bar
             progress.advance()
 

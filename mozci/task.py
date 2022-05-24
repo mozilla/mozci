@@ -12,6 +12,7 @@ from inspect import signature
 from statistics import median
 from typing import Dict, List, NewType, Optional, Tuple
 
+import jsone
 import requests
 import taskcluster
 from loguru import logger
@@ -25,6 +26,7 @@ from mozci.util.taskcluster import (
     find_task_id,
     get_artifact,
     get_task,
+    get_taskcluster_options,
     list_artifacts,
 )
 
@@ -284,6 +286,31 @@ class Task:
         """Return whether a given task in tasks should be retriggered."""
 
         return task["tags"].get("retrigger", "false")
+
+    def backfill(self, push):
+        """This function implements ability to perform backfills on tasks"""
+        decision_task = push.decision_task
+        actions = decision_task.get_artifact("public/actions.json")
+        backfill_action = next(
+            action for action in actions["actions"] if action["name"] == "backfill"
+        )
+        assert backfill_action["kind"] == "hook"
+
+        hook_payload = jsone.render(
+            backfill_action["hookPayload"],
+            context={
+                "taskId": self.id,
+                "taskGroupId": decision_task.id,
+                "input": {"times": 5 if self.classification == "intermittent" else 1},
+            },
+        )
+
+        logger.info("Backfilling task '{}'".format(self.tags.get("label", "")))
+        hooks = taskcluster.Hooks(get_taskcluster_options())
+        result = hooks.triggerHook(
+            backfill_action["hookGroupId"], backfill_action["hookId"], hook_payload
+        )
+        return result["status"]["taskId"]
 
 
 @dataclass

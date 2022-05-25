@@ -26,7 +26,6 @@ from mozci.util.taskcluster import (
     find_task_id,
     get_artifact,
     get_task,
-    get_taskcluster_options,
     list_artifacts,
 )
 
@@ -306,7 +305,9 @@ class Task:
         )
 
         logger.info("Backfilling task '{}'".format(self.tags.get("label", "")))
-        hooks = taskcluster.Hooks(get_taskcluster_options())
+        options = taskcluster.optionsFromEnvironment()
+        options["rootUrl"] = PRODUCTION_TASKCLUSTER_ROOT_URL
+        hooks = taskcluster.Hooks(options)
         result = hooks.triggerHook(
             backfill_action["hookGroupId"], backfill_action["hookId"], hook_payload
         )

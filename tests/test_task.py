@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 
+import copy
 import json
 import re
 
 import pytest
+from responses import matchers
+from taskcluster.exceptions import TaskclusterRestFailure
 
 from mozci import config
 from mozci.errors import ArtifactNotFound, TaskNotFound
+from mozci.push import Push
 from mozci.task import (
     FailureType,
     GroupResult,
@@ -15,10 +19,56 @@ from mozci.task import (
     TestTask,
     is_autoclassifiable,
 )
-from mozci.util.taskcluster import get_artifact_url, get_index_url
+from mozci.util.taskcluster import (
+    PRODUCTION_TASKCLUSTER_ROOT_URL,
+    get_artifact_url,
+    get_index_url,
+)
 
 GR_2 = GroupResult(group="group2", ok=True, duration=42)
 GR_3 = GroupResult(group="group2", ok=True, duration=42)
+
+ACTIONS_ARTIFACT_EXTRACT = {
+    "actions": [
+        {
+            "context": [{}],
+            "description": "Given a task schedule it on previous pushes in the same project.",
+            "extra": {"actionPerm": "backfill"},
+            "hookGroupId": "project-gecko",
+            "hookId": "in-tree-action-3-backfill/9ffde487f6",
+            "hookPayload": {
+                "decision": {
+                    "action": {
+                        "cb_name": "backfill",
+                        "description": "Given a task schedule it on previous pushes in the same project.",
+                        "name": "backfill",
+                        "symbol": "Bk",
+                        "taskGroupId": "cIysKHAiSBOhhHrvgKMo1w",
+                        "title": "Backfill",
+                    },
+                    "push": {
+                        "owner": "mozilla-taskcluster-maintenance@mozilla.com",
+                        "pushlog_id": "163357",
+                        "revision": "5f90901a36bb9735cef6dc7d746d06880a61226d",
+                    },
+                    "repository": {
+                        "level": "3",
+                        "project": "autoland",
+                        "url": "https://hg.mozilla.org/integration/autoland",
+                    },
+                },
+                "user": {
+                    "input": {"$eval": "input"},
+                    "taskGroupId": {"$eval": "taskGroupId"},
+                    "taskId": {"$eval": "taskId"},
+                },
+            },
+            "kind": "hook",
+            "name": "backfill",
+            "title": "Backfill",
+        },
+    ]
+}
 
 
 class FakePush:
@@ -120,6 +170,121 @@ def test_retrigger_should_not_retrigger(responses, create_task):
 
     # verify last call was not to create a new task
     assert not responses.calls[-1].request.method == "PUT"
+
+
+def test_backfill_missing_actions_artifact(responses, create_task):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    decision_task_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision"
+    responses.add(
+        responses.GET, decision_task_url, status=200, json={"taskId": "a" * 10}
+    )
+
+    responses.add(
+        responses.GET,
+        get_artifact_url(push.decision_task.id, "public/actions.json"),
+        status=404,
+    )
+
+    task = create_task(label="foobar")
+    with pytest.raises(ArtifactNotFound):
+        task.backfill(push)
+
+
+def test_backfill_wrong_action_kind(responses, create_task):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+    decision_task_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision"
+    responses.add(
+        responses.GET, decision_task_url, status=200, json={"taskId": "a" * 10}
+    )
+
+    invalid_actions = copy.deepcopy(ACTIONS_ARTIFACT_EXTRACT)
+    invalid_actions["actions"][0]["kind"] = "not a hook"
+    responses.add(
+        responses.GET,
+        get_artifact_url(push.decision_task.id, "public/actions.json"),
+        status=200,
+        json=invalid_actions,
+    )
+
+    task = create_task(label="foobar")
+    with pytest.raises(AssertionError):
+        task.backfill(push)
+
+
+def test_backfill_trigger_hook_error(responses, create_task):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+    decision_task_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision"
+    responses.add(
+        responses.GET, decision_task_url, status=200, json={"taskId": "a" * 10}
+    )
+
+    responses.add(
+        responses.GET,
+        get_artifact_url(push.decision_task.id, "public/actions.json"),
+        status=200,
+        json=ACTIONS_ARTIFACT_EXTRACT,
+    )
+
+    hookGroupId = ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookGroupId"]
+    hookId = ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookId"].replace("/", "%2F")
+    responses.add(
+        responses.POST,
+        f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/hooks/v1/hooks/{hookGroupId}/{hookId}/trigger",
+        status=500,
+    )
+
+    task = create_task(label="foobar")
+    with pytest.raises(TaskclusterRestFailure):
+        task.backfill(push)
+
+
+@pytest.mark.parametrize("intermittent, times", [(True, 5), (False, 1)])
+def test_backfill(responses, intermittent, times, create_task):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+    decision_task_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision"
+    responses.add(
+        responses.GET, decision_task_url, status=200, json={"taskId": "a" * 10}
+    )
+
+    responses.add(
+        responses.GET,
+        get_artifact_url(push.decision_task.id, "public/actions.json"),
+        status=200,
+        json=ACTIONS_ARTIFACT_EXTRACT,
+    )
+
+    task = create_task(label="foobar")
+
+    if intermittent:
+        task.classification = "intermittent"
+
+    hookGroupId = ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookGroupId"]
+    hookId = ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookId"].replace("/", "%2F")
+    hookPayload = copy.deepcopy(ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookPayload"])
+    hookPayload["user"] = {
+        "input": {"times": times},
+        "taskGroupId": push.decision_task.id,
+        "taskId": task.id,
+    }
+    responses.add(
+        responses.POST,
+        f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/hooks/v1/hooks/{hookGroupId}/{hookId}/trigger",
+        status=200,
+        json={"status": {"taskId": "new-backfill-task"}},
+        match=[matchers.json_params_matcher(hookPayload)],
+    )
+
+    backfill_task_id = task.backfill(push)
+    assert backfill_task_id == "new-backfill-task"
 
 
 def test_to_json():

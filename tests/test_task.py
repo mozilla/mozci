@@ -216,6 +216,37 @@ def test_backfill_wrong_action_kind(responses, create_task):
         task.backfill(push)
 
 
+@pytest.mark.parametrize(
+    "secret_content",
+    [{}, {"client_id": "a client id"}, {"access_token": "an access token"}],
+)
+def test_backfill_incomplete_secret(responses, secret_content, create_task):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+    decision_task_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision"
+    responses.add(
+        responses.GET, decision_task_url, status=200, json={"taskId": "a" * 10}
+    )
+
+    responses.add(
+        responses.GET,
+        get_artifact_url(push.decision_task.id, "public/actions.json"),
+        status=200,
+        json=ACTIONS_ARTIFACT_EXTRACT,
+    )
+
+    # Update configuration
+    config._config["taskcluster_firefox_ci"] = secret_content
+
+    task = create_task(label="foobar")
+    with pytest.raises(
+        AssertionError,
+        match="Missing Taskcluster Firefox CI credentials in mozci config secret",
+    ):
+        task.backfill(push)
+
+
 def test_backfill_trigger_hook_error(responses, create_task):
     rev = "a" * 40
     branch = "autoland"
@@ -231,6 +262,11 @@ def test_backfill_trigger_hook_error(responses, create_task):
         status=200,
         json=ACTIONS_ARTIFACT_EXTRACT,
     )
+
+    config._config["taskcluster_firefox_ci"] = {
+        "client_id": "a client id",
+        "access_token": "an access token",
+    }
 
     hookGroupId = ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookGroupId"]
     hookId = ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookId"].replace("/", "%2F")
@@ -261,6 +297,11 @@ def test_backfill(responses, intermittent, times, create_task):
         status=200,
         json=ACTIONS_ARTIFACT_EXTRACT,
     )
+
+    config._config["taskcluster_firefox_ci"] = {
+        "client_id": "a client id",
+        "access_token": "an access token",
+    }
 
     task = create_task(label="foobar")
 

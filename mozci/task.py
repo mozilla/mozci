@@ -304,10 +304,22 @@ class Task:
             },
         )
 
-        logger.info("Backfilling task '{}'".format(self.tags.get("label", "")))
+        tc_firefox_ci_credentials = config.get("taskcluster_firefox_ci", {})
+        client_id = tc_firefox_ci_credentials.get("client_id")
+        access_token = tc_firefox_ci_credentials.get("access_token")
+        assert (
+            client_id and access_token
+        ), "Missing Taskcluster Firefox CI credentials in mozci config secret"
+
         options = taskcluster.optionsFromEnvironment()
         options["rootUrl"] = PRODUCTION_TASKCLUSTER_ROOT_URL
+        options["credentials"] = {
+            "clientId": client_id,
+            "accessToken": access_token,
+        }
         hooks = taskcluster.Hooks(options)
+
+        logger.info("Backfilling task '{}'".format(self.tags.get("label", "")))
         result = hooks.triggerHook(
             backfill_action["hookGroupId"], backfill_action["hookId"], hook_payload
         )

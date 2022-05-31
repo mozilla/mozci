@@ -12,6 +12,7 @@ from inspect import signature
 from statistics import median
 from typing import Dict, List, NewType, Optional, Tuple
 
+import jsone
 import requests
 import taskcluster
 from loguru import logger
@@ -284,6 +285,45 @@ class Task:
         """Return whether a given task in tasks should be retriggered."""
 
         return task["tags"].get("retrigger", "false")
+
+    def backfill(self, push):
+        """This function implements ability to perform backfills on tasks"""
+        decision_task = push.decision_task
+        actions = decision_task.get_artifact("public/actions.json")
+        backfill_action = next(
+            action for action in actions["actions"] if action["name"] == "backfill"
+        )
+        assert backfill_action["kind"] == "hook"
+
+        hook_payload = jsone.render(
+            backfill_action["hookPayload"],
+            context={
+                "taskId": self.id,
+                "taskGroupId": decision_task.id,
+                "input": {"times": 5 if self.classification == "intermittent" else 1},
+            },
+        )
+
+        tc_firefox_ci_credentials = config.get("taskcluster_firefox_ci", {})
+        client_id = tc_firefox_ci_credentials.get("client_id")
+        access_token = tc_firefox_ci_credentials.get("access_token")
+        assert (
+            client_id and access_token
+        ), "Missing Taskcluster Firefox CI credentials in mozci config secret"
+
+        options = taskcluster.optionsFromEnvironment()
+        options["rootUrl"] = PRODUCTION_TASKCLUSTER_ROOT_URL
+        options["credentials"] = {
+            "clientId": client_id,
+            "accessToken": access_token,
+        }
+        hooks = taskcluster.Hooks(options)
+
+        logger.info("Backfilling task '{}'".format(self.tags.get("label", "")))
+        result = hooks.triggerHook(
+            backfill_action["hookGroupId"], backfill_action["hookId"], hook_payload
+        )
+        return result["status"]["taskId"]
 
 
 @dataclass

@@ -533,7 +533,7 @@ class Push:
 
         return int(duration / 3600)
 
-    def _is_classified_as_cause(self, first_appareance_push, classifications):
+    def _is_classified_as_cause(self, first_appearance_push, classifications):
         """Checks a 'fixed by commit' classification to figure out what push it references.
 
         Returns:
@@ -570,7 +570,7 @@ class Push:
                     continue
             except PushNotFound:
                 logger.warning(
-                    f"Classification note ({classification_note}) references a revision which does not exist on push {first_appareance_push.rev}"
+                    f"Classification note ({classification_note}) references a revision which does not exist on push {first_appearance_push.rev}"
                 )
                 return None
 
@@ -619,7 +619,7 @@ class Push:
 
                 if any(
                     HgRev.create(backedout, branch=self.branch).pushid
-                    <= first_appareance_push.id
+                    <= first_appearance_push.id
                     for backedout in backedouts
                 ):
                     other_fixes.add(backout[:12])
@@ -627,7 +627,7 @@ class Push:
             # If the backout push contains a bustage fix of another push, then we could
             # consider it as a regression of another push.
             if len(fix_hgmo.bugs_without_backouts) > 0:
-                other_parent = first_appareance_push
+                other_parent = first_appearance_push
                 for other_parent in other_parent._iterate_parents(MAX_DEPTH):
                     if other_parent != self:
                         for bug in other_parent.bugs:
@@ -714,7 +714,7 @@ class Push:
         passing_runnables = set()
         candidate_regressions = {}
 
-        first_appareance = {}
+        first_appearance = {}
 
         classified_as_cause: Dict[str, List[Optional[bool]]] = defaultdict(list)
 
@@ -741,11 +741,11 @@ class Push:
                         passing_runnables.add(name)
                     continue
 
-                if name not in first_appareance:
-                    first_appareance[name] = other
+                if name not in first_appearance:
+                    first_appearance[name] = other
 
                 is_classified_as_cause = self._is_classified_as_cause(
-                    first_appareance[name], summary.classifications
+                    first_appearance[name], summary.classifications
                 )
                 if is_classified_as_cause is True:
                     classified_as_cause[name].append(True)

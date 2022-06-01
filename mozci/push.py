@@ -709,7 +709,14 @@ class Push:
 
     def _iterate_failures(
         self, runnable_type: str, max_depth: Optional[int] = None
-    ) -> Iterator[Tuple["Push", Dict[str, Tuple[float, RunnableSummary]]]]:
+    ) -> Iterator[
+        Tuple[
+            "Push",
+            Dict[str, Tuple[float, RunnableSummary]],
+            Dict[str, Tuple[float, RunnableSummary]],
+            Dict[str, List[Optional[bool]]],
+        ]
+    ]:
         ever_passing_runnables = set()
         passing_runnables = set()
         candidate_regressions = {}
@@ -811,7 +818,7 @@ class Push:
                 ):
                     del adjusted_candidate_regressions[name]
 
-            yield other, adjusted_candidate_regressions
+            yield other, adjusted_candidate_regressions, candidate_regressions, classified_as_cause
             count += 1
 
     def get_candidate_regressions(
@@ -833,7 +840,7 @@ class Push:
 
         max_depth = None if self.backedout or self.bustage_fixed_by else MAX_DEPTH
 
-        for other, candidate_regressions in self._iterate_failures(
+        for other, candidate_regressions, _, _ in self._iterate_failures(
             runnable_type, max_depth
         ):
             # Break early if we reached the backout of this push, since any failure
@@ -901,7 +908,7 @@ class Push:
             return None
 
         def find(runnable_type: str) -> Optional[str]:
-            for other, candidate_regressions in self._iterate_failures(
+            for other, candidate_regressions, _, _ in self._iterate_failures(
                 runnable_type, MAX_DEPTH
             ):
                 if other == self or other not in possible_bustage_fixes:

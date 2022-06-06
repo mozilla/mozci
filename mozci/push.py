@@ -1152,9 +1152,11 @@ class Push:
         # Fetch likely group regressions for that push from treeherder + Taskcluster
         # We do not cache these results as we might want to analyze in-progress
         # pushes and keep updating these values
-        groups_regressions = self.get_likely_regressions("group", False)
+        likely_regressions = self.get_likely_regressions("group", False)
+        possible_regressions = self.get_possible_regressions("group", False)
+        groups_regressions = likely_regressions
         if use_possible_regressions:
-            groups_regressions |= self.get_possible_regressions("group", False)
+            groups_regressions |= possible_regressions
 
         # Get task groups with high and low confidence from bugbug scheduling
         groups_high = {
@@ -1284,13 +1286,10 @@ class Push:
             groups_relevant_failure
         )
         intermittent_failures_to_be_retriggered = (
-            push_groups & groups_low.union(groups_no_confidence)
+            set(g.name for g in push_groups) & groups_low.union(groups_no_confidence)
         ).difference(groups_non_relevant_failure)
         failures_to_be_backfilled = list(
-            self.get_possible_regressions("group", False).difference(
-                self.get_likely_regressions("group", False)
-            )
-            & groups_high
+            possible_regressions.difference(likely_regressions) & groups_high
         )
 
         # Sorting groups to be backfilled, first ones will be groups present in groups_relevant_failure with a high confidence

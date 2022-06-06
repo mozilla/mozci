@@ -14,7 +14,7 @@ from mozci.errors import (
     PushNotFound,
     SourcesNotFound,
 )
-from mozci.push import Push, PushStatus, Regressions, retrigger
+from mozci.push import Push, PushStatus, Regressions, ToRetriggerOrBackfill, retrigger
 from mozci.task import GroupResult, GroupSummary, Status, Task, TestTask
 from mozci.util.hgmo import HgRev
 from mozci.util.taskcluster import (
@@ -1066,7 +1066,11 @@ def test_classify(monkeypatch, classify_regressions_return_value, expected_resul
     push = Push(rev, branch)
 
     def mock_return(self, *args, **kwargs):
-        return classify_regressions_return_value
+        return classify_regressions_return_value, ToRetriggerOrBackfill(
+            real_retrigger={},
+            intermittent_retrigger={},
+            backfill={},
+        )
 
     monkeypatch.setattr(Push, "classify_regressions", mock_return)
     assert push.classify()[0] == expected_result
@@ -1077,6 +1081,7 @@ def generate_mocks(
     push,
     get_test_selection_data_value,
     get_likely_regressions_value,
+    get_possible_regressions_value,
     cross_config_values,
 ):
     monkeypatch.setattr(config.cache, "get", lambda x: None)
@@ -1094,6 +1099,13 @@ def generate_mocks(
 
     monkeypatch.setattr(
         Push, "get_likely_regressions", mock_return_get_likely_regressions
+    )
+
+    def mock_return_get_possible_regressions(*args, **kwargs):
+        return get_possible_regressions_value
+
+    monkeypatch.setattr(
+        Push, "get_possible_regressions", mock_return_get_possible_regressions
     )
 
     push.group_summaries = GROUP_SUMMARIES_DEFAULT
@@ -1152,6 +1164,7 @@ def test_classify_almost_good_push(monkeypatch, test_selection_data, are_cross_c
         push,
         test_selection_data,
         set(),
+        set(),
         are_cross_config,
     )
 
@@ -1172,6 +1185,11 @@ def test_classify_almost_good_push(monkeypatch, test_selection_data, are_cross_c
                 "group5": make_tasks("group5"),
             },
         ),
+        ToRetriggerOrBackfill(
+            real_retrigger={},
+            intermittent_retrigger={},
+            backfill={},
+        ),
     )
 
 
@@ -1188,6 +1206,7 @@ def test_classify_good_push_only_intermittent_failures(monkeypatch):
         push,
         test_selection_data,
         likely_regressions,
+        set(),
         are_cross_config,
     )
 
@@ -1205,6 +1224,11 @@ def test_classify_good_push_only_intermittent_failures(monkeypatch):
                 "group5": make_tasks("group5"),
             },
             unknown={},
+        ),
+        ToRetriggerOrBackfill(
+            real_retrigger={},
+            intermittent_retrigger={},
+            backfill={},
         ),
     )
 
@@ -1259,6 +1283,7 @@ def test_classify_almost_bad_push(
         push,
         test_selection_data,
         likely_regressions,
+        set(),
         are_cross_config,
     )
 
@@ -1278,6 +1303,11 @@ def test_classify_almost_bad_push(
                 "group4": make_tasks("group4"),
                 "group5": make_tasks("group5"),
             },
+        ),
+        ToRetriggerOrBackfill(
+            real_retrigger={},
+            intermittent_retrigger={},
+            backfill={},
         ),
     )
 
@@ -1356,7 +1386,11 @@ def test_classify_retrigger_unknown_tasks(
     push = Push(rev, branch)
 
     def mock_return(self, *args, **kwargs):
-        return classify_regressions_return_value
+        return classify_regressions_return_value, ToRetriggerOrBackfill(
+            real_retrigger={},
+            intermittent_retrigger={},
+            backfill={},
+        )
 
     monkeypatch.setattr(Push, "classify_regressions", mock_return)
     responses.add(
@@ -1390,7 +1424,7 @@ def test_classify_retrigger_unknown_tasks(
         status=200,
     )
 
-    _, regressions = push.classify()
+    _, regressions, _ = push.classify()
     for _, tasks in regressions.unknown.items():
         retrigger(tasks=tasks, repeat_retrigger=1)
 
@@ -1426,6 +1460,7 @@ def test_classify_bad_push_some_real_failures(monkeypatch):
         push,
         test_selection_data,
         likely_regressions,
+        set(),
         are_cross_config,
     )
 
@@ -1442,5 +1477,10 @@ def test_classify_bad_push_some_real_failures(monkeypatch):
             # group2 isn't a cross config failure but was selected with high confidence by bugbug
             # group5 is a cross config failure but was not selected by bugbug nor likely to regress
             unknown={"group2": make_tasks("group2"), "group5": make_tasks("group5")},
+        ),
+        ToRetriggerOrBackfill(
+            real_retrigger={},
+            intermittent_retrigger={},
+            backfill={},
         ),
     )

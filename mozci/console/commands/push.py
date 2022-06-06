@@ -244,24 +244,33 @@ class ClassifyCommand(Command):
                         retrigger(tasks=tasks, repeat_retrigger=1)
 
                 def retrigger_failures(groups, count):
-                    if not groups:
+                    groups_with_failures = {
+                        name: failing_tasks
+                        for name, failing_tasks in groups.items()
+                        if failing_tasks
+                    }
+                    if not groups_with_failures:
                         return
-                    # If there is more than one group failing, we should retrigger only one of them
-                    _, failing_tasks = next(iter(groups.items()))
+
+                    # If there is more than one group with failing tasks, we should retrigger only one of them
+                    _, failing_tasks = next(iter(groups_with_failures.items()))
                     retrigger(tasks=failing_tasks, repeat_retrigger=count)
 
                 retrigger_failures(
                     to_retrigger_or_backfill.real_retrigger,
-                    classify_parameters["consistent_failures_counts"][1],
+                    classify_parameters.get("consistent_failures_counts", (2, 3))[1],
                 )
                 retrigger_failures(
                     to_retrigger_or_backfill.intermittent_retrigger,
-                    classify_parameters["consistent_failures_counts"][0],
+                    classify_parameters.get("consistent_failures_counts", (2, 3))[0],
                 )
 
-                for index, (_, failing_tasks) in enumerate(
-                    to_retrigger_or_backfill.backfill.items()
-                ):
+                groups_to_backfill = {
+                    name: failing_tasks
+                    for name, failing_tasks in to_retrigger_or_backfill.backfill.items()
+                    if failing_tasks
+                }
+                for index, (_, failing_tasks) in enumerate(groups_to_backfill.items()):
                     # Only backfill X failing groups using --backfill-limit
                     if index == backfill_limit:
                         break

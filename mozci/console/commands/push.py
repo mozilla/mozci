@@ -207,6 +207,7 @@ class ClassifyCommand(Command):
         {--show-intermittents : If set, print tasks that should be marked as intermittent.}
         {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
         {--retrigger-unknown : If set, retrigger UNKNOWN regressions}
+        {--backfill-limit=3 : Number of failing groups (missing information) to be backfilled.}
     """
 
     def handle(self) -> None:
@@ -228,12 +229,45 @@ class ClassifyCommand(Command):
                 "<comment>Provided --output pointed to a inexistent directory that is now created.</comment>"
             )
 
+        try:
+            backfill_limit = int(self.option("backfill-limit"))
+        except ValueError:
+            raise Exception("Provided --backfill-limit should be an int.")
+
         for push in pushes:
             try:
-                classification, regressions = push.classify(**classify_parameters)
+                classification, regressions, to_retrigger_or_backfill = push.classify(
+                    **classify_parameters
+                )
                 if retrigger_unknown:
                     for _, tasks in regressions.unknown.items():
                         retrigger(tasks=tasks, repeat_retrigger=1)
+
+                def retrigger_failures(groups, count):
+                    if not groups:
+                        return
+                    # If there is more than one group failing, we should retrigger only one of them
+                    _, failing_tasks = next(iter(groups.items()))
+                    retrigger(tasks=failing_tasks, repeat_retrigger=count)
+
+                retrigger_failures(
+                    to_retrigger_or_backfill.real_retrigger,
+                    classify_parameters["consistent_failures_counts"][1],
+                )
+                retrigger_failures(
+                    to_retrigger_or_backfill.intermittent_retrigger,
+                    classify_parameters["consistent_failures_counts"][0],
+                )
+
+                for index, (_, failing_tasks) in enumerate(
+                    to_retrigger_or_backfill.backfill.items()
+                ):
+                    # Only backfill X failing groups using --backfill-limit
+                    if index == backfill_limit:
+                        break
+                    for t in failing_tasks:
+                        t.backfill(push)
+
                 self.line(
                     f"Push associated with the head revision {push.rev} on "
                     f"the branch {self.branch} is classified as {classification.name}"
@@ -635,7 +669,7 @@ class ClassifyEvalCommand(Command):
                 ) = prepare_for_analysis(push)
 
                 try:
-                    self.classifications[push], regressions = push.classify(
+                    self.classifications[push], regressions, _ = push.classify(
                         **classify_parameters
                     )
                     self.failures[push] = {

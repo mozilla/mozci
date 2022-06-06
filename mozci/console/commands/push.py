@@ -567,9 +567,9 @@ class ClassifyEvalCommand(Command):
                 if ever_classified_as_cause:
                     break
 
-            if push.backedout and ever_classified_as_cause:
+            if push.backedout and not ever_classified_as_cause:
                 self.line(
-                    f"<comment>Push {push.branch}/{push.rev} was backedout and all of its failures and the ones of its children were marked as intermittent</comment>"
+                    f"<comment>Push {push.branch}/{push.rev} was backedout and all of its failures and the ones of its children were marked as intermittent or marked as caused by another push</comment>"
                 )
                 # Build the graph, etc
 

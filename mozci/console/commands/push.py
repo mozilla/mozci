@@ -28,6 +28,7 @@ from mozci.push import (
     retrigger,
 )
 from mozci.task import Task, TestTask, is_autoclassifiable
+from mozci.util.defs import INTERMITTENT_CLASSES
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
     get_taskcluster_options,
@@ -637,7 +638,7 @@ class ClassifyEvalCommand(Command):
                     sheriff_intermittents = set()
                     for name, group in push.group_summaries.items():
                         classifications = set([c for c, _ in group.classifications])
-                        if classifications == {"intermittent"}:
+                        if classifications <= set(INTERMITTENT_CLASSES):
                             sheriff_intermittents.add(name)
                 except Exception:
                     self.line(
@@ -649,7 +650,7 @@ class ClassifyEvalCommand(Command):
                         push,
                         "intermittent",
                         sheriff_intermittents,
-                        {"intermittent"},
+                        set(INTERMITTENT_CLASSES),
                     )
                     intermittent_stats = {
                         key: value + push_intermittent_stats[key]
@@ -797,7 +798,7 @@ class ClassifyEvalCommand(Command):
                 pending.append(group)
             elif len(classifications_set) != 1:
                 conflicting.append(group)
-            elif classifications_set != expected:
+            elif classifications_set.isdisjoint(expected):
                 differing.append(group)
 
         for group in sheriff_groups:

@@ -28,6 +28,7 @@ from mozci.task import (
     TestTask,
     get_configuration_from_label,
 )
+from mozci.util.defs import FAILURE_CLASSES
 from mozci.util.hgmo import HgRev, parse_bugs
 from mozci.util.memoize import memoize, memoized_property
 
@@ -37,8 +38,6 @@ MAX_DEPTH = config.get("maxdepth", 20)
 """The maximum number of parents or children to look for previous/next task runs,
 when the task did not run on the currently considered push.
 """
-
-FAILURE_CLASSES = ("not classified", "fixed by commit")
 
 
 class PushStatus(Enum):

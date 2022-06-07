@@ -302,7 +302,9 @@ class Task:
                 "taskId": self.id,
                 "taskGroupId": decision_task.id,
                 "input": {
-                    "times": 5 if self.classification in INTERMITTENT_CLASSES else 1
+                    "times": 5
+                    if self.classification == "not classified" or self.classification in INTERMITTENT_CLASSES
+                    else 1
                 },
             },
         )

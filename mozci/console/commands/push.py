@@ -586,7 +586,6 @@ class ClassifyEvalCommand(Command):
                 self.line(
                     f"<comment>Push {push.branch}/{push.rev} was backedout and all of its failures and the ones of its children were marked as intermittent or marked as caused by another push</comment>"
                 )
-                # Build the graph, etc
 
             # Advance the overall progress bar
             progress.advance()

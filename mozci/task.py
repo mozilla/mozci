@@ -19,6 +19,7 @@ from loguru import logger
 
 from mozci import config, data
 from mozci.errors import ArtifactNotFound, TaskNotFound
+from mozci.util.defs import INTERMITTENT_CLASSES
 from mozci.util.memoize import memoized_property
 from mozci.util.taskcluster import (
     PRODUCTION_TASKCLUSTER_ROOT_URL,
@@ -300,7 +301,9 @@ class Task:
             context={
                 "taskId": self.id,
                 "taskGroupId": decision_task.id,
-                "input": {"times": 5 if self.classification == "intermittent" else 1},
+                "input": {
+                    "times": 5 if self.classification in INTERMITTENT_CLASSES else 1
+                },
             },
         )
 
@@ -457,7 +460,7 @@ class RunnableSummary(ABC):
     @property
     def is_intermittent(self):
         return self.status == Status.INTERMITTENT or any(
-            c == "intermittent" for c, n in self.classifications
+            c in INTERMITTENT_CLASSES for c, n in self.classifications
         )
 
     @property

@@ -119,5 +119,5 @@ venv.bak/
 .DS_Store
 *.DS_Store
 
-# classify_batch_execution script results
-mozci/util/classify_batch_results
+# batch-execution commands results
+mozci/console/commands/classify_batch_results

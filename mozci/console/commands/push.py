@@ -391,6 +391,174 @@ class ClassifyCommand(Command):
                 )
 
 
+def prepare_for_analysis(push):
+    removed_tasks: Dict[str, List[Task]] = {}
+    backedoutby: Dict[str, str] = {}
+    old_classifications: Dict[str, Dict[str, Dict[str, str]]] = {}
+
+    all_pushes = set(
+        [push]
+        + [parent for parent in push._iterate_parents(max_depth=MAX_DEPTH)]
+        + [child for child in push._iterate_children(max_depth=MAX_DEPTH)]
+    )
+    for p in all_pushes:
+        # Ignore retriggers and backfills on current push/its parents/its children.
+        removed_tasks[p.id] = [
+            task for task in p.tasks if task.is_backfill or task.is_retrigger
+        ]
+        p.tasks = [task for task in p.tasks if task not in removed_tasks[p.id]]
+
+        # Pretend push was not backed out.
+        backedoutby[p.id] = p.backedoutby
+        p.backedoutby = None
+
+        # Pretend push was not finalized yet.
+        p._date = datetime.datetime.now().timestamp()
+
+        # Pretend no tasks were classified to run the model without any outside help.
+        old_classifications[p.id] = {}
+        for task in p.tasks:
+            old_classifications[p.id][task.id] = {
+                "classification": task.classification,
+                "note": task.classification_note,
+            }
+            task.classification = "not classified"
+            task.classification_note = None
+
+    return all_pushes, removed_tasks, backedoutby, old_classifications
+
+
+def retrieve_sheriff_reals(pushes_group_summaries, push):
+    # Compare real failures that were predicted by mozci with the ones classified by Sheriffs
+    sheriff_reals = set()
+    # Get likely regressions of this push
+    likely_regressions = push.get_likely_regressions("group", True)
+    # Only consider groups that were classified as "fixed by commit" to exclude likely regressions mozci found via heuristics.
+    max_depth = None if push.backedout or push.bustage_fixed_by else MAX_DEPTH
+    for other in push._iterate_children(max_depth=max_depth):
+        if other.push_uuid not in pushes_group_summaries:
+            pushes_group_summaries[other.push_uuid] = other.group_summaries
+
+        for name, group in pushes_group_summaries[other.push_uuid].items():
+            classifications = set([c for c, _ in group.classifications])
+            if classifications == {"fixed by commit"} and name in likely_regressions:
+                sheriff_reals.add(name)
+
+    return pushes_group_summaries, sheriff_reals
+
+
+def retrieve_sheriff_intermittents(pushes_group_summaries, push):
+    if push.push_uuid not in pushes_group_summaries:
+        pushes_group_summaries[push.push_uuid] = push.group_summaries
+
+    # Compare intermittent failures that were predicted by mozci with the ones classified by Sheriffs
+    sheriff_intermittents = set()
+    for name, group in pushes_group_summaries[push.push_uuid].items():
+        classifications = set([c for c, _ in group.classifications])
+        if classifications <= set(INTERMITTENT_CLASSES):
+            sheriff_intermittents.add(name)
+
+    return pushes_group_summaries, sheriff_intermittents
+
+
+def parse_and_log_details(
+    group_summaries,
+    sheriff_groups,
+    expected,
+    push=None,
+    failures=None,
+    predicted_groups=None,
+    ignore_pending_conflicting=False,
+    state="",
+    suffix="",
+):
+    to_print = []
+
+    if failures and not predicted_groups:
+        predicted_groups = failures[push][state].keys() if failures.get(push) else []
+
+    total = len(predicted_groups)
+    if not total:
+        if sheriff_groups:
+            to_print.append(
+                f"{len(sheriff_groups)} groups were classified as {state} by Sheriffs and missed by Mozci, missed groups:"
+            )
+            to_print.append("  - " + "\n  - ".join(sheriff_groups))
+
+        output = {
+            f"total{suffix}": 0,
+            f"correct{suffix}": 0,
+            f"wrong{suffix}": 0,
+            f"missed{suffix}": len(sheriff_groups),
+        }
+        if not ignore_pending_conflicting:
+            output[f"pending{suffix}"] = 0
+            output[f"conflicting{suffix}"] = 0
+
+        return output, to_print
+
+    conflicting = []
+    differing = []
+    pending = []
+    for group in predicted_groups:
+        classifications_set = set(
+            task.classification for task in group_summaries[group].tasks if task.failed
+        )
+        if len(classifications_set) == 0:
+            continue
+        if classifications_set == {"not classified"}:
+            pending.append(group)
+        elif len(classifications_set) != 1:
+            conflicting.append(group)
+        elif classifications_set.isdisjoint(expected):
+            differing.append(group)
+
+    missed = []
+    for group in sheriff_groups:
+        if group not in predicted_groups:
+            missed.append(group)
+
+    correct = total - len(differing)
+    if not ignore_pending_conflicting:
+        correct -= len(pending) + len(conflicting)
+
+    to_print.append(
+        f"{correct} out of {total} {state} groups were also classified as {state} by Sheriffs."
+    )
+    if differing:
+        to_print.append(
+            f"{len(differing)} out of {total} {state} groups weren't classified as {state} by Sheriffs, differing groups:"
+        )
+        to_print.append("  - " + "\n  - ".join(differing))
+    if not ignore_pending_conflicting:
+        if pending:
+            to_print.append(
+                f"{len(pending)} out of {total} {state} groups are waiting to be classified by Sheriffs."
+            )
+        if conflicting:
+            to_print.append(
+                f"{len(conflicting)} out of {total} {state} groups have conflicting classifications applied by Sheriffs, inconsistent groups:"
+            )
+            to_print.append("  - " + "\n  - ".join(conflicting))
+    if missed:
+        to_print.append(
+            f"{len(missed)} groups were classified as {state} by Sheriffs and missed (or classified as unknown) by Mozci, missed groups:"
+        )
+        to_print.append("  - " + "\n  - ".join(missed))
+
+    output = {
+        f"total{suffix}": total,
+        f"correct{suffix}": correct,
+        f"wrong{suffix}": len(differing),
+        f"missed{suffix}": len(missed),
+    }
+    if not ignore_pending_conflicting:
+        output[f"pending{suffix}"] = len(pending)
+        output[f"conflicting{suffix}"] = len(conflicting)
+
+    return output, to_print
+
+
 class ClassifyEvalCommand(Command):
     """
     Evaluate the classification results for a given push (or a range of pushes) by comparing them with reality.
@@ -459,42 +627,12 @@ class ClassifyEvalCommand(Command):
             if self.option("recalculate"):
                 progress.set_message(f"Calc. {branch} {push.id}")
 
-                all_pushes = set(
-                    [push]
-                    + [parent for parent in push._iterate_parents(max_depth=MAX_DEPTH)]
-                    + [child for child in push._iterate_children(max_depth=MAX_DEPTH)]
-                )
-
-                removed_tasks: Dict[str, List[Task]] = {}
-                backedoutby: Dict[str, str] = {}
-                old_classifications: Dict[str, Dict[str, Dict[str, str]]] = {}
-                for p in all_pushes:
-                    # Ignore retriggers and backfills on current push/its parents/its children.
-                    removed_tasks[p.id] = [
-                        task
-                        for task in p.tasks
-                        if task.is_backfill or task.is_retrigger
-                    ]
-                    p.tasks = [
-                        task for task in p.tasks if task not in removed_tasks[p.id]
-                    ]
-
-                    # Pretend push was not backed out.
-                    backedoutby[p.id] = p.backedoutby
-                    p.backedoutby = None
-
-                    # Pretend push was not finalized yet.
-                    p._date = datetime.datetime.now().timestamp()
-
-                    # Pretend no tasks were classified to run the model without any outside help.
-                    old_classifications[p.id] = {}
-                    for task in p.tasks:
-                        old_classifications[p.id][task.id] = {
-                            "classification": task.classification,
-                            "note": task.classification_note,
-                        }
-                        task.classification = "not classified"
-                        task.classification_note = None
+                (
+                    all_pushes,
+                    removed_tasks,
+                    backedoutby,
+                    old_classifications,
+                ) = prepare_for_analysis(push)
 
                 try:
                     self.classifications[push], regressions = push.classify(
@@ -708,6 +846,7 @@ class ClassifyEvalCommand(Command):
         if self.option("detailed-classifications"):
             self.line("\n")
 
+            pushes_group_summaries = {}
             real_stats = intermittent_stats = {
                 "total": 0,
                 "correct": 0,
@@ -721,32 +860,32 @@ class ClassifyEvalCommand(Command):
                     f"<comment>Printing detailed classifications comparison for push {push.branch}/{push.rev}</comment>"
                 )
 
+                if push.push_uuid not in pushes_group_summaries:
+                    pushes_group_summaries[push.push_uuid] = push.group_summaries
+
                 # Compare real failures that were predicted by mozci with the ones classified by Sheriffs
                 try:
-                    sheriff_reals = set()
-                    # Get likely regressions of this push
-                    likely_regressions = push.get_likely_regressions("group", True)
-                    # Only consider groups that were classified as "fixed by commit" to exclude likely regressions mozci found via heuristics.
-                    for other in push._iterate_children():
-                        for name, group in other.group_summaries.items():
-                            classifications = set([c for c, _ in group.classifications])
-                            if (
-                                classifications == {"fixed by commit"}
-                                and name in likely_regressions
-                            ):
-                                sheriff_reals.add(name)
+                    pushes_group_summaries, sheriff_reals = retrieve_sheriff_reals(
+                        pushes_group_summaries, push
+                    )
                 except Exception:
                     self.line(
                         "<error>Failed to retrieve Sheriff classifications for the real failures of this push.</error>"
                     )
 
                 try:
-                    push_real_stats = self.log_details(
-                        push,
-                        "real",
+                    push_real_stats, to_print = parse_and_log_details(
+                        pushes_group_summaries[push.push_uuid],
                         sheriff_reals,
                         {"fixed by commit"},
+                        push=push,
+                        failures=self.failures,
+                        state="real",
                     )
+
+                    for line in to_print:
+                        self.line(line)
+
                     real_stats = {
                         key: value + push_real_stats[key]
                         for key, value in real_stats.items()
@@ -758,23 +897,28 @@ class ClassifyEvalCommand(Command):
 
                 # Compare intermittent failures that were predicted by mozci with the ones classified by Sheriffs
                 try:
-                    sheriff_intermittents = set()
-                    for name, group in push.group_summaries.items():
-                        classifications = set([c for c, _ in group.classifications])
-                        if classifications <= set(INTERMITTENT_CLASSES):
-                            sheriff_intermittents.add(name)
+                    (
+                        pushes_group_summaries,
+                        sheriff_intermittents,
+                    ) = retrieve_sheriff_intermittents(pushes_group_summaries, push)
                 except Exception:
                     self.line(
                         "<error>Failed to retrieve Sheriff classifications for the intermittent failures of this push.</error>"
                     )
 
                 try:
-                    push_intermittent_stats = self.log_details(
-                        push,
-                        "intermittent",
+                    push_intermittent_stats, to_print = parse_and_log_details(
+                        pushes_group_summaries[push.push_uuid],
                         sheriff_intermittents,
                         set(INTERMITTENT_CLASSES),
+                        push=push,
+                        failures=self.failures,
+                        state="intermittent",
                     )
+
+                    for line in to_print:
+                        self.line(line)
+
                     intermittent_stats = {
                         key: value + push_intermittent_stats[key]
                         for key, value in intermittent_stats.items()
@@ -882,84 +1026,6 @@ class ClassifyEvalCommand(Command):
                 stats=stats,
             ),
         )
-
-    def log_details(self, push, state, sheriff_groups, expected):
-        predicted_groups = (
-            self.failures[push][state].keys() if self.failures.get(push) else []
-        )
-        total = len(predicted_groups)
-
-        if not total:
-            if sheriff_groups:
-                self.line(
-                    f"{len(sheriff_groups)} groups were classified as {state} by Sheriffs and missed by Mozci, missed groups:"
-                )
-                self.line("  - " + "\n  - ".join(sheriff_groups))
-
-            return {
-                "total": 0,
-                "correct": 0,
-                "wrong": 0,
-                "pending": 0,
-                "conflicting": 0,
-                "missed": len(sheriff_groups),
-            }
-
-        conflicting = []
-        differing = []
-        pending = []
-        missed = []
-        for group in predicted_groups:
-            classifications_set = set(
-                task.classification
-                for task in push.group_summaries[group].tasks
-                if task.failed
-            )
-            if len(classifications_set) == 0:
-                continue
-            if classifications_set == {"not classified"}:
-                pending.append(group)
-            elif len(classifications_set) != 1:
-                conflicting.append(group)
-            elif classifications_set.isdisjoint(expected):
-                differing.append(group)
-
-        for group in sheriff_groups:
-            if group not in predicted_groups:
-                missed.append(group)
-
-        correct = total - len(conflicting) - len(differing) - len(pending)
-        self.line(
-            f"{correct} out of {total} {state} groups were also classified as {state} by Sheriffs."
-        )
-        if differing:
-            self.line(
-                f"{len(differing)} out of {total} {state} groups weren't classified as {state} by Sheriffs, differing groups:"
-            )
-            self.line("  - " + "\n  - ".join(differing))
-        if pending:
-            self.line(
-                f"{len(pending)} out of {total} {state} groups are waiting to be classified by Sheriffs."
-            )
-        if conflicting:
-            self.line(
-                f"{len(conflicting)} out of {total} {state} groups have conflicting classifications applied by Sheriffs, inconsistent groups:"
-            )
-            self.line("  - " + "\n  - ".join(conflicting))
-        if missed:
-            self.line(
-                f"{len(missed)} groups were classified as {state} by Sheriffs and missed (or classified as unknown) by Mozci, missed groups:"
-            )
-            self.line("  - " + "\n  - ".join(missed))
-
-        return {
-            "total": total,
-            "correct": correct,
-            "wrong": len(differing),
-            "pending": len(pending),
-            "conflicting": len(conflicting),
-            "missed": len(missed),
-        }
 
 
 class ClassifyPerfCommand(Command):

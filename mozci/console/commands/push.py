@@ -588,7 +588,7 @@ class ClassifyEvalCommand(Command):
                     f"<comment>Push {push.branch}/{push.rev} was backedout and all of its failures and the ones of its children were marked as intermittent or marked as caused by another push</comment>"
                 )
 
-            for task in p.tasks:
+            for task in push.tasks:
                 for classification, note in task.classifications:
                     if classification != "fixed by commit":
                         continue

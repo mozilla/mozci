@@ -147,10 +147,9 @@ class HgRev:
         except requests.exceptions.RetryError as e:
             raise PushNotFound(f"{e} error when getting {url}", **context)
 
-        if r.status_code == 404:
+        if not r.ok:
             raise PushNotFound(f"{r.status_code} response from {url}", **context)
 
-        r.raise_for_status()
         return r.json()
 
     @memoized_property

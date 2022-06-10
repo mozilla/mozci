@@ -589,18 +589,19 @@ class ClassifyEvalCommand(Command):
                 )
 
             for task in push.tasks:
-                for classification, note in task.classifications:
-                    if classification != "fixed by commit":
-                        continue
+                if task.classification != "fixed by commit":
+                    continue
 
-                    try:
-                        fix_hgmo = HgRev.create(note[:12], branch=self.branch)
-                        if len(fix_hgmo.backouts) == 0:
-                            continue
-                    except PushNotFound:
-                        self.line(
-                            f"<comment>Task {task.id} on push {push.branch}/{push.rev} contains a classification that references a non-existent revision: {note}</comment>"
-                        )
+                try:
+                    fix_hgmo = HgRev.create(
+                        task.classification_note[:12], branch=self.branch
+                    )
+                    if len(fix_hgmo.backouts) == 0:
+                        continue
+                except PushNotFound:
+                    self.line(
+                        f"<comment>Task {task.id} on push {push.branch}/{push.rev} contains a classification that references a non-existent revision: {task.classification_note}</comment>"
+                    )
 
             # Advance the overall progress bar
             progress.advance()

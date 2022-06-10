@@ -593,7 +593,9 @@ class ClassifyEvalCommand(Command):
                     continue
 
                 try:
-                    HgRev.create(task.classification_note[:12], branch=push.branch)
+                    HgRev.create(
+                        task.classification_note[:12], branch=push.branch
+                    ).changesets
                 except PushNotFound:
                     self.line(
                         f"<comment>Task {task.id} on push {push.branch}/{push.rev} contains a classification that references a non-existent revision: {task.classification_note}</comment>"

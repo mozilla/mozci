@@ -281,8 +281,11 @@ def test_backfill_trigger_hook_error(responses, create_task):
         task.backfill(push)
 
 
-@pytest.mark.parametrize("intermittent, times", [(True, 5), (False, 1)])
-def test_backfill(responses, intermittent, times, create_task):
+@pytest.mark.parametrize(
+    "classification, times",
+    [("not classified", 5), ("intermittent", 5), ("fixed by commit", 1)],
+)
+def test_backfill(responses, classification, times, create_task):
     rev = "a" * 40
     branch = "autoland"
     push = Push(rev, branch)
@@ -305,8 +308,7 @@ def test_backfill(responses, intermittent, times, create_task):
 
     task = create_task(label="foobar")
 
-    if intermittent:
-        task.classification = "intermittent"
+    task.classification = classification
 
     hookGroupId = ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookGroupId"]
     hookId = ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookId"].replace("/", "%2F")

@@ -564,10 +564,9 @@ class Push:
         #   is landed after the push where the failure occurs (so, it can't have caused it);
         # - the backout push also contains a commit backing out one of the commits of this push.
         for classification_note in fixed_by_commit_classification_notes:
+            fix_hgmo = HgRev.create(classification_note, branch=self.branch)
             try:
-                fix_hgmo = HgRev.create(classification_note, branch=self.branch)
-                if len(fix_hgmo.backouts) == 0:
-                    continue
+                fix_hgmo.backouts
             except PushNotFound:
                 logger.warning(
                     f"Classification note ({classification_note}) references a revision which does not exist on push {first_appearance_push.rev}"

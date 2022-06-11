@@ -643,6 +643,50 @@ def test_failed_and_bustage_fixed(create_pushes):
     assert p[i].get_regressions("label") == {"test-prova1": 0}
 
 
+def test_failed_and_bustage_fixed_with_fixed_by_commit(create_pushes):
+    """
+    Tests the scenario where a task failed in a push which was linked to the same bug
+    as a child push where the failure was not happening anymore.
+    """
+    p = create_pushes(5)
+    i = 1  # the index of the push we are mainly interested in
+
+    p[i - 1].tasks = [create_task(id=fake_id(1), label="test-prova1", result="passed")]
+    p[i].tasks = []
+    p[i]._bugs = {123}
+    p[i + 1].tasks = [
+        create_task(
+            id=fake_id(1),
+            label="test-prova1",
+            result="failed",
+            classification="not classified",
+        ),
+    ]
+    p[i + 2].tasks = [create_task(id=fake_id(1), label="test-prova1", result="passed")]
+    p[i + 2]._bugs = {123}
+
+    assert p[i].get_regressions("label") == {"test-prova1": 2}
+
+    p = create_pushes(5)
+
+    p[i - 1].tasks = [create_task(id=fake_id(1), label="test-prova1", result="passed")]
+    p[i].tasks = []
+    p[i]._bugs = {123}
+    p[i + 1].tasks = [
+        create_task(
+            id=fake_id(1),
+            label="test-prova1",
+            result="failed",
+            classification="fixed by commit",
+            classification_note=p[i + 2].rev,
+        ),
+    ]
+    p[i + 2].tasks = [create_task(id=fake_id(1), label="test-prova1", result="passed")]
+    p[i + 2]._bugs = {123}
+
+    assert p[i].get_regressions("label") == {"test-prova1": 0}
+
+
 def test_failed_and_bustage_fixed_intermittently(create_pushes):
     """
     Tests the scenario where a task failed intermittently in a push which was linked
@@ -1031,6 +1075,13 @@ def test_fixed_by_commit_another_push_possible_classification2(
         return {}
 
     monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
+
+    def mock_bugs_without_backouts(cls):
+        return {}
+
+    monkeypatch.setattr(
+        HgRev, "bugs_without_backouts", property(mock_bugs_without_backouts)
+    )
 
     p[i - 1].tasks = [create_task(id=fake_id(1), label="test-failure", result="passed")]
     p[i].backedoutby = p[i + 4].rev
@@ -1960,6 +2011,13 @@ def test_fixed_by_commit_no_backout(monkeypatch, create_pushes):
         return {}
 
     monkeypatch.setattr(HgRev, "backouts", property(mock_backouts))
+
+    def mock_bugs_without_backouts(cls):
+        return {}
+
+    monkeypatch.setattr(
+        HgRev, "bugs_without_backouts", property(mock_bugs_without_backouts)
+    )
 
     monkeypatch.setattr(HgRev, "pushid", property(lambda cls: 1))
 

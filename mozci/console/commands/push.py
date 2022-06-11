@@ -555,11 +555,17 @@ class ClassifyEvalCommand(Command):
             if push.backedout or push.bustage_fixed_by:
                 ever_classified_as_cause = False
                 for (
-                    _,
+                    other,
                     _,
                     candidate_regressions,
                     classified_as_cause,
-                ) in push._iterate_failures("label", 50):
+                ) in push._iterate_failures("label"):
+                    if (
+                        push.backedoutby in other.revs
+                        or push.bustage_fixed_by in other.revs
+                    ):
+                        break
+
                     ever_classified_as_cause = any(
                         result is True
                         for name in candidate_regressions.keys()
@@ -570,11 +576,17 @@ class ClassifyEvalCommand(Command):
 
                 if not ever_classified_as_cause:
                     for (
-                        _,
+                        other,
                         _,
                         candidate_regressions,
                         classified_as_cause,
-                    ) in push._iterate_failures("group", 50):
+                    ) in push._iterate_failures("group"):
+                        if (
+                            push.backedoutby in other.revs
+                            or push.bustage_fixed_by in other.revs
+                        ):
+                            break
+
                         ever_classified_as_cause = any(
                             result is True
                             for name in candidate_regressions.keys()

@@ -81,7 +81,10 @@ tasks:
           - Dockerfile
         artifacts:
           public/mozci.tar.zst:
-            expires: { $fromNow: "1 month" }
+            expires:
+              $if: 'head_branch == "production"'
+              then: { $fromNow: "1 year" }
+              else: { $fromNow: "1 month" }
             path: /mozci.tar.zst
             type: file
       routes:

@@ -18,7 +18,7 @@ from tabulate import tabulate
 from taskcluster.exceptions import TaskclusterRestFailure
 
 from mozci import config
-from mozci.errors import SourcesNotFound, TaskNotFound
+from mozci.errors import PushNotFound, SourcesNotFound, TaskNotFound
 from mozci.push import (
     MAX_DEPTH,
     Push,
@@ -29,6 +29,7 @@ from mozci.push import (
 )
 from mozci.task import Task, TestTask, is_autoclassifiable
 from mozci.util.defs import INTERMITTENT_CLASSES
+from mozci.util.hgmo import HgRev
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
     get_taskcluster_options,
@@ -586,6 +587,19 @@ class ClassifyEvalCommand(Command):
                 self.line(
                     f"<comment>Push {push.branch}/{push.rev} was backedout and all of its failures and the ones of its children were marked as intermittent or marked as caused by another push</comment>"
                 )
+
+            for task in push.tasks:
+                if task.classification != "fixed by commit":
+                    continue
+
+                try:
+                    HgRev.create(
+                        task.classification_note[:12], branch=push.branch
+                    ).changesets
+                except PushNotFound:
+                    self.line(
+                        f"<comment>Task {task.id} on push {push.branch}/{push.rev} contains a classification that references a non-existent revision: {task.classification_note}</comment>"
+                    )
 
             # Advance the overall progress bar
             progress.advance()

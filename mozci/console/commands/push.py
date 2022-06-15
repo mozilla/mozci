@@ -592,13 +592,46 @@ class ClassifyEvalCommand(Command):
                 if task.classification != "fixed by commit":
                     continue
 
+                fix_hgmo = HgRev.create(
+                    task.classification_note[:12], branch=push.branch
+                )
                 try:
-                    HgRev.create(
-                        task.classification_note[:12], branch=push.branch
-                    ).changesets
+                    fix_hgmo.changesets
                 except PushNotFound:
                     self.line(
                         f"<comment>Task {task.id} on push {push.branch}/{push.rev} contains a classification that references a non-existent revision: {task.classification_note}</comment>"
+                    )
+                    continue
+
+                if fix_hgmo.pushid <= push.id:
+                    self.line(
+                        f"<error>Task {task.label} on push {push.branch}/{push.rev} is classified as fixed by {task.classification_note}, which is older than the push itself</error>"
+                    )
+                    continue
+
+                all_backedouts = set(
+                    backedout
+                    for backedouts in fix_hgmo.backouts.values()
+                    for backedout in backedouts
+                )
+
+                all_bustagefixed = set()
+                for child in push._iterate_children():
+                    if child.rev == fix_hgmo.node:
+                        break
+
+                    for bug in child.bugs:
+                        if bug in fix_hgmo.bugs_without_backouts:
+                            all_bustagefixed.add(child.rev)
+
+                all_fixed = all_backedouts | all_bustagefixed
+
+                if len(all_fixed) > 0 and all(
+                    HgRev.create(backedout, branch=push.branch).pushid > push.id
+                    for backedout in all_fixed
+                ):
+                    self.line(
+                        f"<error>Task {task.label} on push {push.branch}/{push.rev} is classified as fixed by a backout/bustage fix ({fix_hgmo.node}) of pushes ({all_fixed}) that come after the failure itself.</error>"
                     )
 
             # Advance the overall progress bar

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import collections
 import csv
 import datetime
 import json
@@ -646,6 +647,33 @@ class ClassifyEvalCommand(Command):
                     self.line(
                         f"<error>Task {task.label} on push {push.branch}/{push.rev} is classified as fixed by a backout/bustage fix ({fix_hgmo.node}) of pushes ({all_fixed}) that come after the failure itself.</error>"
                     )
+
+            if push.backedout or push.bustage_fixed_by:
+                group_classifications: dict[
+                    str, dict[tuple[str, str], set[str]]
+                ] = collections.defaultdict(lambda: collections.defaultdict(set))
+                for other in push._iterate_children():
+                    if (
+                        push.backedoutby in other.revs
+                        or push.bustage_fixed_by in other.revs
+                    ):
+                        break
+
+                    for name, summary in other.group_summaries.items():
+                        for classification in summary.classifications:
+                            group_classifications[name][classification].add(other.rev)
+
+                for name, classification_to_revs in group_classifications.items():
+                    if len(classification_to_revs) > 1:
+                        self.line(
+                            f"<comment>Group {name} has inconsistent classifications:</comment>"
+                        )
+                        for classification, revs in classification_to_revs.items():
+                            self.line(
+                                "<comment>{} in pushes {}".format(
+                                    classification, ",".join(revs)
+                                )
+                            )
 
             # Advance the overall progress bar
             progress.advance()

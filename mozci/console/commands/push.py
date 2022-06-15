@@ -553,28 +553,20 @@ class ClassifyEvalCommand(Command):
                     )
                     self.errors[push] = e
 
-            ever_classified_as_cause = False
-            for (
-                _,
-                _,
-                candidate_regressions,
-                classified_as_cause,
-            ) in push._iterate_failures("label", 50):
-                ever_classified_as_cause = any(
-                    result is True
-                    for name in candidate_regressions.keys()
-                    for result in classified_as_cause[name]
-                )
-                if ever_classified_as_cause:
-                    break
-
-            if not ever_classified_as_cause:
+            if push.backedout or push.bustage_fixed_by:
+                ever_classified_as_cause = False
                 for (
-                    _,
+                    other,
                     _,
                     candidate_regressions,
                     classified_as_cause,
-                ) in push._iterate_failures("group", 50):
+                ) in push._iterate_failures("label"):
+                    if (
+                        push.backedoutby in other.revs
+                        or push.bustage_fixed_by in other.revs
+                    ):
+                        break
+
                     ever_classified_as_cause = any(
                         result is True
                         for name in candidate_regressions.keys()
@@ -583,10 +575,31 @@ class ClassifyEvalCommand(Command):
                     if ever_classified_as_cause:
                         break
 
-            if push.backedout and not ever_classified_as_cause:
-                self.line(
-                    f"<comment>Push {push.branch}/{push.rev} was backedout and all of its failures and the ones of its children were marked as intermittent or marked as caused by another push</comment>"
-                )
+                if not ever_classified_as_cause:
+                    for (
+                        other,
+                        _,
+                        candidate_regressions,
+                        classified_as_cause,
+                    ) in push._iterate_failures("group"):
+                        if (
+                            push.backedoutby in other.revs
+                            or push.bustage_fixed_by in other.revs
+                        ):
+                            break
+
+                        ever_classified_as_cause = any(
+                            result is True
+                            for name in candidate_regressions.keys()
+                            for result in classified_as_cause[name]
+                        )
+                        if ever_classified_as_cause:
+                            break
+
+                if not ever_classified_as_cause:
+                    self.line(
+                        f"<comment>Push {push.branch}/{push.rev} was backedout and all of its failures and the ones of its children were marked as intermittent or marked as caused by another push</comment>"
+                    )
 
             for task in push.tasks:
                 if task.classification != "fixed by commit":

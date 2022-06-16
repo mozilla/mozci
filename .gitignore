@@ -118,3 +118,6 @@ venv.bak/
 # Mac stuff
 .DS_Store
 *.DS_Store
+
+# batch-execution commands results
+mozci/console/commands/classify_batch_results

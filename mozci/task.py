@@ -6,7 +6,6 @@ import fnmatch
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
 from inspect import signature
 from statistics import median
@@ -23,10 +22,8 @@ from mozci.util.defs import INTERMITTENT_CLASSES
 from mozci.util.memoize import memoized_property
 from mozci.util.taskcluster import (
     PRODUCTION_TASKCLUSTER_ROOT_URL,
-    create_task,
     find_task_id,
     get_artifact,
-    get_task,
     list_artifacts,
 )
 
@@ -277,51 +274,15 @@ class Task:
         sig = signature(self.__init__)
         return {k: v for k, v in self.__dict__.items() if k in sig.parameters}
 
-    def retrigger(self):
-        """This function implements ability to perform retriggers on tasks"""
-        new_task_id = taskcluster.slugId()
-        task = get_task(self.id)
-        task["payload"]["id"] = new_task_id
-        task["created"] = taskcluster.stringDate(datetime.utcnow())
-        task["deadline"] = taskcluster.stringDate(taskcluster.fromNow("90 minutes"))
-
-        if self._should_retrigger(task) == "false":
-            logger.info(
-                "Not retriggering task '{}', task should not be retriggered "
-                "and force not specified.".format(task["tags"]["label"])
-            )
-            return
-        logger.info("Retriggering task '{}'".format(task["tags"]["label"]))
-        create_task(new_task_id, task)
-
-    def _should_retrigger(self, task):
-        """Return whether a given task in tasks should be retriggered."""
-
-        return task["tags"].get("retrigger", "false")
-
-    def backfill(self, push):
-        """This function implements ability to perform backfills on tasks"""
-        decision_task = push.decision_task
+    def _get_action(self, decision_task, action_name):
         actions = decision_task.get_artifact("public/actions.json")
-        backfill_action = next(
-            action for action in actions["actions"] if action["name"] == "backfill"
+        action = next(
+            action for action in actions["actions"] if action["name"] == action_name
         )
-        assert backfill_action["kind"] == "hook"
+        assert action["kind"] == "hook"
+        return action
 
-        hook_payload = jsone.render(
-            backfill_action["hookPayload"],
-            context={
-                "taskId": self.id,
-                "taskGroupId": decision_task.id,
-                "input": {
-                    "times": 5
-                    if self.classification == "not classified"
-                    or self.classification in INTERMITTENT_CLASSES
-                    else 1
-                },
-            },
-        )
-
+    def _trigger_action(self, action, payload):
         tc_firefox_ci_credentials = config.get("taskcluster_firefox_ci", {})
         client_id = tc_firefox_ci_credentials.get("client_id")
         access_token = tc_firefox_ci_credentials.get("access_token")
@@ -337,11 +298,59 @@ class Task:
         }
         hooks = taskcluster.Hooks(options)
 
-        logger.info("Backfilling task '{}'".format(self.tags.get("label", "")))
-        result = hooks.triggerHook(
-            backfill_action["hookGroupId"], backfill_action["hookId"], hook_payload
-        )
+        result = hooks.triggerHook(action["hookGroupId"], action["hookId"], payload)
         return result["status"]["taskId"]
+
+    def retrigger(self, push, times=3):
+        """This function implements ability to perform retriggers on tasks"""
+        if self._should_retrigger() == "false":
+            logger.info(
+                "Not retriggering task '{}', task should not be retriggered".format(
+                    self.tags.get("label")
+                )
+            )
+            return None
+
+        decision_task = push.decision_task
+        retrigger_action = self._get_action(decision_task, "retrigger")
+
+        hook_payload = jsone.render(
+            retrigger_action["hookPayload"],
+            context={
+                "taskId": self.id,
+                "taskGroupId": decision_task.id,
+                "input": {"times": times},
+            },
+        )
+
+        logger.info("Retriggering task '{}'".format(self.tags.get("label", "")))
+        return self._trigger_action(retrigger_action, hook_payload)
+
+    def _should_retrigger(self):
+        """Return whether this task should be retriggered."""
+        return self.tags.get("retrigger", "false")
+
+    def backfill(self, push):
+        """This function implements ability to perform backfills on tasks"""
+        decision_task = push.decision_task
+        backfill_action = self._get_action(decision_task, "backfill")
+
+        hook_payload = jsone.render(
+            backfill_action["hookPayload"],
+            context={
+                "taskId": self.id,
+                "taskGroupId": decision_task.id,
+                "input": {
+                    "times": 5
+                    if self.classification == "not classified"
+                    or self.classification in INTERMITTENT_CLASSES
+                    else 1
+                },
+            },
+        )
+
+        logger.info("Backfilling task '{}'".format(self.tags.get("label", "")))
+        return self._trigger_action(backfill_action, hook_payload)
 
 
 @dataclass

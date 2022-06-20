@@ -339,7 +339,9 @@ class ClassifyCommand(Command):
                     emails, matrix_room, push, previous, classification, regressions
                 )
 
-    def retrigger_failures(self, groups, count, allowed_patterns, retrigger_limit):
+    def retrigger_failures(
+        self, push, groups, count, allowed_patterns, retrigger_limit
+    ):
         groups_with_failures = {}
         for name, failing_tasks in groups.items():
             filtered_failing_tasks = [
@@ -366,8 +368,7 @@ class ClassifyCommand(Command):
             groups_with_failures.values(), 0, retrigger_limit
         ):
             # If there is more than one task failing in this group, we should retrigger only one of them
-            for _ in range(0, count):
-                failing_tasks[0].retrigger()
+            failing_tasks[0].retrigger(push, count)
 
     def backfill_and_retrigger_failures(
         self,
@@ -379,7 +380,10 @@ class ClassifyCommand(Command):
         to_retrigger_or_backfill: ToRetriggerOrBackfill,
     ) -> None:
         # Retrigger real failures
+        # TODO: Potential real failures might be coming from children pushes too, but we should instead
+        # only retrigger tasks on the push where they were defined (https://github.com/mozilla/mozci/issues/796).
         self.retrigger_failures(
+            push,
             to_retrigger_or_backfill.real_retrigger,
             classify_parameters.get("consistent_failures_counts", (2, 3))[1],
             allowed_patterns,
@@ -388,6 +392,7 @@ class ClassifyCommand(Command):
 
         # Retrigger intermittent failures
         self.retrigger_failures(
+            push,
             to_retrigger_or_backfill.intermittent_retrigger,
             classify_parameters.get("consistent_failures_counts", (2, 3))[0],
             allowed_patterns,

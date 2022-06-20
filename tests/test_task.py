@@ -2,7 +2,6 @@
 
 import copy
 import json
-import re
 
 import pytest
 from responses import matchers
@@ -70,6 +69,48 @@ ACTIONS_ARTIFACT_EXTRACT = {
     ]
 }
 
+RETRIGGER_ACTIONS_ARTIFACT_EXTRACT = {
+    "actions": [
+        {
+            "context": [{}],
+            "description": "Create a clone of the task (retriggering decision, action, and cron tasks requires\nspecial scopes).",
+            "extra": {"actionPerm": "generic"},
+            "hookGroupId": "project-gecko",
+            "hookId": "in-tree-action-3-generic/9ffde487f6",
+            "hookPayload": {
+                "decision": {
+                    "action": {
+                        "cb_name": "retrigger-decision",
+                        "description": "Create a clone of the task (retriggering decision, action, and cron tasks requires\nspecial scopes).",
+                        "name": "retrigger",
+                        "symbol": "rt",
+                        "taskGroupId": "cIysKHAiSBOhhHrvgKMo1w",
+                        "title": "Retrigger",
+                    },
+                    "push": {
+                        "owner": "mozilla-taskcluster-maintenance@mozilla.com",
+                        "pushlog_id": "163357",
+                        "revision": "5f90901a36bb9735cef6dc7d746d06880a61226d",
+                    },
+                    "repository": {
+                        "level": "3",
+                        "project": "autoland",
+                        "url": "https://hg.mozilla.org/integration/autoland",
+                    },
+                },
+                "user": {
+                    "input": {"$eval": "input"},
+                    "taskGroupId": {"$eval": "taskGroupId"},
+                    "taskId": {"$eval": "taskId"},
+                },
+            },
+            "kind": "hook",
+            "name": "retrigger",
+            "title": "Retrigger",
+        },
+    ]
+}
+
 
 class FakePush:
     def __init__(self, branch, rev):
@@ -131,45 +172,59 @@ def test_create(responses):
 
 
 def test_retrigger_should_retrigger(responses, create_task):
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
+
+    decision_task_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision"
+    responses.add(
+        responses.GET, decision_task_url, status=200, json={"taskId": "a" * 10}
+    )
 
     responses.add(
         responses.GET,
-        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/0",
-        json={"payload": {}, "tags": {"retrigger": "true", "label": "test_retrigger"}},
+        get_artifact_url(push.decision_task.id, "public/actions.json"),
         status=200,
+        json=RETRIGGER_ACTIONS_ARTIFACT_EXTRACT,
     )
 
-    create_new_task_url_matcher = re.compile(
-        r"https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/*"
+    config._config["taskcluster_firefox_ci"] = {
+        "client_id": "a client id",
+        "access_token": "an access token",
+    }
+
+    task = create_task(label="foobar", tags={"retrigger": "true"})
+
+    hookGroupId = RETRIGGER_ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookGroupId"]
+    hookId = RETRIGGER_ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookId"].replace(
+        "/", "%2F"
+    )
+    hookPayload = copy.deepcopy(
+        RETRIGGER_ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookPayload"]
+    )
+    hookPayload["user"] = {
+        "input": {"times": 3},
+        "taskGroupId": push.decision_task.id,
+        "taskId": task.id,
+    }
+    responses.add(
+        responses.POST,
+        f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/hooks/v1/hooks/{hookGroupId}/{hookId}/trigger",
+        status=200,
+        json={"status": {"taskId": "new-retrigger-task"}},
+        match=[matchers.json_params_matcher(hookPayload)],
     )
 
-    responses.add(responses.PUT, create_new_task_url_matcher, status=200)
-
-    task = create_task(label="foobar")
-    task.retrigger()
-
-    # verify last call was to create a new task
-    assert responses.calls[-1].request.method == "PUT"
-    assert create_new_task_url_matcher.match(responses.calls[-1].request.url)
+    assert task.retrigger(push) == "new-retrigger-task"
 
 
 def test_retrigger_should_not_retrigger(responses, create_task):
-
-    responses.add(
-        responses.GET,
-        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/0",
-        json={
-            "payload": {},
-            "tags": {"retrigger": "false", "label": "test_dont_retrigger"},
-        },
-        status=200,
-    )
+    rev = "a" * 40
+    branch = "autoland"
+    push = Push(rev, branch)
 
     task = create_task(label="foobar")
-    task.retrigger()
-
-    # verify last call was not to create a new task
-    assert not responses.calls[-1].request.method == "PUT"
+    task.retrigger(push)
 
 
 def test_backfill_missing_actions_artifact(responses, create_task):

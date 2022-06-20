@@ -221,6 +221,10 @@ class Task:
         return self.tags.get("action", "").startswith("retrigger-")
 
     @property
+    def is_tests_grouped(self) -> bool:
+        return self.tags.get("tests_grouped", "") == "1"
+
+    @property
     def failed(self):
         return self.result in ("failed", "exception")
 

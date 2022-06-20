@@ -2,6 +2,7 @@
 import concurrent.futures
 import copy
 import itertools
+import json
 import math
 from collections import defaultdict
 from dataclasses import dataclass
@@ -31,6 +32,7 @@ from mozci.task import (
 from mozci.util.defs import FAILURE_CLASSES
 from mozci.util.hgmo import HgRev, parse_bugs
 from mozci.util.memoize import memoize, memoized_property
+from mozci.util.taskcluster import get_task
 
 BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
 
@@ -532,6 +534,39 @@ class Push:
             duration += task.duration
 
         return int(duration / 3600)
+
+    def is_group_running(self, group):
+        """Checks if the provided group is still running on this push.
+
+        Returns:
+            bool: True, if the group is still running.
+                  False, if the group is completed.
+        """
+        running_tasks = [
+            task
+            for task in self.tasks
+            if task.state not in ["completed", "failed", "exception"]
+        ]
+        if all(task.is_tests_grouped() for task in group.tasks):
+            for task in running_tasks:
+                task_def = get_task(task.id)
+                test_paths = json.loads(
+                    task_def["payload"].get("MOZHARNESS_TEST_PATHS", "{}")
+                )
+                if group.name in set(
+                    [name for names in test_paths.values() for name in names]
+                ):
+                    return True
+        else:
+            group_types = set([task.tags.get("tests-type", "") for task in group.tasks])
+            running_types = set(
+                [task.tags.get("tests-type", "") for task in running_tasks]
+            )
+            return any(
+                tests_type in running_types for tests_type in group_types if tests_type
+            )
+
+        return False
 
     def _is_classified_as_cause(self, first_appearance_push, classifications):
         """Checks a 'fixed by commit' classification to figure out what push it references.
@@ -1169,6 +1204,9 @@ class Push:
             for g in all_groups
             if g.name not in list(bugbug_selection["groups"].keys())
         }
+
+        groups_still_running = {g.name for g in all_groups if self.is_group_running(g)}
+
         logger.debug(
             f"Got {len(groups_relevant_failure)} groups with cross-config or config-consistent failures"
         )
@@ -1181,10 +1219,15 @@ class Push:
         logger.debug(
             f"Got {len(groups_no_confidence)} groups without bugbug confidence"
         )
+        logger.debug(
+            f"Got {len(groups_still_running)} groups still running in the push"
+        )
 
-        # Real failure are groups with likely regressions that were selected with high confidence
-        # AND failing across config
-        real_failures = groups_regressions & groups_relevant_failure & groups_high
+        # Real failures are groups that finished running, with likely regressions that were selected
+        # with high confidence AND failing across config
+        real_failures = (
+            groups_regressions & groups_relevant_failure & groups_high
+        ) - groups_still_running
         logger.debug(f"Got {len(real_failures)} real failures")
 
         # Intermittent failures are groups that were NOT selected (low confidence)

@@ -1080,6 +1080,7 @@ def generate_mocks(
     cross_config_values,
 ):
     monkeypatch.setattr(config.cache, "get", lambda x: None)
+    monkeypatch.setattr(Push, "is_group_running", lambda *args: False)
 
     def mock_return_get_test_selection_data(*args, **kwargs):
         return get_test_selection_data_value

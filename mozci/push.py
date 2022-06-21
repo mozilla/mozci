@@ -545,7 +545,7 @@ class Push:
         running_tasks = [
             task for task in self.tasks if task.state not in TASK_FINAL_STATES
         ]
-        if all(task.is_tests_grouped() for task in group.tasks):
+        if all(task.is_tests_grouped for task in group.tasks):
             for task in running_tasks:
                 task_def = get_task(task.id)
                 test_paths = json.loads(
@@ -557,20 +557,16 @@ class Push:
                     return True
             return False
 
-        group_types = set(
-            [
-                task.tags["tests-type"]
-                for task in group.tasks
-                if task.tags.get("tests-type")
-            ]
-        )
-        running_types = set(
-            [
-                task.tags["tests-type"]
-                for task in running_tasks
-                if task.tags.get("tests-type")
-            ]
-        )
+        group_types = {
+            task.tags["tests-type"]
+            for task in group.tasks
+            if task.tags.get("tests-type")
+        }
+        running_types = {
+            task.tags["tests-type"]
+            for task in running_tasks
+            if task.tags.get("tests-type")
+        }
         return not group_types.isdisjoint(running_types)
 
     def _is_classified_as_cause(self, first_appearance_push, classifications):

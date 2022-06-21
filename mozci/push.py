@@ -546,8 +546,14 @@ class Push:
         running_tasks = [
             task for task in self.tasks if task.state not in TASK_FINAL_STATES
         ]
+
+        group_types = {get_suite_from_label(task.label) for task in group.tasks}
+
         if all(task.is_tests_grouped for task in group.tasks):
             for task in running_tasks:
+                if get_suite_from_label(task.label) not in group_types:
+                    continue
+
                 task_def = get_task(task.id)
                 test_paths = json.loads(
                     task_def["payload"]
@@ -560,7 +566,6 @@ class Push:
                     return True
             return False
 
-        group_types = {get_suite_from_label(task.label) for task in group.tasks}
         running_types = {get_suite_from_label(task.label) for task in running_tasks}
         return not group_types.isdisjoint(running_types)
 

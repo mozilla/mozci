@@ -554,9 +554,9 @@ class Push:
                     .get("env", {})
                     .get("MOZHARNESS_TEST_PATHS", "{}")
                 )
-                if group.name in set(
-                    [name for names in test_paths.values() for name in names]
-                ):
+                if group.name in {
+                    name for names in test_paths.values() for name in names
+                }:
                     return True
             return False
 

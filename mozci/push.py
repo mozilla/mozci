@@ -550,7 +550,9 @@ class Push:
             for task in running_tasks:
                 task_def = get_task(task.id)
                 test_paths = json.loads(
-                    task_def["payload"].get("MOZHARNESS_TEST_PATHS", "{}")
+                    task_def["payload"]
+                    .get("env", {})
+                    .get("MOZHARNESS_TEST_PATHS", "{}")
                 )
                 if group.name in set(
                     [name for names in test_paths.values() for name in names]

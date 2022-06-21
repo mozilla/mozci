@@ -28,6 +28,7 @@ from mozci.task import (
     Task,
     TestTask,
     get_configuration_from_label,
+    get_suite_from_label,
 )
 from mozci.util.defs import FAILURE_CLASSES, TASK_FINAL_STATES
 from mozci.util.hgmo import HgRev, parse_bugs
@@ -557,16 +558,8 @@ class Push:
                     return True
             return False
 
-        group_types = {
-            task.tags["tests-type"]
-            for task in group.tasks
-            if task.tags.get("tests-type")
-        }
-        running_types = {
-            task.tags["tests-type"]
-            for task in running_tasks
-            if task.tags.get("tests-type")
-        }
+        group_types = {get_suite_from_label(task.label) for task in group.tasks}
+        running_types = {get_suite_from_label(task.label) for task in running_tasks}
         return not group_types.isdisjoint(running_types)
 
     def _is_classified_as_cause(self, first_appearance_push, classifications):

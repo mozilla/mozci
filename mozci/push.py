@@ -29,7 +29,7 @@ from mozci.task import (
     TestTask,
     get_configuration_from_label,
 )
-from mozci.util.defs import FAILURE_CLASSES
+from mozci.util.defs import FAILURE_CLASSES, TASK_FINAL_STATES
 from mozci.util.hgmo import HgRev, parse_bugs
 from mozci.util.memoize import memoize, memoized_property
 from mozci.util.taskcluster import get_task
@@ -342,7 +342,7 @@ class Push:
         completed_cached_tasks = {}
         if cached_tasks:
             completed_cached_tasks = {
-                t.id: vars(t) for t in cached_tasks if t.state == "completed"
+                t.id: vars(t) for t in cached_tasks if t.state in TASK_FINAL_STATES
             }
             tasks = [{**t, **completed_cached_tasks.get(t["id"], {})} for t in tasks]
 
@@ -499,7 +499,7 @@ class Push:
         for task in self.tasks:
             # We can't consider tasks that were chunked in the taskgraph for finding label-level regressions
             # because tasks with the same name on different pushes might contain totally different tests.
-            if task.tags.get("tests_grouped") == "1":
+            if task.is_tests_grouped:
                 continue
 
             labels[task.label].append(task)
@@ -543,9 +543,7 @@ class Push:
                   False, if the group is completed.
         """
         running_tasks = [
-            task
-            for task in self.tasks
-            if task.state not in ["completed", "failed", "exception"]
+            task for task in self.tasks if task.state not in TASK_FINAL_STATES
         ]
         if all(task.is_tests_grouped() for task in group.tasks):
             for task in running_tasks:
@@ -557,16 +555,23 @@ class Push:
                     [name for names in test_paths.values() for name in names]
                 ):
                     return True
-        else:
-            group_types = set([task.tags.get("tests-type", "") for task in group.tasks])
-            running_types = set(
-                [task.tags.get("tests-type", "") for task in running_tasks]
-            )
-            return any(
-                tests_type in running_types for tests_type in group_types if tests_type
-            )
+            return False
 
-        return False
+        group_types = set(
+            [
+                task.tags["tests-type"]
+                for task in group.tasks
+                if task.tags.get("tests-type")
+            ]
+        )
+        running_types = set(
+            [
+                task.tags["tests-type"]
+                for task in running_tasks
+                if task.tags.get("tests-type")
+            ]
+        )
+        return not group_types.isdisjoint(running_types)
 
     def _is_classified_as_cause(self, first_appearance_push, classifications):
         """Checks a 'fixed by commit' classification to figure out what push it references.
@@ -1245,10 +1250,8 @@ class Push:
 
         # Unknown failures all the remaining failing groups that are not real nor intermittent
         unknown_failures = (
-            (groups_regressions if unknown_from_regressions else groups_failing)
-            - real_failures
-            - all_intermittent_failures
-        )
+            groups_regressions if unknown_from_regressions else groups_failing
+        ) | groups_still_running - real_failures - all_intermittent_failures
         logger.debug(f"Got {len(unknown_failures)} unknown failures")
 
         def _map_failing_tasks(groups):

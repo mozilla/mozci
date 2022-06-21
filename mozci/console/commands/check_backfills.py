@@ -11,6 +11,7 @@ from loguru import logger
 
 from mozci import config
 from mozci.push import make_push_objects
+from mozci.util.defs import TASK_FINAL_STATES
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
     find_task_id,
@@ -145,10 +146,7 @@ class CheckBackfillsCommand(Command):
         for th_symbol, data in to_notify.items():
             all_backfill_tasks = data["backfill_tasks"]
             # Checking that all backfill tasks for this symbol are in a "final" state
-            if not all(
-                task.state in ["completed", "failed", "exception"]
-                for task in all_backfill_tasks
-            ):
+            if not all(task.state in TASK_FINAL_STATES for task in all_backfill_tasks):
                 logger.debug(
                     f"Not all backfill tasks for the Treeherder symbol {th_symbol} are in a final state, not notifying now."
                 )

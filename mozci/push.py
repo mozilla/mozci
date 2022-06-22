@@ -1205,9 +1205,6 @@ class Push:
             for g in all_groups
             if g.name not in list(bugbug_selection["groups"].keys())
         }
-
-        groups_still_running = {g.name for g in all_groups if self.is_group_running(g)}
-
         logger.debug(
             f"Got {len(groups_relevant_failure)} groups with cross-config or config-consistent failures"
         )
@@ -1220,16 +1217,10 @@ class Push:
         logger.debug(
             f"Got {len(groups_no_confidence)} groups without bugbug confidence"
         )
-        logger.debug(
-            f"Got {len(groups_still_running)} groups still running in the push"
-        )
 
-        # Real failures are groups that finished running, with likely regressions that were selected
-        # with high confidence AND failing across config
-        real_failures = (
-            groups_regressions & groups_relevant_failure & groups_high
-        ) - groups_still_running
-        logger.debug(f"Got {len(real_failures)} real failures")
+        # Real failure are groups with likely regressions that were selected with high confidence
+        # AND failing across config
+        real_failures = groups_regressions & groups_relevant_failure & groups_high
 
         # Intermittent failures are groups that were NOT selected (low confidence)
         # OR without any confidence from bugbug (too low confidence)
@@ -1242,12 +1233,33 @@ class Push:
         intermittent_failures = (
             set(g.name for g in push_groups) & all_intermittent_failures
         )
-        logger.debug(f"Got {len(intermittent_failures)} intermittent failures")
 
         # Unknown failures all the remaining failing groups that are not real nor intermittent
         unknown_failures = (
-            groups_regressions if unknown_from_regressions else groups_failing
-        ) | groups_still_running - real_failures - all_intermittent_failures
+            (groups_regressions if unknown_from_regressions else groups_failing)
+            - real_failures
+            - all_intermittent_failures
+        )
+
+        groups_still_running = set()
+        for group in real_failures:
+            for parent in self._iterate_parents(max_depth=MAX_DEPTH):
+                # If the group run in a parent, then we don't care if it's still running in a grandparent.
+                if group in parent.group_summaries:
+                    break
+
+                if parent.is_group_running(group):
+                    groups_still_running.add(group)
+                    break
+
+        logger.debug(
+            f"Got {len(groups_still_running)} groups still running in the push"
+        )
+        real_failures -= groups_still_running
+        unknown_failures |= groups_still_running
+
+        logger.debug(f"Got {len(real_failures)} real failures")
+        logger.debug(f"Got {len(intermittent_failures)} intermittent failures")
         logger.debug(f"Got {len(unknown_failures)} unknown failures")
 
         def _map_failing_tasks(groups):

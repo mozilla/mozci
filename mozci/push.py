@@ -1242,14 +1242,14 @@ class Push:
         )
 
         groups_still_running = set()
-        for group in real_failures:
+        for group_name in real_failures:
             for parent in self._iterate_parents(max_depth=MAX_DEPTH):
                 # If the group run in a parent, then we don't care if it's still running in a grandparent.
-                if group in parent.group_summaries:
+                if group_name in parent.group_summaries:
                     break
 
-                if parent.is_group_running(group):
-                    groups_still_running.add(group)
+                if parent.is_group_running(self.group_summaries[group_name]):
+                    groups_still_running.add(group_name)
                     break
 
         logger.debug(

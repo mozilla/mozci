@@ -77,6 +77,14 @@ SUITES = (
 )
 
 
+def get_suite_from_label(label: str) -> Optional[str]:
+    for s in SUITES:
+        if f"-{s}-" in label:
+            return s
+
+    return None
+
+
 # We can stop relying on parsing the label when https://bugzilla.mozilla.org/show_bug.cgi?id=1632870 is fixed.
 def get_configuration_from_label(label: str) -> str:
     # Remove the suite name.
@@ -219,6 +227,10 @@ class Task:
     @property
     def is_retrigger(self) -> bool:
         return self.tags.get("action", "").startswith("retrigger-")
+
+    @property
+    def is_tests_grouped(self) -> bool:
+        return self.tags.get("tests_grouped", "") == "1"
 
     @property
     def failed(self):

@@ -2,6 +2,7 @@
 import concurrent.futures
 import copy
 import itertools
+import json
 import math
 from collections import defaultdict
 from dataclasses import dataclass
@@ -27,10 +28,12 @@ from mozci.task import (
     Task,
     TestTask,
     get_configuration_from_label,
+    get_suite_from_label,
 )
-from mozci.util.defs import FAILURE_CLASSES
+from mozci.util.defs import FAILURE_CLASSES, TASK_FINAL_STATES
 from mozci.util.hgmo import HgRev, parse_bugs
 from mozci.util.memoize import memoize, memoized_property
+from mozci.util.taskcluster import get_task
 
 BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
 
@@ -340,7 +343,7 @@ class Push:
         completed_cached_tasks = {}
         if cached_tasks:
             completed_cached_tasks = {
-                t.id: vars(t) for t in cached_tasks if t.state == "completed"
+                t.id: vars(t) for t in cached_tasks if t.state in TASK_FINAL_STATES
             }
             tasks = [{**t, **completed_cached_tasks.get(t["id"], {})} for t in tasks]
 
@@ -497,7 +500,7 @@ class Push:
         for task in self.tasks:
             # We can't consider tasks that were chunked in the taskgraph for finding label-level regressions
             # because tasks with the same name on different pushes might contain totally different tests.
-            if task.tags.get("tests_grouped") == "1":
+            if task.is_tests_grouped:
                 continue
 
             labels[task.label].append(task)
@@ -532,6 +535,39 @@ class Push:
             duration += task.duration
 
         return int(duration / 3600)
+
+    def is_group_running(self, group):
+        """Checks if the provided group is still running on this push.
+
+        Returns:
+            bool: True, if the group is still running.
+                  False, if the group is completed.
+        """
+        running_tasks = [
+            task for task in self.tasks if task.state not in TASK_FINAL_STATES
+        ]
+
+        group_types = {get_suite_from_label(task.label) for task in group.tasks}
+
+        if all(task.is_tests_grouped for task in group.tasks):
+            for task in running_tasks:
+                if get_suite_from_label(task.label) not in group_types:
+                    continue
+
+                task_def = get_task(task.id)
+                test_paths = json.loads(
+                    task_def["payload"]
+                    .get("env", {})
+                    .get("MOZHARNESS_TEST_PATHS", "{}")
+                )
+                if group.name in {
+                    name for names in test_paths.values() for name in names
+                }:
+                    return True
+            return False
+
+        running_types = {get_suite_from_label(task.label) for task in running_tasks}
+        return not group_types.isdisjoint(running_types)
 
     def _is_classified_as_cause(self, first_appearance_push, classifications):
         """Checks a 'fixed by commit' classification to figure out what push it references.
@@ -1185,7 +1221,6 @@ class Push:
         # Real failure are groups with likely regressions that were selected with high confidence
         # AND failing across config
         real_failures = groups_regressions & groups_relevant_failure & groups_high
-        logger.debug(f"Got {len(real_failures)} real failures")
 
         # Intermittent failures are groups that were NOT selected (low confidence)
         # OR without any confidence from bugbug (too low confidence)
@@ -1198,7 +1233,6 @@ class Push:
         intermittent_failures = (
             set(g.name for g in push_groups) & all_intermittent_failures
         )
-        logger.debug(f"Got {len(intermittent_failures)} intermittent failures")
 
         # Unknown failures all the remaining failing groups that are not real nor intermittent
         unknown_failures = (
@@ -1206,6 +1240,26 @@ class Push:
             - real_failures
             - all_intermittent_failures
         )
+
+        groups_still_running = set()
+        for group_name in real_failures:
+            for parent in self._iterate_parents(max_depth=MAX_DEPTH):
+                # If the group run in a parent, then we don't care if it's still running in a grandparent.
+                if group_name in parent.group_summaries:
+                    break
+
+                if parent.is_group_running(self.group_summaries[group_name]):
+                    groups_still_running.add(group_name)
+                    break
+
+        logger.debug(
+            f"Got {len(groups_still_running)} groups failing in this push but still running in a parent push, so we can't know if they are regressions from this push"
+        )
+        real_failures -= groups_still_running
+        unknown_failures |= groups_still_running
+
+        logger.debug(f"Got {len(real_failures)} real failures")
+        logger.debug(f"Got {len(intermittent_failures)} intermittent failures")
         logger.debug(f"Got {len(unknown_failures)} unknown failures")
 
         def _map_failing_tasks(groups):

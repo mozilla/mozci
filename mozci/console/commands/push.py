@@ -2,12 +2,13 @@
 import collections
 import csv
 import datetime
+import fnmatch
 import json
 import os
 import re
 import traceback
 from inspect import signature
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import urlencode
 
 import arrow
@@ -25,6 +26,7 @@ from mozci.push import (
     Push,
     PushStatus,
     Regressions,
+    ToRetriggerOrBackfill,
     make_push_objects,
     retrigger,
 )
@@ -229,6 +231,9 @@ class ClassifyCommand(Command):
                 "<comment>Provided --output pointed to a inexistent directory that is now created.</comment>"
             )
 
+        retriggerable_backfillable_patterns = config.get(
+            "retriggerable-backfillable-task-names", []
+        )
         try:
             backfill_limit = int(self.option("backfill-limit"))
         except ValueError:
@@ -239,43 +244,16 @@ class ClassifyCommand(Command):
                 classification, regressions, to_retrigger_or_backfill = push.classify(
                     **classify_parameters
                 )
-                if retrigger_unknown:
-                    for _, tasks in regressions.unknown.items():
-                        retrigger(tasks=tasks, repeat_retrigger=1)
 
-                def retrigger_failures(groups, count):
-                    groups_with_failures = {
-                        name: failing_tasks
-                        for name, failing_tasks in groups.items()
-                        if failing_tasks
-                    }
-                    if not groups_with_failures:
-                        return
-
-                    # If there is more than one group with failing tasks, we should retrigger only one of them
-                    _, failing_tasks = next(iter(groups_with_failures.items()))
-                    retrigger(tasks=failing_tasks, repeat_retrigger=count)
-
-                retrigger_failures(
-                    to_retrigger_or_backfill.real_retrigger,
-                    classify_parameters.get("consistent_failures_counts", (2, 3))[1],
+                self.backfill_and_retrigger_failures(
+                    push,
+                    retrigger_unknown,
+                    regressions.unknown,
+                    retriggerable_backfillable_patterns,
+                    classify_parameters,
+                    backfill_limit,
+                    to_retrigger_or_backfill,
                 )
-                retrigger_failures(
-                    to_retrigger_or_backfill.intermittent_retrigger,
-                    classify_parameters.get("consistent_failures_counts", (2, 3))[0],
-                )
-
-                groups_to_backfill = {
-                    name: failing_tasks
-                    for name, failing_tasks in to_retrigger_or_backfill.backfill.items()
-                    if failing_tasks
-                }
-                for index, (_, failing_tasks) in enumerate(groups_to_backfill.items()):
-                    # Only backfill X failing groups using --backfill-limit
-                    if index == backfill_limit:
-                        break
-                    for t in failing_tasks:
-                        t.backfill(push)
 
                 self.line(
                     f"Push associated with the head revision {push.rev} on "
@@ -356,6 +334,75 @@ class ClassifyCommand(Command):
                 self.send_notifications(
                     emails, matrix_room, push, previous, classification, regressions
                 )
+
+    def retrigger_failures(self, groups, count, allowed_patterns):
+        groups_with_failures = {
+            name: failing_tasks
+            for name, failing_tasks in groups.items()
+            if failing_tasks
+        }
+        if not groups_with_failures:
+            return
+
+        # If there is more than one group with failing tasks, we should retrigger only one of them
+        name, failing_tasks = next(iter(groups_with_failures.items()))
+        filtered_failing_tasks = [
+            task
+            for task in failing_tasks
+            if any(fnmatch.fnmatch(task.label, pattern) for pattern in allowed_patterns)
+        ]
+
+        assert all(
+            any(not result.ok and result.group == name for result in task.results)
+            for task in filtered_failing_tasks
+        ), f"Some failing tasks on the group {name} (to be retriggered) didn't really fail"
+
+        retrigger(tasks=filtered_failing_tasks, repeat_retrigger=count)
+
+    def backfill_and_retrigger_failures(
+        self,
+        push: Push,
+        retrigger_unknown: bool,
+        unknown_regressions: Dict[str, List[TestTask]],
+        allowed_patterns: List[str],
+        classify_parameters: Dict[str, Any],
+        backfill_limit: int,
+        to_retrigger_or_backfill: ToRetriggerOrBackfill,
+    ) -> None:
+        # Retrigger unknown failures
+        if retrigger_unknown:
+            for _, tasks in unknown_regressions.items():
+                retrigger(tasks=tasks, repeat_retrigger=1)
+
+        # Retrigger real failures
+        self.retrigger_failures(
+            to_retrigger_or_backfill.real_retrigger,
+            classify_parameters.get("consistent_failures_counts", (2, 3))[1],
+            allowed_patterns,
+        )
+
+        # Retrigger intermittent failures
+        self.retrigger_failures(
+            to_retrigger_or_backfill.intermittent_retrigger,
+            classify_parameters.get("consistent_failures_counts", (2, 3))[0],
+            allowed_patterns,
+        )
+
+        # Backfill some failures
+        groups_to_backfill = {
+            name: failing_tasks
+            for name, failing_tasks in to_retrigger_or_backfill.backfill.items()
+            if failing_tasks
+        }
+        for index, (_, failing_tasks) in enumerate(groups_to_backfill.items()):
+            # Only backfill X failing groups using --backfill-limit
+            if index == backfill_limit:
+                break
+            for t in failing_tasks:
+                if t.label and any(
+                    fnmatch.fnmatch(t.label, pattern) for pattern in allowed_patterns
+                ):
+                    t.backfill(push)
 
     def send_notifications(
         self,
@@ -830,8 +877,8 @@ class ClassifyEvalCommand(Command):
                     )
 
             if push.backedout or push.bustage_fixed_by:
-                group_classifications: dict[
-                    str, dict[tuple[str, str], set[str]]
+                group_classifications: Dict[
+                    str, Dict[Tuple[str, str], Set[str]]
                 ] = collections.defaultdict(lambda: collections.defaultdict(set))
                 for other in push._iterate_children():
                     if (

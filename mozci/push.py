@@ -1282,12 +1282,18 @@ class Push:
             # Link all the failing tasks on the given groups
             return {name: self.group_summaries[name].failing_tasks for name in groups}
 
-        real_failures_to_be_retriggered = (groups_regressions & groups_high).difference(
-            groups_relevant_failure
+        # See the following comment that explains how we decide the groups to retrigger/backfill
+        # https://github.com/mozilla/mozci/issues/654#issuecomment-1139488070
+        real_failures_to_be_retriggered = (
+            (groups_regressions & groups_high)
+            - groups_relevant_failure
+            - groups_still_running
         )
         intermittent_failures_to_be_retriggered = (
-            set(g.name for g in push_groups) & groups_low.union(groups_no_confidence)
-        ).difference(groups_non_relevant_failure)
+            (set(g.name for g in push_groups) & groups_low.union(groups_no_confidence))
+            - groups_non_relevant_failure
+            - groups_still_running
+        )
         failures_to_be_backfilled = list(
             possible_regressions.difference(likely_regressions) & groups_high
         )

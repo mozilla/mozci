@@ -1253,7 +1253,7 @@ class Push:
                     break
 
         logger.debug(
-            f"Got {len(groups_still_running)} groups still running in the push"
+            f"Got {len(groups_still_running)} groups failing in this push but still running in a parent push, so we can't know if they are regressions from this push"
         )
         real_failures -= groups_still_running
         unknown_failures |= groups_still_running

@@ -1285,15 +1285,25 @@ class Push:
         # See the following comment that explains how we decide the groups to retrigger/backfill
         # https://github.com/mozilla/mozci/issues/654#issuecomment-1139488070
         real_failures_to_be_retriggered = (
-            (groups_regressions & groups_high)
-            - groups_relevant_failure
-            - groups_still_running
-        )
+            groups_regressions & groups_high
+        ) - groups_relevant_failure
+        real_groups_still_running = groups_still_running | {
+            group_name
+            for group_name in real_failures_to_be_retriggered
+            if self.is_group_running(self.group_summaries[group_name])
+        }
+        real_failures_to_be_retriggered -= real_groups_still_running
+
         intermittent_failures_to_be_retriggered = (
-            (set(g.name for g in push_groups) & groups_low.union(groups_no_confidence))
-            - groups_non_relevant_failure
-            - groups_still_running
-        )
+            set(g.name for g in push_groups) & groups_low.union(groups_no_confidence)
+        ) - groups_non_relevant_failure
+        intermittent_groups_still_running = groups_still_running | {
+            group_name
+            for group_name in intermittent_failures_to_be_retriggered
+            if self.is_group_running(self.group_summaries[group_name])
+        }
+        intermittent_failures_to_be_retriggered -= intermittent_groups_still_running
+
         failures_to_be_backfilled = list(
             possible_regressions.difference(likely_regressions) & groups_high
         )
@@ -1496,13 +1506,6 @@ def make_push_objects(**kwargs):
             cur._child = pushes[i + 1]
 
     return pushes
-
-
-def retrigger(tasks: List[TestTask], repeat_retrigger: int = 1) -> None:
-    """Utility function that retrigger a list of task "repeat_retrigger" times."""
-    for task in tasks:
-        for _ in range(0, repeat_retrigger):
-            task.retrigger()
 
 
 def make_summary_objects(from_date, to_date, branch, type):

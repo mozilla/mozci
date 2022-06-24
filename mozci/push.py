@@ -58,6 +58,15 @@ class Regressions:
     unknown: Dict[str, List[TestTask]]
 
 
+@dataclass
+class ToRetriggerOrBackfill:
+    # These 3 attributes are dicts of list of tasks
+    # each item being a single group, with its failing tasks
+    real_retrigger: Dict[str, List[TestTask]]
+    intermittent_retrigger: Dict[str, List[TestTask]]
+    backfill: Dict[str, List[TestTask]]
+
+
 def build_group_summaries(tasks) -> Dict[str, GroupSummary]:
     groups = defaultdict(list)
 
@@ -1112,15 +1121,20 @@ class Push:
         consider_children_pushes_configs: bool = True,
         cross_config_counts: Optional[Tuple[int, int]] = (2, 2),
         consistent_failures_counts: Optional[Tuple[int, int]] = (2, 3),
-    ) -> Regressions:
+    ) -> Tuple[Regressions, ToRetriggerOrBackfill]:
         """
         Use group classification data from bugbug to classify all likely
         regressions into three categories: real, intermittent or unknown failures
 
-        Output: a dict with several lists of task groups:
-        - real: set of tasks that are definitely real failures
-        - intermittent: set of tasks that are definitely intermittents
-        - unknown: set of tasks we don't have enough information about
+        Output:
+        A dict with several lists of task groups:
+          - real: set of tasks that are definitely real failures
+          - intermittent: set of tasks that are definitely intermittents
+          - unknown: set of tasks we don't have enough information about
+        And a dict with several lists of task groups:
+          - real_retrigger: set of tasks to retrigger with consistent_failures_counts[1]
+          - intermittent_retrigger: set of tasks to retrigger with consistent_failures_counts[0]
+          - backfill: set of tasks to backfill
         """
         cache_prefix = f"{self.push_uuid}/classify_group_tasks/"
 
@@ -1138,9 +1152,11 @@ class Push:
         # Fetch likely group regressions for that push from treeherder + Taskcluster
         # We do not cache these results as we might want to analyze in-progress
         # pushes and keep updating these values
-        groups_regressions = self.get_likely_regressions("group", False)
+        likely_regressions = self.get_likely_regressions("group", False)
+        possible_regressions = self.get_possible_regressions("group", False)
+        groups_regressions = likely_regressions
         if use_possible_regressions:
-            groups_regressions |= self.get_possible_regressions("group", False)
+            groups_regressions |= possible_regressions
 
         # Get task groups with high and low confidence from bugbug scheduling
         groups_high = {
@@ -1266,12 +1282,51 @@ class Push:
             # Link all the failing tasks on the given groups
             return {name: self.group_summaries[name].failing_tasks for name in groups}
 
+        # See the following comment that explains how we decide the groups to retrigger/backfill
+        # https://github.com/mozilla/mozci/issues/654#issuecomment-1139488070
+        real_failures_to_be_retriggered = (
+            groups_regressions & groups_high
+        ) - groups_relevant_failure
+        real_groups_still_running = groups_still_running | {
+            group_name
+            for group_name in real_failures_to_be_retriggered
+            if self.is_group_running(self.group_summaries[group_name])
+        }
+        real_failures_to_be_retriggered -= real_groups_still_running
+
+        intermittent_failures_to_be_retriggered = (
+            set(g.name for g in push_groups) & groups_low.union(groups_no_confidence)
+        ) - groups_non_relevant_failure
+        intermittent_groups_still_running = groups_still_running | {
+            group_name
+            for group_name in intermittent_failures_to_be_retriggered
+            if self.is_group_running(self.group_summaries[group_name])
+        }
+        intermittent_failures_to_be_retriggered -= intermittent_groups_still_running
+
+        failures_to_be_backfilled = list(
+            possible_regressions.difference(likely_regressions) & groups_high
+        )
+
+        # Sorting groups to be backfilled, first ones will be groups present in groups_relevant_failure with a high confidence
+        failures_to_be_backfilled.sort(
+            key=lambda group: int(group in groups_relevant_failure)
+            + bugbug_selection["groups"].get(group, 0)
+        )
+        failures_to_be_backfilled.reverse()
+
         # Output real, intermittent and unknown groupfailures
-        # along with their failing configurations
+        # along with their failing configurations + groupfailures to retrigger/backfill
         return Regressions(
             real=_map_failing_tasks(real_failures),
             intermittent=_map_failing_tasks(intermittent_failures),
             unknown=_map_failing_tasks(unknown_failures),
+        ), ToRetriggerOrBackfill(
+            real_retrigger=_map_failing_tasks(real_failures_to_be_retriggered),
+            intermittent_retrigger=_map_failing_tasks(
+                intermittent_failures_to_be_retriggered
+            ),
+            backfill=_map_failing_tasks(failures_to_be_backfilled),
         )
 
     def classify(
@@ -1283,7 +1338,7 @@ class Push:
         consider_children_pushes_configs: bool = True,
         cross_config_counts: Optional[Tuple[int, int]] = (2, 2),
         consistent_failures_counts: Optional[Tuple[int, int]] = (2, 3),
-    ) -> Tuple[PushStatus, Regressions]:
+    ) -> Tuple[PushStatus, Regressions, ToRetriggerOrBackfill]:
         """
         Classify the overall push state using its group tasks states
         from classify_regressions:
@@ -1291,7 +1346,7 @@ class Push:
         - good push: when there are only intermittent failures
         - unknown state: when other tasks are failing
         """
-        regressions = self.classify_regressions(
+        regressions, to_retrigger_or_backfill = self.classify_regressions(
             intermittent_confidence_threshold,
             real_confidence_threshold,
             use_possible_regressions,
@@ -1303,14 +1358,14 @@ class Push:
 
         # If there are any real failures, it's a bad push
         if len(regressions.real) > 0:
-            return PushStatus.BAD, regressions
+            return PushStatus.BAD, regressions, to_retrigger_or_backfill
 
         # If all failures are intermittent, it's a good push
         if len(regressions.unknown) == 0 and len(regressions.intermittent) >= 0:
-            return PushStatus.GOOD, regressions
+            return PushStatus.GOOD, regressions, to_retrigger_or_backfill
 
         # Fallback to unknown
-        return PushStatus.UNKNOWN, regressions
+        return PushStatus.UNKNOWN, regressions, to_retrigger_or_backfill
 
     @memoize
     def get_shadow_scheduler_tasks(self, name: str) -> List[dict]:
@@ -1451,13 +1506,6 @@ def make_push_objects(**kwargs):
             cur._child = pushes[i + 1]
 
     return pushes
-
-
-def retrigger(tasks: List[TestTask], repeat_retrigger: int = 1) -> None:
-    """Utility function that retrigger a list of task "repeat_retrigger" times."""
-    for task in tasks:
-        for _ in range(0, repeat_retrigger):
-            task.retrigger()
 
 
 def make_summary_objects(from_date, to_date, branch, type):

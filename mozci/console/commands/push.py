@@ -324,7 +324,7 @@ class ClassifyCommand(Command):
 
             # Send a notification when some emails are declared in the config
             emails = config.get("emails", {}).get("classifications")
-            matrix_room = config.get("matrix-room-id", None)
+            matrix_room = config.get("matrix-room-id")
             if emails or matrix_room:
                 # Load previous classification from taskcluster
                 try:
@@ -659,6 +659,26 @@ def parse_and_log_details(
     return output, to_print
 
 
+def check_ever_classified_as_cause(push, iterate_on):
+    ever_classified_as_cause = False
+    for (
+        other,
+        _,
+        candidate_regressions,
+        classified_as_cause,
+    ) in push._iterate_failures(iterate_on):
+        if push.backedoutby in other.revs or push.bustage_fixed_by in other.revs:
+            return ever_classified_as_cause
+
+        ever_classified_as_cause = any(
+            result is True
+            for name in candidate_regressions.keys()
+            for result in classified_as_cause[name]
+        )
+        if ever_classified_as_cause:
+            return ever_classified_as_cause
+
+
 class ClassifyEvalCommand(Command):
     """
     Evaluate the classification results for a given push (or a range of pushes) by comparing them with reality.
@@ -792,75 +812,53 @@ class ClassifyEvalCommand(Command):
                     )
                     self.errors[push] = e
 
+            warnings = []
+            # Warn about pushes that are backed-out and where all failures on the push itself and its children are marked as intermittent
             if push.backedout or push.bustage_fixed_by:
-                ever_classified_as_cause = False
-                for (
-                    other,
-                    _,
-                    candidate_regressions,
-                    classified_as_cause,
-                ) in push._iterate_failures("label"):
-                    if (
-                        push.backedoutby in other.revs
-                        or push.bustage_fixed_by in other.revs
-                    ):
-                        break
+                ever_classified_as_cause = check_ever_classified_as_cause(push, "label")
 
-                    ever_classified_as_cause = any(
-                        result is True
-                        for name in candidate_regressions.keys()
-                        for result in classified_as_cause[name]
+                if not ever_classified_as_cause:
+                    ever_classified_as_cause = check_ever_classified_as_cause(
+                        push, "group"
                     )
-                    if ever_classified_as_cause:
-                        break
 
                 if not ever_classified_as_cause:
-                    for (
-                        other,
-                        _,
-                        candidate_regressions,
-                        classified_as_cause,
-                    ) in push._iterate_failures("group"):
-                        if (
-                            push.backedoutby in other.revs
-                            or push.bustage_fixed_by in other.revs
-                        ):
-                            break
-
-                        ever_classified_as_cause = any(
-                            result is True
-                            for name in candidate_regressions.keys()
-                            for result in classified_as_cause[name]
-                        )
-                        if ever_classified_as_cause:
-                            break
-
-                if not ever_classified_as_cause:
-                    self.line(
-                        f"<comment>Push {push.branch}/{push.rev} was backedout and all of its failures and the ones of its children were marked as intermittent or marked as caused by another push</comment>"
+                    warnings.append(
+                        {
+                            "message": f"Push {push.branch}/{push.rev} was backedout and all of its failures and the ones of its children were marked as intermittent or marked as caused by another push.",
+                            "type": "comment",
+                        }
                     )
 
             for task in push.tasks:
                 if task.classification != "fixed by commit":
                     continue
 
+                # Warn if there is a classification that references a revision that does not exist
                 fix_hgmo = HgRev.create(
                     task.classification_note[:12], branch=push.branch
                 )
                 try:
                     fix_hgmo.changesets
                 except PushNotFound:
-                    self.line(
-                        f"<comment>Task {task.id} on push {push.branch}/{push.rev} contains a classification that references a non-existent revision: {task.classification_note}</comment>"
+                    warnings.append(
+                        {
+                            "message": f"Task {task.id} on push {push.branch}/{push.rev} contains a classification that references a non-existent revision: {task.classification_note}.",
+                            "type": "comment",
+                        }
                     )
                     continue
 
                 if fix_hgmo.pushid <= push.id:
-                    self.line(
-                        f"<error>Task {task.label} on push {push.branch}/{push.rev} is classified as fixed by {task.classification_note}, which is older than the push itself</error>"
+                    warnings.append(
+                        {
+                            "message": f"Task {task.label} on push {push.branch}/{push.rev} is classified as fixed by {task.classification_note}, which is older than the push itself.",
+                            "type": "error",
+                        }
                     )
                     continue
 
+                # Warn when a failure is classified as fixed by a backout of a push that is newer than the failure itself
                 all_backedouts = set(
                     backedout
                     for backedouts in fix_hgmo.backouts.values()
@@ -882,10 +880,14 @@ class ClassifyEvalCommand(Command):
                     HgRev.create(backedout, branch=push.branch).pushid > push.id
                     for backedout in all_fixed
                 ):
-                    self.line(
-                        f"<error>Task {task.label} on push {push.branch}/{push.rev} is classified as fixed by a backout/bustage fix ({fix_hgmo.node}) of pushes ({all_fixed}) that come after the failure itself.</error>"
+                    warnings.append(
+                        {
+                            "message": f"Task {task.label} on push {push.branch}/{push.rev} is classified as fixed by a backout/bustage fix ({fix_hgmo.node}) of pushes ({all_fixed}) that come after the failure itself.",
+                            "type": "error",
+                        }
                     )
 
+            # Warn when there are inconsistent classifications for a given group
             if push.backedout or push.bustage_fixed_by:
                 group_classifications: dict[
                     str, dict[tuple[str, str], set[str]]
@@ -903,15 +905,31 @@ class ClassifyEvalCommand(Command):
 
                 for name, classification_to_revs in group_classifications.items():
                     if len(classification_to_revs) > 1:
-                        self.line(
-                            f"<comment>Group {name} has inconsistent classifications:</comment>"
+                        inconsistent_list = [
+                            f"  - {classification} in pushes {', '.join(revs)}"
+                            for classification, revs in classification_to_revs.items()
+                        ]
+                        inconsistent = "\n" + ",\n".join(inconsistent_list)
+                        warnings.append(
+                            {
+                                "message": f"Group {name} has inconsistent classifications: {inconsistent}.",
+                                "type": "comment",
+                            }
                         )
-                        for classification, revs in classification_to_revs.items():
-                            self.line(
-                                "<comment>{} in pushes {}".format(
-                                    classification, ",".join(revs)
-                                )
-                            )
+
+            # Output all warnings and also send them to the Matrix room if defined
+            matrix_room = config.get("matrix-room-id")
+            for warning in warnings:
+                warn_type = warning["type"]
+                warn_message = warning["message"]
+                self.line(f"<{warn_type}>{warn_message}</{warn_type}>")
+                if matrix_room:
+                    notify_matrix(room=matrix_room, body=warn_message)
+
+            if not matrix_room and warnings:
+                self.line(
+                    "<comment>Some warning notifications should have been sent but no matrix room was provided in the secret.</comment>"
+                )
 
             # Advance the overall progress bar
             progress.advance()

@@ -813,7 +813,6 @@ class ClassifyEvalCommand(Command):
                     self.errors[push] = e
 
             warnings = []
-            warnings_to_notify = set()
             # Warn about pushes that are backed-out and where all failures on the push itself and its children are marked as intermittent
             if push.backedout or push.bustage_fixed_by:
                 ever_classified_as_cause = check_ever_classified_as_cause(push, "label")
@@ -823,15 +822,15 @@ class ClassifyEvalCommand(Command):
                         push, "group"
                     )
 
-                    if config.get("warnings", {}).get(
-                        "ever_classified_as_cause", False
-                    ):
-                        warnings.append(
-                            {
-                                "message": f"Push {push.branch}/{push.rev} was backedout and all of its failures and the ones of its children were marked as intermittent or marked as caused by another push.",
-                                "type": "error",
-                            }
-                        )
+                    warnings.append(
+                        {
+                            "message": f"Push {push.branch}/{push.rev} was backedout and all of its failures and the ones of its children were marked as intermittent or marked as caused by another push.",
+                            "type": "error",
+                            "notify": config.get("warnings", {}).get(
+                                "ever_classified_as_cause", False
+                            ),
+                        }
+                    )
 
             for task in push.tasks:
                 if task.classification != "fixed by commit":
@@ -848,10 +847,11 @@ class ClassifyEvalCommand(Command):
                         {
                             "message": f"Task {task.id} on push {push.branch}/{push.rev} contains a classification that references a non-existent revision: {task.classification_note}.",
                             "type": "error",
+                            "notify": config.get("warnings", {}).get(
+                                "non_existent_fix", False
+                            ),
                         }
                     )
-                    if config.get("warnings", {}).get("non_existent_fix", False):
-                        warnings_to_notify.add(warnings[-1]["message"])
                     continue
 
                 if fix_hgmo.pushid <= push.id:
@@ -859,10 +859,11 @@ class ClassifyEvalCommand(Command):
                         {
                             "message": f"Task {task.label} on push {push.branch}/{push.rev} is classified as fixed by {task.classification_note}, which is older than the push itself.",
                             "type": "error",
+                            "notify": config.get("warnings", {}).get(
+                                "fix_older_than_push", False
+                            ),
                         }
                     )
-                    if config.get("warnings", {}).get("fix_older_than_push", False):
-                        warnings_to_notify.add(warnings[-1]["message"])
                     continue
 
                 # Warn when a failure is classified as fixed by a backout of a push that is newer than the failure itself
@@ -891,10 +892,11 @@ class ClassifyEvalCommand(Command):
                         {
                             "message": f"Task {task.label} on push {push.branch}/{push.rev} is classified as fixed by a backout/bustage fix ({fix_hgmo.node}) of pushes ({all_fixed}) that come after the failure itself.",
                             "type": "error",
+                            "notify": config.get("warnings", {}).get(
+                                "backout_of_newer_pushes", False
+                            ),
                         }
                     )
-                    if config.get("warnings", {}).get("backout_of_newer_pushes", False):
-                        warnings_to_notify.add(warnings[-1]["message"])
 
             # Warn when there are inconsistent classifications for a given group
             if push.backedout or push.bustage_fixed_by:
@@ -923,18 +925,20 @@ class ClassifyEvalCommand(Command):
                             {
                                 "message": f"Group {name} has inconsistent classifications: {inconsistent}.",
                                 "type": "comment",
+                                "notify": config.get("warnings", {}).get(
+                                    "inconsistent", False
+                                ),
                             }
                         )
-                        if config.get("warnings", {}).get("inconsistent", False):
-                            warnings_to_notify.add(warnings[-1]["message"])
 
             # Output all warnings and also send them to the Matrix room if defined
             matrix_room = config.get("matrix-room-id")
             for warning in warnings:
                 warn_type = warning["type"]
                 warn_message = warning["message"]
+                do_notify = warning["notify"]
                 self.line(f"<{warn_type}>{warn_message}</{warn_type}>")
-                if matrix_room and warn_message in warnings_to_notify:
+                if matrix_room and do_notify:
                     notify_matrix(room=matrix_room, body=warn_message)
 
             if not matrix_room and warnings:

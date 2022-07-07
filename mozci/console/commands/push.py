@@ -826,7 +826,7 @@ class ClassifyEvalCommand(Command):
                     warnings.append(
                         {
                             "message": f"Push {push.branch}/{push.rev} was backedout and all of its failures and the ones of its children were marked as intermittent or marked as caused by another push.",
-                            "type": "comment",
+                            "type": "error",
                         }
                     )
 
@@ -844,7 +844,7 @@ class ClassifyEvalCommand(Command):
                     warnings.append(
                         {
                             "message": f"Task {task.id} on push {push.branch}/{push.rev} contains a classification that references a non-existent revision: {task.classification_note}.",
-                            "type": "comment",
+                            "type": "error",
                         }
                     )
                     continue

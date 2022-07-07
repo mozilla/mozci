@@ -822,6 +822,7 @@ class ClassifyEvalCommand(Command):
                         push, "group"
                     )
 
+                if not ever_classified_as_cause:
                     warnings.append(
                         {
                             "message": f"Push {push.branch}/{push.rev} was backedout and all of its failures and the ones of its children were marked as intermittent or marked as caused by another push.",

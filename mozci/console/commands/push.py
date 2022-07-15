@@ -382,6 +382,7 @@ class ClassifyCommand(Command):
         # Retrigger real failures
         # TODO: Potential real failures might be coming from children pushes too, but we should instead
         # only retrigger tasks on the push where they were defined (https://github.com/mozilla/mozci/issues/796).
+        self.line("Retriggering failures to ensure they are real")
         self.retrigger_failures(
             push,
             to_retrigger_or_backfill.real_retrigger,
@@ -391,6 +392,7 @@ class ClassifyCommand(Command):
         )
 
         # Retrigger intermittent failures
+        self.line("Retriggering failures to ensure they are intermittent")
         self.retrigger_failures(
             push,
             to_retrigger_or_backfill.intermittent_retrigger,
@@ -400,6 +402,7 @@ class ClassifyCommand(Command):
         )
 
         # Backfill some failures
+        self.line("Backfilling failures to ensure they are caused by this push")
         groups_to_backfill = {
             name: failing_tasks
             for name, failing_tasks in to_retrigger_or_backfill.backfill.items()

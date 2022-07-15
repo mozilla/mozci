@@ -40,6 +40,7 @@ SUITES = (
     "mochitest-chrome-gpu",
     "mochitest-chrome",
     "mochitest-devtools-chrome",
+    "mochitest-browser-a11y",
     "mochitest-browser-chrome",
     "web-platform-tests-crashtest",
     "web-platform-tests-reftest",
@@ -74,9 +75,10 @@ SUITES = (
 )
 
 
+# We can stop relying on parsing the label when https://bugzilla.mozilla.org/show_bug.cgi?id=1632870 is fixed.
 def get_suite_from_label(label: str) -> Optional[str]:
     for s in SUITES:
-        if f"-{s}-" in label:
+        if f"-{s}-" in label or label.endswith(f"-{s}"):
             return s
 
     return None
@@ -87,7 +89,7 @@ def get_configuration_from_label(label: str) -> str:
     # Remove the suite name.
     config = label
     for s in SUITES:
-        if f"-{s}-" in config:
+        if f"-{s}-" in config or label.endswith(f"-{s}"):
             config = config.replace(s, "*")
 
     # Remove the chunk number.

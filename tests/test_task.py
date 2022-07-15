@@ -16,6 +16,8 @@ from mozci.task import (
     GroupSummary,
     Task,
     TestTask,
+    get_configuration_from_label,
+    get_suite_from_label,
     is_autoclassifiable,
 )
 from mozci.util.taskcluster import (
@@ -953,3 +955,39 @@ def test_autoclassify(
     )
     task._failure_types = task_failure_types
     assert is_autoclassifiable(task) is result
+
+
+def test_get_suite_from_label_and_get_configuration_from_label():
+    assert (
+        get_suite_from_label("test-macosx1015-64-qr/opt-mochitest-devtools-chrome-1")
+        == "mochitest-devtools-chrome"
+    )
+    assert (
+        get_configuration_from_label(
+            "test-macosx1015-64-qr/opt-mochitest-devtools-chrome-1"
+        )
+        == "test-macosx1015-64-qr/opt-*"
+    )
+    assert get_suite_from_label("test-linux1804-64-qr/debug-crashtest") == "crashtest"
+    assert (
+        get_configuration_from_label("test-linux1804-64-qr/debug-crashtest")
+        == "test-linux1804-64-qr/debug-*"
+    )
+    assert (
+        get_suite_from_label("test-linux1804-64-qr/debug-mochitest-browser-a11y")
+        == "mochitest-browser-a11y"
+    )
+    assert (
+        get_configuration_from_label(
+            "test-linux1804-64-qr/debug-mochitest-browser-a11y"
+        )
+        == "test-linux1804-64-qr/debug-*"
+    )
+    assert (
+        get_suite_from_label("test-windows10-64-2004-qr/opt-mochitest-remote")
+        == "mochitest-remote"
+    )
+    assert (
+        get_configuration_from_label("test-windows10-64-2004-qr/opt-mochitest-remote")
+        == "test-windows10-64-2004-qr/opt-*"
+    )

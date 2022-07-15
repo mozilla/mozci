@@ -36,7 +36,7 @@ markdown2 = "^2.4.2"
 json-e = "^4.4.3"
 
 [tool.poetry.dev-dependencies]
-pre-commit = "^2.19"
+pre-commit = "^2.20"
 pytest = "^7.1"
 tox = "^3.25"
 responses = "^0.20"

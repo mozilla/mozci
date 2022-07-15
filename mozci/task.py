@@ -40,6 +40,7 @@ SUITES = (
     "mochitest-chrome-gpu",
     "mochitest-chrome",
     "mochitest-devtools-chrome",
+    "mochitest-browser-a11y",
     "mochitest-browser-chrome",
     "web-platform-tests-crashtest",
     "web-platform-tests-reftest",

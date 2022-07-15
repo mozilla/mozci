@@ -75,6 +75,7 @@ SUITES = (
 )
 
 
+# We can stop relying on parsing the label when https://bugzilla.mozilla.org/show_bug.cgi?id=1632870 is fixed.
 def get_suite_from_label(label: str) -> Optional[str]:
     for s in SUITES:
         if f"-{s}-" in label or label.endswith(f"-{s}"):

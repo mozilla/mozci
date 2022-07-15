@@ -1295,7 +1295,8 @@ class Push:
         real_failures_to_be_retriggered -= real_groups_still_running
 
         intermittent_failures_to_be_retriggered = (
-            set(g.name for g in push_groups) & groups_low.union(groups_no_confidence)
+            set(g.name for g in push_groups if g.status != Status.PASS)
+            & groups_low.union(groups_no_confidence)
         ) - groups_non_relevant_failure
         intermittent_groups_still_running = groups_still_running | {
             group_name

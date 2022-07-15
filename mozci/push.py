@@ -556,7 +556,13 @@ class Push:
             task for task in self.tasks if task.state not in TASK_FINAL_STATES
         ]
 
-        group_types = {get_suite_from_label(task.label) for task in group.tasks}
+        group_types = set()
+        for task in group.tasks:
+            suite = get_suite_from_label(task.label)
+            assert (
+                suite is not None
+            ), f"Couldn't parse suite for {task.label} ({task.id})"
+            group_types.add(suite)
 
         if all(task.is_tests_grouped for task in group.tasks):
             for task in running_tasks:

@@ -76,7 +76,7 @@ SUITES = (
 
 def get_suite_from_label(label: str) -> Optional[str]:
     for s in SUITES:
-        if f"-{s}-" in label:
+        if f"-{s}-" in label or label.endswith(f"-{s}"):
             return s
 
     return None
@@ -87,7 +87,7 @@ def get_configuration_from_label(label: str) -> str:
     # Remove the suite name.
     config = label
     for s in SUITES:
-        if f"-{s}-" in config:
+        if f"-{s}-" in config or label.endswith(f"-{s}"):
             config = config.replace(s, "*")
 
     # Remove the chunk number.

@@ -864,6 +864,9 @@ def test_autoclassify_errors(autoclassification_config, expected_error, error_me
 ONE_FAILURE_TYPE_CRASH = {"group1": [("test1.js", FailureType.CRASH)]}
 ONE_FAILURE_TYPE_TIMEOUT = {"group1": [("test1.js", FailureType.TIMEOUT)]}
 ONE_FAILURE_TYPE_GENERIC = {"group1": [("test1.js", FailureType.GENERIC)]}
+TWO_FAILURES_SAME_TEST_TYPE_GENERIC = {
+    "group1": [("test1.js", FailureType.GENERIC), ("test1.js", FailureType.GENERIC)]
+}
 MULTIPLE_FAILURE_TYPES = {
     "group1": [("test1.js", FailureType.CRASH), ("test2.js", FailureType.CRASH)],
     "group2": [("test1.js", FailureType.GENERIC), ("test2.js", FailureType.TIMEOUT)],
@@ -937,6 +940,8 @@ MULTIPLE_FAILURE_TYPES = {
         (ONE_FAILURE_TYPE_GENERIC, True, ["*"], ["crash", "timeout"], False),
         ({}, True, ["*"], ["crash"], False),
         (MULTIPLE_FAILURE_TYPES, True, ["*"], ["crash"], False),
+        # Two generic failures in the same test.
+        (TWO_FAILURES_SAME_TEST_TYPE_GENERIC, True, ["*"], ["generic"], True),
     ],
 )
 def test_autoclassify(

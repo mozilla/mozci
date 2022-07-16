@@ -148,11 +148,13 @@ def is_autoclassifiable(task: TestTask) -> bool:
         filtered_failure_types
     ).issubset(allowed_values), "Unsupported failure types in configuration"
 
-    flat_failure_types = [
-        test_and_type
-        for group in task.failure_types.values()
-        for test_and_type in group
-    ]
+    flat_failure_types = list(
+        set(
+            test_and_type
+            for group in task.failure_types.values()
+            for test_and_type in group
+        )
+    )
 
     return (
         any(

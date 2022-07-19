@@ -867,6 +867,9 @@ ONE_FAILURE_TYPE_GENERIC = {"group1": [("test1.js", FailureType.GENERIC)]}
 TWO_FAILURES_SAME_TEST_TYPE_GENERIC = {
     "group1": [("test1.js", FailureType.GENERIC), ("test1.js", FailureType.GENERIC)]
 }
+TWO_FAILURES_SAME_TEST_DIFFERENT_TYPE = {
+    "group1": [("test1.js", FailureType.GENERIC), ("test1.js", FailureType.CRASH)]
+}
 MULTIPLE_FAILURE_TYPES = {
     "group1": [("test1.js", FailureType.CRASH), ("test2.js", FailureType.CRASH)],
     "group2": [("test1.js", FailureType.GENERIC), ("test2.js", FailureType.TIMEOUT)],
@@ -942,6 +945,16 @@ MULTIPLE_FAILURE_TYPES = {
         (MULTIPLE_FAILURE_TYPES, True, ["*"], ["crash"], False),
         # Two generic failures in the same test.
         (TWO_FAILURES_SAME_TEST_TYPE_GENERIC, True, ["*"], ["generic"], True),
+        # A generic failure and a crash in the same test.
+        (TWO_FAILURES_SAME_TEST_DIFFERENT_TYPE, True, ["*"], ["generic"], False),
+        (TWO_FAILURES_SAME_TEST_DIFFERENT_TYPE, True, ["*"], ["crash"], False),
+        (
+            TWO_FAILURES_SAME_TEST_DIFFERENT_TYPE,
+            True,
+            ["*"],
+            ["generic", "crash"],
+            False,
+        ),
     ],
 )
 def test_autoclassify(

@@ -40,7 +40,7 @@ pre-commit = "^2.20"
 pytest = "^7.1"
 tox = "^3.25"
 responses = "^0.20"
-sphinx = "^5.0.2"
+sphinx = "^5.2.1"
 
 [tool.poetry.extras]
 cache = ["boto3", "python3-memcached", "redis", "zstandard"]

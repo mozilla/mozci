@@ -144,6 +144,8 @@ class CheckBackfillsCommand(Command):
                 to_notify[th_symbol]["backfill_tasks"].update(tasks_iter)
 
         for th_symbol, data in to_notify.items():
+            logger.debug("Preparing notification for the Treeherder symbol {th_symbol}")
+
             all_backfill_tasks = data["backfill_tasks"]
             # Checking that all backfill tasks for this symbol are in a "final" state
             if not all(task.state in TASK_FINAL_STATES for task in all_backfill_tasks):
@@ -174,6 +176,8 @@ class CheckBackfillsCommand(Command):
                 )
                 parents = None
 
+            logger.debug("Generating notification text")
+
             cleaned_label = re.sub(
                 r"(-e10s|-1proc)?(-\d+)?$", "", all_backfill_tasks.pop().label
             )
@@ -192,6 +196,8 @@ class CheckBackfillsCommand(Command):
                 logger.debug(f"The notification: {notification}")
                 continue
 
+            logger.debug("Sending Matrix notification")
+
             # Sending a notification to the Matrix channel defined in secret
             notify_matrix(
                 room=matrix_room,
@@ -203,6 +209,8 @@ class CheckBackfillsCommand(Command):
                     f"<comment>The current task should be indexed in {index_path} but TASK_ID environment variable isn't set.</comment>"
                 )
                 continue
+
+            logger.debug("Indexing current task")
 
             # Populating the index with the current task to prevent sending the notification once again
             index_current_task(

@@ -676,18 +676,21 @@ use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
 name = "responses"
-version = "0.20.0"
+version = "0.22.0"
 description = "A utility library for mocking out the `requests` Python library."
 category = "dev"
 optional = false
 python-versions = ">=3.7"
 
 [package.dependencies]
-requests = ">=2.0,<3.0"
+requests = ">=2.22.0,<3.0"
+toml = "*"
+types-toml = "*"
+typing-extensions = {version = "*", markers = "python_version < \"3.8\""}
 urllib3 = ">=1.25.10"
 
 [package.extras]
-tests = ["coverage (>=6.0.0)", "flake8", "mypy", "pytest (>=7.0.0)", "pytest-asyncio", "pytest-cov", "pytest-localserver", "types-mock", "types-requests"]
+tests = ["coverage (>=6.0.0)", "flake8", "mypy", "pytest (>=7.0.0)", "pytest-asyncio", "pytest-cov", "pytest-httpserver", "types-requests"]
 
 [[package]]
 name = "s3transfer"
@@ -916,6 +919,14 @@ docs = ["pygments-github-lexers (>=0.0.5)", "sphinx (>=2.0.0)", "sphinxcontrib-a
 testing = ["flaky (>=3.4.0)", "freezegun (>=0.3.11)", "pathlib2 (>=2.3.3)", "psutil (>=5.6.1)", "pytest (>=4.0.0)", "pytest-cov (>=2.5.1)", "pytest-mock (>=1.10.0)", "pytest-randomly (>=1.0.0)"]
 
 [[package]]
+name = "types-toml"
+version = "0.10.8"
+description = "Typing stubs for toml"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "typing-extensions"
 version = "4.1.1"
 description = "Backported and Experimental Type Hints for Python 3.6+"
@@ -1031,7 +1042,7 @@ cache-seeded-file = ["zstandard"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7,<4"
-content-hash = "508be01447a4743ab7396ff03d71f2c593b4d098e8ddcaaa7e606eb1a2a46831"
+content-hash = "5286a26257699877bcb625bc052c127b6497e64e0d13e208ce3d667b5ed5c1d1"
 
 [metadata.files]
 aiohttp = [
@@ -1632,8 +1643,8 @@ requests = [
     {file = "requests-2.28.1.tar.gz", hash = "sha256:7c5599b102feddaa661c826c56ab4fee28bfd17f5abca1ebbe3e7f19d7c97983"},
 ]
 responses = [
-    {file = "responses-0.20.0-py3-none-any.whl", hash = "sha256:18831bc2d72443b67664d98038374a6fa1f27eaaff4dd9a7d7613723416fea3c"},
-    {file = "responses-0.20.0.tar.gz", hash = "sha256:644905bc4fb8a18fa37e3882b2ac05e610fe8c2f967d327eed669e314d94a541"},
+    {file = "responses-0.22.0-py3-none-any.whl", hash = "sha256:dcf294d204d14c436fddcc74caefdbc5764795a40ff4e6a7740ed8ddbf3294be"},
+    {file = "responses-0.22.0.tar.gz", hash = "sha256:396acb2a13d25297789a5866b4881cf4e46ffd49cc26c43ab1117f40b973102e"},
 ]
 s3transfer = [
     {file = "s3transfer-0.6.0-py3-none-any.whl", hash = "sha256:06176b74f3a15f61f1b4f25a1fc29a4429040b7647133a463da8fa5bd28d5ecd"},
@@ -1707,6 +1718,10 @@ tomlkit = [
 tox = [
     {file = "tox-3.26.0-py2.py3-none-any.whl", hash = "sha256:bf037662d7c740d15c9924ba23bb3e587df20598697bb985ac2b49bdc2d847f6"},
     {file = "tox-3.26.0.tar.gz", hash = "sha256:44f3c347c68c2c68799d7d44f1808f9d396fc8a1a500cbc624253375c7ae107e"},
+]
+types-toml = [
+    {file = "types-toml-0.10.8.tar.gz", hash = "sha256:b7e7ea572308b1030dc86c3ba825c5210814c2825612ec679eb7814f8dd9295a"},
+    {file = "types_toml-0.10.8-py3-none-any.whl", hash = "sha256:8300fd093e5829eb9c1fba69cee38130347d4b74ddf32d0a7df650ae55c2b599"},
 ]
 typing-extensions = [
     {file = "typing_extensions-4.1.1-py3-none-any.whl", hash = "sha256:21c85e0fe4b9a155d0799430b0ad741cdce7e359660ccbd8b530613e8df88ce2"},

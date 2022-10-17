@@ -39,7 +39,7 @@ json-e = "^4.4.3"
 pre-commit = "^2.20"
 pytest = "^7.1"
 tox = "^3.26"
-responses = "^0.20"
+responses = "^0.22"
 sphinx = "^5.3.0"
 
 [tool.poetry.extras]

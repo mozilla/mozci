@@ -843,7 +843,7 @@ widechars = ["wcwidth"]
 
 [[package]]
 name = "taskcluster"
-version = "44.22.0"
+version = "46.1.1"
 description = "Python client for Taskcluster"
 category = "main"
 optional = false
@@ -853,12 +853,13 @@ python-versions = "*"
 aiohttp = ">=3.7.4"
 async-timeout = ">=2.0.0"
 mohawk = ">=0.3.4"
+python-dateutil = ">=2.8.2"
 requests = ">=2.4.3"
 slugid = ">=2"
 taskcluster-urls = ">=12.1.0"
 
 [package.extras]
-test = ["aiofiles", "coverage", "flake8", "httmock", "httptest", "hypothesis", "mock", "psutil", "pytest", "pytest-asyncio", "pytest-cov", "pytest-mock", "python-dateutil", "setuptools-lint", "tox"]
+test = ["aiofiles", "coverage", "flake8", "httmock", "httptest", "hypothesis", "mock", "psutil", "pytest", "pytest-asyncio", "pytest-cov", "pytest-mock", "setuptools-lint", "tox"]
 
 [[package]]
 name = "taskcluster-urls"
@@ -1684,8 +1685,8 @@ tabulate = [
     {file = "tabulate-0.9.0.tar.gz", hash = "sha256:0095b12bf5966de529c0feb1fa08671671b3368eec77d7ef7ab114be2c068b3c"},
 ]
 taskcluster = [
-    {file = "taskcluster-44.22.0-py3-none-any.whl", hash = "sha256:be3f5ac308704fb95619d8b82fecbaf222809176a38ffe4534cab785951658e1"},
-    {file = "taskcluster-44.22.0.tar.gz", hash = "sha256:80a0f96517b8207bc94976e8310623e3b179cf2f9fb2054e5e5b4b8f6792d267"},
+    {file = "taskcluster-46.1.1-py3-none-any.whl", hash = "sha256:222c2511c9dfca4cc70ee64082c2b940e2e8513ae9df3adb7afedacac4ebc97d"},
+    {file = "taskcluster-46.1.1.tar.gz", hash = "sha256:1f49339b725a465d2ef4c9fb8bbe5ecaaf449707e5353fd6a5a453c776d057b6"},
 ]
 taskcluster-urls = [
     {file = "taskcluster-urls-13.0.1.tar.gz", hash = "sha256:b25e122ecec249c4299ac7b20b08db76e3e2025bdaeb699a9d444556de5fd367"},

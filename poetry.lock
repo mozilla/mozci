@@ -105,14 +105,14 @@ pytz = ">=2015.7"
 
 [[package]]
 name = "boto3"
-version = "1.24.92"
+version = "1.26.41"
 description = "The AWS SDK for Python"
 category = "main"
 optional = true
 python-versions = ">= 3.7"
 
 [package.dependencies]
-botocore = ">=1.27.92,<1.28.0"
+botocore = ">=1.29.41,<1.30.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -121,7 +121,7 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.27.92"
+version = "1.29.41"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = true
@@ -133,7 +133,7 @@ python-dateutil = ">=2.1,<3.0.0"
 urllib3 = ">=1.25.4,<1.27"
 
 [package.extras]
-crt = ["awscrt (==0.14.0)"]
+crt = ["awscrt (==0.15.3)"]
 
 [[package]]
 name = "cachy"
@@ -1141,12 +1141,12 @@ babel = [
     {file = "Babel-2.9.1.tar.gz", hash = "sha256:bc0c176f9f6a994582230df350aa6e05ba2ebe4b3ac317eab29d9be5d2768da0"},
 ]
 boto3 = [
-    {file = "boto3-1.24.92-py3-none-any.whl", hash = "sha256:3c6cc4e9e38cf4523267f89eb90c0b6084fa415cb4f44e3bf0cad6199340cc92"},
-    {file = "boto3-1.24.92.tar.gz", hash = "sha256:d28bcb98aee4d333b163c55b98341627d933dbf088832f7fc050893617be7dac"},
+    {file = "boto3-1.26.41-py3-none-any.whl", hash = "sha256:05a5ce3af2d7419e39d93498c7f56fd5c2cc17870c92c4abc75659553b0b16de"},
+    {file = "boto3-1.26.41.tar.gz", hash = "sha256:8cbea352f28ec6b241f348356bcb8f331fc433bec3ad76ebf6194227f1a7f613"},
 ]
 botocore = [
-    {file = "botocore-1.27.92-py3-none-any.whl", hash = "sha256:b49c34b80c782625905be75e669da4b42a99f074e0aa3007e15ccc6955682a07"},
-    {file = "botocore-1.27.92.tar.gz", hash = "sha256:70cf2cb04968794ed4688cc3b07874f6f4c932e325611be4e693a995fdb481be"},
+    {file = "botocore-1.29.41-py3-none-any.whl", hash = "sha256:b670b7f8958a2908167081efb6ea39794bf61d618be729984629a63d85cf8bfe"},
+    {file = "botocore-1.29.41.tar.gz", hash = "sha256:78761227d986d393956b6d08fdadcfe142748828e0e9db33f2f4c42a482dcd35"},
 ]
 cachy = [
     {file = "cachy-0.3.0-py2.py3-none-any.whl", hash = "sha256:338ca09c8860e76b275aff52374330efedc4d5a5e45dc1c5b539c1ead0786fe7"},

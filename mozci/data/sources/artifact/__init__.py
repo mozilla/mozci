@@ -57,7 +57,6 @@ class ErrorSummarySource(DataSource):
                 groups |= set(line["groups"]) - {"default"}
 
             elif line["action"] == "group_result":
-
                 group = line["group"]
                 if group not in group_results or line["status"] != "OK":
                     group_results[group] = (line["status"], line["duration"])

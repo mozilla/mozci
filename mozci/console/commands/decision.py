@@ -35,7 +35,6 @@ class DecisionCommand(Command):
 
         # List most recent pushes
         for push in make_push_objects(nb=nb_pushes, branch=branch):
-
             if dry_run:
                 self.line(f"Would classify {push.branch}@{push.rev}")
                 continue

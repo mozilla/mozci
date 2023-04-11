@@ -33,7 +33,6 @@ def merge_to(source, dest):
         dest (dict): to copy to (modified in place)
     """
     for key, value in source.items():
-
         if key not in dest:
             dest[key] = value
             continue

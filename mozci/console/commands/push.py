@@ -1147,7 +1147,6 @@ class ClassifyEvalCommand(Command):
         return line
 
     def send_emails(self, total, stats, error_line):
-
         today = datetime.datetime.strftime(datetime.datetime.now(), "%Y-%m-%d")
 
         stats = "\n".join([f"- {stat}" for stat in stats])
@@ -1270,7 +1269,6 @@ class ClassifyPerfCommand(Command):
         progress.finish()
 
     def list_classification_tasks(self, group_id):
-
         # Check cache first
         cache_key = f"perf/task_group/{group_id}"
         tasks = config.cache.get(cache_key, [])

@@ -105,7 +105,6 @@ Time: 09:45:02
 def test_classification_evolution(
     create_push, responses, previous, current, email_content
 ):
-
     # Setup dummy regressions with real failures
     regressions = Regressions(
         real={

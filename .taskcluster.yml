@@ -44,6 +44,8 @@ tasks:
           - "git clone --quiet ${repository} &&
             cd mozci &&
             git -c advice.detachedHead=false checkout ${head_rev} &&
+            pip install --quiet poetry==1.4.2 &&
+            poetry install -vv -E cache &&
             pip install --quiet tox==4.4.11 &&
             tox"
       metadata:

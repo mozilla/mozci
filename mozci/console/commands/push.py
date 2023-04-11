@@ -14,8 +14,8 @@ from urllib.parse import urlencode
 
 import arrow
 import taskcluster
-from cleo import Command
-from clikit.api.args.exceptions import NoSuchOptionException
+from cleo.commands.command import Command
+from cleo.exceptions import CleoNoSuchOptionError
 from loguru import logger
 from tabulate import tabulate
 from taskcluster.exceptions import TaskclusterRestFailure
@@ -167,7 +167,7 @@ def retrieve_classify_parameters(options):
         option_name = parameter_name.replace("_", "-")
         try:
             option = options(option_name)
-        except NoSuchOptionException:
+        except CleoNoSuchOptionError:
             option = None
 
         if config.get(parameter_name) is not None and option is not None:

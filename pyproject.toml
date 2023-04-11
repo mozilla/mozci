@@ -29,7 +29,7 @@ lru-dict = "^1.1.7"
 
 # Optional dependencies
 ValidX = "^0.7"
-cleo = "^0.8.1"
+cleo = ">=0.8.1,<2.1.0"
 tabulate = ">=0.8.9,<0.10.0"
 arrow = "^1.2.2"
 markdown2 = "^2.4.2"

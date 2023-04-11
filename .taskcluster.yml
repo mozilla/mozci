@@ -46,7 +46,7 @@ tasks:
             git -c advice.detachedHead=false checkout ${head_rev} &&
             pip install --quiet poetry==1.4.2 &&
             poetry install -vvv --no-ansi -E cache &&
-            pip install --quiet tox==4.4.11 &&
+            pip install --quiet tox==3.28.0 &&
             tox"
       metadata:
         name: mozci linting and tests

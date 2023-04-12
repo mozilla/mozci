@@ -63,7 +63,7 @@ tasks:
         features:
           dind: true
         maxRunTime: 3600
-        image: mozilla/taskboot:0.3.3
+        image: mozilla/taskboot:0.3.6
         env:
           GIT_REPOSITORY: ${repository}
           GIT_REVISION: ${head_rev}

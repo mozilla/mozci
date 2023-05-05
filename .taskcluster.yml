@@ -93,6 +93,8 @@ tasks:
         else:
           - "index.project.mozci.docker.revision.${head_rev}"
           - "index.project.mozci.docker.branch.${head_branch}"
+      scopes:
+        - docker-worker:capability:privileged
       metadata:
         name: mozci docker build
         description: mozci docker build

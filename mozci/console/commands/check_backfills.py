@@ -6,7 +6,7 @@ from itertools import groupby
 from typing import Any, Dict
 
 import requests
-from cleo import Command
+from cleo.commands.command import Command
 from loguru import logger
 
 from mozci import config
@@ -46,6 +46,8 @@ class CheckBackfillsCommand(Command):
       6. If so (and if the notification wasn't already sent), send a notification on Matrix alerting that this backfill group is completed
       7. Add the current task in a dedicated index to avoid sending multiple times the same notification
     """
+
+    name = "check-backfills"
 
     def handle(self) -> None:
         branch = self.option("branch")

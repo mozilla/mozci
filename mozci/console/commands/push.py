@@ -1318,6 +1318,8 @@ class PushCommands(Command):
     push
     """
 
+    name = "push"
+
     commands = [
         PushTasksCommand(),
         ClassifyCommand(),

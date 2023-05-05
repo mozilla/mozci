@@ -58,34 +58,26 @@ tasks:
       dependencies:
         - { $eval: as_slugid("tests_task") }
       provisionerId: proj-mozci
-      workerType: ci
+      workerType: generic-worker-ubuntu-22-04
       payload:
-        features:
-          dind: true
         maxRunTime: 3600
-        image: mozilla/taskboot:0.3.6
-        env:
-          GIT_REPOSITORY: ${repository}
-          GIT_REVISION: ${head_rev}
         command:
-          - taskboot
-          - build
-          - --build-tool
-          - dind
-          - --image
-          - mozilla/mozci
-          - --tag
-          - "${head_rev}"
-          - --write
-          - /mozci.tar
-          - Dockerfile
+          - - bash
+            - "-cx"
+            - >-
+              podman run -v $(pwd):/work -w /work --privileged -e
+              "GIT_REPOSITORY=${repository}" -e
+              "GIT_REVISION=${head_rev}"
+              'mozilla/taskboot:0.3.6' taskboot build --build-tool podman --image
+              mozilla/mozci --tag ${head_rev} --write
+              '/work/mozci.tar' Dockerfile
         artifacts:
-          public/mozci.tar.zst:
+          - name: public/mozci.tar.zst
             expires:
               $if: 'head_branch == "production"'
               then: { $fromNow: "1 year" }
               else: { $fromNow: "1 month" }
-            path: /mozci.tar.zst
+            path: mozci.tar.zst
             type: file
       routes:
         $if: 'tasks_for == "github-pull-request"'
@@ -109,8 +101,6 @@ tasks:
       provisionerId: proj-mozci
       workerType: ci
       payload:
-        features:
-          dind: true
         maxRunTime: 3600
         image:
           type: task-image

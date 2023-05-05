@@ -60,8 +60,6 @@ tasks:
       provisionerId: proj-mozci
       workerType: ci
       payload:
-        features:
-          dind: true
         maxRunTime: 3600
         image: mozilla/taskboot:0.3.6
         env:
@@ -71,7 +69,7 @@ tasks:
           - taskboot
           - build
           - --build-tool
-          - dind
+          - podman
           - --image
           - mozilla/mozci
           - --tag

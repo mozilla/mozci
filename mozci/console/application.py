@@ -2,7 +2,7 @@
 
 import sys
 
-from cleo import Application
+from cleo.application import Application
 
 from mozci.console.commands.batch_execution import BatchExecutionCommands
 from mozci.console.commands.check_backfills import CheckBackfillsCommand

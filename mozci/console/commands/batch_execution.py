@@ -8,7 +8,7 @@ import time
 import uuid
 from multiprocessing import Pool
 
-from cleo import Command
+from cleo.commands.command import Command
 from loguru import logger
 
 from mozci.console.commands.push import (
@@ -124,6 +124,8 @@ class BatchClassificationCommand(Command):
     classify
         {--workers= : Number of workers to use in order to parallelize the executions.}
     """
+
+    name = "batch-classification"
 
     csv_header = (
         ["run_uuid", "push_uuid"]
@@ -361,6 +363,8 @@ class BatchExecutionCommands(Command):
 
     batch-execution
     """
+
+    name = "batch-execution"
 
     commands = [
         BatchClassificationCommand(),

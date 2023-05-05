@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 import taskcluster
-from cleo import Command
+from cleo.commands.command import Command
 
 from mozci.push import Push, make_push_objects
 from mozci.util.memoize import memoized_property
@@ -21,6 +21,8 @@ class DecisionCommand(Command):
         {--dry-run : Do not create tasks on taskcluster, simply output actions.}
         {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
     """
+
+    name = "decision"
 
     def handle(self):
         branch = self.argument("branch")

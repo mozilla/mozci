@@ -609,7 +609,10 @@ def parse_and_log_details(
         )
         if len(classifications_set) == 0:
             continue
-        if classifications_set == {"not classified"}:
+        if (
+            len(classifications_set - {"not classified", "new failure not classified"})
+            == 0
+        ):
             pending.append(group)
         elif len(classifications_set) != 1:
             conflicting.append(group)

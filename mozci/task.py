@@ -346,7 +346,8 @@ class Task:
                 "taskGroupId": decision_task.id,
                 "input": {
                     "times": 5
-                    if self.classification == "not classified"
+                    if self.classification
+                    in ("not classified", "new failure not classified")
                     or self.classification in INTERMITTENT_CLASSES
                     else 1
                 },

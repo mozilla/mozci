@@ -85,6 +85,7 @@ _contracts: Tuple[Contract, ...] = (
                                 "expected fail",
                                 "fixed by commit",
                                 "not classified",
+                                "new failure not classified",
                             ],
                         ),
                         "classification_note": v.Str(),

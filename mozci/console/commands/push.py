@@ -77,6 +77,8 @@ class PushTasksCommand(Command):
         {branch : Branch the push belongs to (e.g autoland, try, etc).}
     """
 
+    name = "push tasks"
+
     def handle(self):
         push = Push(self.argument("rev"), self.argument("branch"))
 
@@ -211,6 +213,8 @@ class ClassifyCommand(Command):
         {--retrigger-limit=3 : Number of failing groups (missing information) to be retriggered, defaults to 3.}
         {--backfill-limit=3 : Number of failing groups (missing information) to be backfilled, defaults to 3.}
     """
+
+    name = "push classify"
 
     def handle(self) -> None:
         self.branch = self.argument("branch")
@@ -708,6 +712,8 @@ class ClassifyEvalCommand(Command):
         {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
     """
 
+    name = "push classify-eval"
+
     def handle(self) -> None:
         branch = self.argument("branch")
 
@@ -1176,6 +1182,8 @@ class ClassifyPerfCommand(Command):
         {--output=perfs.csv: Output CSV file path}
     """
 
+    name = "push perf"
+
     REGEX_ROUTE = re.compile(
         r"^index.project.mozci.classification.([\w\-]+).(revision|push).(\w+)$"
     )
@@ -1312,23 +1320,3 @@ class ClassifyPerfCommand(Command):
         # Cache all tasks if all completed
         if all(t["status"]["state"] == "completed" for t in tasks):
             config.cache.add(cache_key, tasks, int(config["cache"]["retention"]))
-
-
-class PushCommands(Command):
-    """
-    Contains commands that operate on a single push.
-
-    push
-    """
-
-    name = "push"
-
-    commands = [
-        PushTasksCommand(),
-        ClassifyCommand(),
-        ClassifyEvalCommand(),
-        ClassifyPerfCommand(),
-    ]
-
-    def handle(self):
-        return self.call("help", self._config.name)

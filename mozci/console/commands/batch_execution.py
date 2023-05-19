@@ -125,7 +125,7 @@ class BatchClassificationCommand(Command):
         {--workers= : Number of workers to use in order to parallelize the executions.}
     """
 
-    name = "batch-classification"
+    name = "batch-execution classify"
 
     csv_header = (
         ["run_uuid", "push_uuid"]
@@ -193,6 +193,8 @@ class BatchEvaluationCommand(Command):
 
     evaluate
     """
+
+    name = "batch-execution evaluate"
 
     csv_header = [
         "configuration",
@@ -355,21 +357,3 @@ class BatchEvaluationCommand(Command):
                 )
 
         return configs
-
-
-class BatchExecutionCommands(Command):
-    """
-    Contains commands that operate on lots of pushes using lots of classification algorithm configurations.
-
-    batch-execution
-    """
-
-    name = "batch-execution"
-
-    commands = [
-        BatchClassificationCommand(),
-        BatchEvaluationCommand(),
-    ]
-
-    def handle(self):
-        return self.call("help", self._config.name)

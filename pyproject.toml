@@ -28,7 +28,7 @@ taskcluster = ">=38"
 lru-dict = "^1.1.7"
 
 # Optional dependencies
-ValidX = "^0.7"
+ValidX = ">=0.7,<0.9"
 cleo = "^2.0.1"
 tabulate = ">=0.8.9,<0.10.0"
 arrow = "^1.2.2"

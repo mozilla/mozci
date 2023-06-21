@@ -1798,47 +1798,55 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "validx"
-version = "0.7"
+version = "0.8"
 description = "fast, powerful, and flexible validator with sane syntax"
 optional = false
-python-versions = "*"
+python-versions = ">=3.6"
 files = [
-    {file = "ValidX-0.7-cp35-cp35m-macosx_10_9_x86_64.whl", hash = "sha256:320984109c790d8a2568804290419cba1642307ffc9ef26f692928df7f313c47"},
-    {file = "ValidX-0.7-cp35-cp35m-manylinux1_i686.whl", hash = "sha256:402bcfa2945fb723a066c0fca7c63765880b2732c756107ec4984490d20e3203"},
-    {file = "ValidX-0.7-cp35-cp35m-manylinux1_x86_64.whl", hash = "sha256:1ada2c7240ce85e334b86bd22f343faff13742f7eadf06f2c232c76aa9d56c48"},
-    {file = "ValidX-0.7-cp35-cp35m-manylinux2010_i686.whl", hash = "sha256:8a6376a43ff4d71d450dc318f11caf7aadbd77e06a4a1fe6cdb7c8d540023fe7"},
-    {file = "ValidX-0.7-cp35-cp35m-manylinux2010_x86_64.whl", hash = "sha256:5ef04d560706d4ea01a803c61f90b597b6703bafa45adda88b823944756cb487"},
-    {file = "ValidX-0.7-cp35-cp35m-win32.whl", hash = "sha256:719587896f3a31a8774ab695433e40bfe56f2aabecdd57f738015a40ebea78a0"},
-    {file = "ValidX-0.7-cp35-cp35m-win_amd64.whl", hash = "sha256:66c20bd73f0a965de86f3142b08c8231ae3cd781abf7553d20fdb7276aa1dde9"},
-    {file = "ValidX-0.7-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:0a4faf64c701018fe2d7022b3fca3498ce2870c98ea2ce0844c6137c40196786"},
-    {file = "ValidX-0.7-cp36-cp36m-manylinux1_i686.whl", hash = "sha256:db1bdf1485b64da7b9581799ee6dfc3397b14457c1c744072640ad4405fcb6ee"},
-    {file = "ValidX-0.7-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:b06a33a2ebdaae7cfcd7294cdf150cf29c1a500838056387d68d84473192d5be"},
-    {file = "ValidX-0.7-cp36-cp36m-manylinux2010_i686.whl", hash = "sha256:15e186badfa120c22c828c594c346ff8fd34876af628f7cddf6363d6a76b6f95"},
-    {file = "ValidX-0.7-cp36-cp36m-manylinux2010_x86_64.whl", hash = "sha256:e9b56e49491c9b8a2da578ebbb411aeb7bcae05cf5eda632591921738c69702f"},
-    {file = "ValidX-0.7-cp36-cp36m-win32.whl", hash = "sha256:e0d944ccbb94246419faf3d12b93b8c2ec953152ec0ad01e71d8201da5230e73"},
-    {file = "ValidX-0.7-cp36-cp36m-win_amd64.whl", hash = "sha256:9d3ddf6574940f7115534be7b6ce21e114a1f1fff46dff369cec779abe498d1c"},
-    {file = "ValidX-0.7-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:38322f822f941b1b5d810836c6dcf13875c4d13fb5e9d0718e6bcfce351033b9"},
-    {file = "ValidX-0.7-cp37-cp37m-manylinux1_i686.whl", hash = "sha256:ab441d1621d8e26237537710d2b020a7bbe70b573c0139ce5bfc6950da15d391"},
-    {file = "ValidX-0.7-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:fa277c24ce52eac619e82298de929759bb23b4dbdec28ba6e9f60e40198d2509"},
-    {file = "ValidX-0.7-cp37-cp37m-manylinux2010_i686.whl", hash = "sha256:152dcc598f95e2d7ed8cf6f82fb911f1fd4d2b7111a1a3a933a1116a8b44e830"},
-    {file = "ValidX-0.7-cp37-cp37m-manylinux2010_x86_64.whl", hash = "sha256:afe1d4f1606d787a5f9a020dff6f71267feadd87e9a4a8ca5472a2d7f1edf1ac"},
-    {file = "ValidX-0.7-cp37-cp37m-win32.whl", hash = "sha256:a36c3d271cdcfbeefcd921937ffa405e21025c54219687c01a5954b73d6a7e74"},
-    {file = "ValidX-0.7-cp37-cp37m-win_amd64.whl", hash = "sha256:906f096360156303625b6f425414d1a4b4e9b3b72919379a95a1a9f4cd63098b"},
-    {file = "ValidX-0.7-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:a9b888a9b6331f33b47071976d28fcee977c77aea2307da709417f1fb62e2202"},
-    {file = "ValidX-0.7-cp38-cp38-manylinux1_i686.whl", hash = "sha256:bc63d0406041e12182451d6064f51338692bb312fd15686bf9970a5b30a3e4c7"},
-    {file = "ValidX-0.7-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:95f900339a7016857813e22bd28c066e12a9dab49e0f98c22550d6dfde1dfdd1"},
-    {file = "ValidX-0.7-cp38-cp38-manylinux2010_i686.whl", hash = "sha256:f3bea80f0f8d440ba233b22e3b7153f4f08d20dcf62f209659b5b295dcb39740"},
-    {file = "ValidX-0.7-cp38-cp38-manylinux2010_x86_64.whl", hash = "sha256:dff33c40f90fed98ff73d50a309c3206a6e7da225e0fe0c97e9e13d5273a231d"},
-    {file = "ValidX-0.7-cp38-cp38-win32.whl", hash = "sha256:8313974e13d395f59341455f08dda5bd84bf56060e033dd918bfec1156310c5d"},
-    {file = "ValidX-0.7-cp38-cp38-win_amd64.whl", hash = "sha256:780bbf248223f67d5da51699c10ae348ea636706db2425ec50c20679a1f75462"},
-    {file = "ValidX-0.7-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:a82987dda3a24fc44eb849a3df0661ffa7d807aa071811e0d8fc36eed0fe58ed"},
-    {file = "ValidX-0.7-cp39-cp39-manylinux1_i686.whl", hash = "sha256:299b0d5eda95eb409a9771c23b1deb3c6f7499c995b6a52c3e760afd688fb3ec"},
-    {file = "ValidX-0.7-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:b58c861953e0785de7d02c496d2252e10841ca8e12458b37341fa5c6ebaea00d"},
-    {file = "ValidX-0.7-cp39-cp39-manylinux2010_i686.whl", hash = "sha256:1d655cbee8c5812bd92a5f83de66594cfc66bd3e0391c9f99bd11c25572d0013"},
-    {file = "ValidX-0.7-cp39-cp39-manylinux2010_x86_64.whl", hash = "sha256:4e086ee056a0414bbe2f06267d9c9d6c5c1a9848043b40fdf9e858ec86e3f618"},
-    {file = "ValidX-0.7-cp39-cp39-win32.whl", hash = "sha256:227153f3ae19630a8ada0f6bee3d824976df8ec60e41fc56921eb6cfa9f37136"},
-    {file = "ValidX-0.7-cp39-cp39-win_amd64.whl", hash = "sha256:d7783ac9ca78ccf24cfeb3606ada82ea211a79a27d12a98878529adeff09f342"},
-    {file = "ValidX-0.7.tar.gz", hash = "sha256:ffbd835c3449a89c056c814205729532b9a179a4005bb99441562e2f1ab46cba"},
+    {file = "ValidX-0.8-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:801df0277c96de20220e96dc434cbbbc3383f399b383c18ddbeaa2ef3799cada"},
+    {file = "ValidX-0.8-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ab065833277b69cbf5701bd3ba08a0b1c9cb3a9b776c8cf49a0f9e06f2684fc0"},
+    {file = "ValidX-0.8-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:800fbc3b6edecca2a8f9ebddc1355b0b9c66a0f59345eb5b1cb28b416462b2a0"},
+    {file = "ValidX-0.8-cp310-cp310-musllinux_1_1_i686.whl", hash = "sha256:ff91a7e3faca01ed45efb8f2df5b2a161ec25f2cd4deef5dcd089c5b3956b277"},
+    {file = "ValidX-0.8-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:6f46fefff0c9a1fd1897f459fdf9f00e78ade149cea6872332ae1bf1f7d38b62"},
+    {file = "ValidX-0.8-cp310-cp310-win32.whl", hash = "sha256:c2edc3d835597e2f4e0446bb4ca8727ffb76553746e11d5da6d82108dacdb6fe"},
+    {file = "ValidX-0.8-cp310-cp310-win_amd64.whl", hash = "sha256:b5be3cc2ef969c73519653d11e638a9ed909aed1ceefe68900c1a798927bc859"},
+    {file = "ValidX-0.8-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:81427338761db86f197af3ee48a568e3d5ad2c56ee61db55f81d9ab54f290ddc"},
+    {file = "ValidX-0.8-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b0a4f9530af83cc884f9571961ad09c06ca9d8a00056e124374fd2a92f0456c5"},
+    {file = "ValidX-0.8-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:273a7ce4f340ced005fc3e84c9dbf5074e6b6c64e9ea708880a38bb39fa6dd99"},
+    {file = "ValidX-0.8-cp311-cp311-musllinux_1_1_i686.whl", hash = "sha256:6867af20384a7d817be07c422f3ed858f7860e2d85f93647dce188c0eb0a0232"},
+    {file = "ValidX-0.8-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:a379a728b82513e0e924ca7d56b5804af04d793b4e8ad4c99383ac28268eb788"},
+    {file = "ValidX-0.8-cp311-cp311-win32.whl", hash = "sha256:a140bbca789ccc931fb7a8b92743008578da1a55d832629fd846a32de4f8ce76"},
+    {file = "ValidX-0.8-cp311-cp311-win_amd64.whl", hash = "sha256:5b36287c2b31bf364656e06df72ed9a7eab62832f3f049a4d9f0ad682ee545b9"},
+    {file = "ValidX-0.8-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:9b6bfa2b46b80d88b271a5d83faae046a4b37a3702da114fe602742e0ca59af3"},
+    {file = "ValidX-0.8-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a194ee597be5d7841c12e8bb98b8c8c349ef973e4d9b0d27b3003b686b6e0562"},
+    {file = "ValidX-0.8-cp36-cp36m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:553ee8ba6eedb35960f0a7e8754b58b319d0083bc9e8c279b86e9d4b1b5a7f9c"},
+    {file = "ValidX-0.8-cp36-cp36m-musllinux_1_1_i686.whl", hash = "sha256:fd44a8109f00c8a95c14baa461b6aeb5379facf1e7037bad7e31c589f4e2fc2d"},
+    {file = "ValidX-0.8-cp36-cp36m-musllinux_1_1_x86_64.whl", hash = "sha256:6b503380715c40718d20aee0452f782821b8664a32a92a404dcff29e35e1857d"},
+    {file = "ValidX-0.8-cp36-cp36m-win32.whl", hash = "sha256:6781783a8833caebe0b0a26a7edb5de6ee9bb1c1d59a5f2cb433de018a7d11c5"},
+    {file = "ValidX-0.8-cp36-cp36m-win_amd64.whl", hash = "sha256:888853e2c833630dbfe06b6b860b894cb06a6cc8af41de738d1c72d205227765"},
+    {file = "ValidX-0.8-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:09b1193a116a7d6cc7cabcab876917b03f8f0fdb7eff6fc5ab01dddf0c1cea3c"},
+    {file = "ValidX-0.8-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:21e097dd264273b9c988b959133122ee3562de977e60ea5efac72176383f7c33"},
+    {file = "ValidX-0.8-cp37-cp37m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:555436b76823c8e69f3f4aae985bc00b67abb7e12eb4e15f5053359ff0fa3cdb"},
+    {file = "ValidX-0.8-cp37-cp37m-musllinux_1_1_i686.whl", hash = "sha256:4b3b5c6615e222286c09ab7487d108d6367f746e067eb17f7cd9ac537bec0934"},
+    {file = "ValidX-0.8-cp37-cp37m-musllinux_1_1_x86_64.whl", hash = "sha256:bb20b7b34ccab1b61768e2dad30d09d51ea92dbd053c64f3286724157fc1c5fa"},
+    {file = "ValidX-0.8-cp37-cp37m-win32.whl", hash = "sha256:853051035646d4a045a4a54a6c6d0d6e7281a23eeb922f2f5030caeb6f0aab03"},
+    {file = "ValidX-0.8-cp37-cp37m-win_amd64.whl", hash = "sha256:a4f12b356677590d947aba4c899d2f41a6cfc408d1d4289b1184f10ba9a52fc9"},
+    {file = "ValidX-0.8-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:eae4b92651b2e266e9d37416de0dbf59dbf37cf382c9c5b076be36ce5686fb70"},
+    {file = "ValidX-0.8-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:54f9d2cb5c9b340dccf11456700b51fe2a4d52b16852960cffe7d115b848671e"},
+    {file = "ValidX-0.8-cp38-cp38-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:82287771ddb20a1a02f60aabb5150d59b0e5a10b8006579e004fd3d54243114c"},
+    {file = "ValidX-0.8-cp38-cp38-musllinux_1_1_i686.whl", hash = "sha256:fab59482474268cfaeea266c8c412300c8e396b6c041105b9871e2c34beaf740"},
+    {file = "ValidX-0.8-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:0e6514c73a29a5bd95b116acc658251406d80e1dbe2935983e223d1f253c1812"},
+    {file = "ValidX-0.8-cp38-cp38-win32.whl", hash = "sha256:e4d934d4cbf9fb9f257f0c60e667316894979e4aaa6de8d52261ddf69721e25c"},
+    {file = "ValidX-0.8-cp38-cp38-win_amd64.whl", hash = "sha256:5788023c3f5c497569bedc8d6b90be235797df98ce5794296c92cf6e51317be1"},
+    {file = "ValidX-0.8-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:3eeec5299a9e70c94a1f0b005ad9ed06baeb4b81838e001100f75caddf6a4445"},
+    {file = "ValidX-0.8-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e01480bbc0faa5523a2def7c241a1cf4dec7ca033807528d1cb50a1c79a14c05"},
+    {file = "ValidX-0.8-cp39-cp39-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:13daf9259856f90f85b2c55d0da85f9e61c93b0aa4a43a7b31af6b68a2ee791b"},
+    {file = "ValidX-0.8-cp39-cp39-musllinux_1_1_i686.whl", hash = "sha256:83b7f6d9cfef7dbb6e3c34fe73f9662837e56161fc33300de3767472a5ac63ad"},
+    {file = "ValidX-0.8-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:68a60b0884fa9582c1ba6e721b9a038f6c5a2022557213e8f582d97cbee1c0b4"},
+    {file = "ValidX-0.8-cp39-cp39-win32.whl", hash = "sha256:1b4321884f9d7d6d9ebbe2f24712ba238530f964d94fdcd97745aff177a0a318"},
+    {file = "ValidX-0.8-cp39-cp39-win_amd64.whl", hash = "sha256:c7f2f1d62e10cf0fde723940209ea7593db789626e9411d2fe95afb64324f7e8"},
+    {file = "ValidX-0.8-py3-none-any.whl", hash = "sha256:85754e1cfebbdf43188b520081bbda5906d4182e7fa3444b6a6f60945f398453"},
+    {file = "ValidX-0.8.tar.gz", hash = "sha256:eab536576d640b102667492d4cc52ea7f3843432f2fa4126634bc9b412f4e869"},
 ]
 
 [[package]]
@@ -2047,4 +2055,4 @@ cache-seeded-file = ["zstandard"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.7,<4"
-content-hash = "6ad8d237664f923f4819adb5e5db6b58d9042c8e92d1b2b25a4806b80f8f11af"
+content-hash = "0bbf42ff090c6c400c9b43f26d3487f98e197c4832535a77c4da1214f7fe48a2"

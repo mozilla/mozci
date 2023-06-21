@@ -227,17 +227,20 @@ class ClassifyCommand(Command):
         option(
             "use-possible-regressions",
             description="Use possible regressions while classifying the regressions.",
-            flag=True,
+            default=None,
+            flag=False,
         ),
         option(
             "unknown-from-regressions",
             description="Unknown from regressions while classifying the regressions.",
-            flag=True,
+            default=None,
+            flag=False,
         ),
         option(
             "consider-children-pushes-configs",
             description="Consider children pushes configs while classifying the regressions.",
-            flag=True,
+            default=None,
+            flag=False,
         ),
         option(
             "cross-config-counts",
@@ -787,17 +790,20 @@ class ClassifyEvalCommand(Command):
         option(
             "use-possible-regressions",
             description="Use possible regressions while classifying the regressions.",
-            flag=True,
+            default=None,
+            flag=False,
         ),
         option(
             "unknown-from-regressions",
             description="Unknown from regressions while classifying the regressions.",
-            flag=True,
+            default=None,
+            flag=False,
         ),
         option(
             "consider-children-pushes-configs",
             description="Consider children pushes configs while classifying the regressions.",
-            flag=True,
+            default=None,
+            flag=False,
         ),
         option(
             "cross-config-counts",

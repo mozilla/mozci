@@ -5,6 +5,7 @@ from datetime import datetime
 
 import taskcluster
 from cleo.commands.command import Command
+from cleo.helpers import argument, option
 
 from mozci.push import Push, make_push_objects
 from mozci.util.memoize import memoized_property
@@ -12,17 +13,35 @@ from mozci.util.taskcluster import get_taskcluster_options
 
 
 class DecisionCommand(Command):
-    """
-    Taskcluster decision task to generate classification tasks
-
-    decision
-        {branch=autoland : Branch the push belongs to (e.g autoland, try, etc).}
-        {--nb-pushes=15 : Do not create tasks on taskcluster, simply output actions.}
-        {--dry-run : Do not create tasks on taskcluster, simply output actions.}
-        {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
-    """
-
     name = "decision"
+    description = "Taskcluster decision task to generate classification tasks"
+    arguments = [
+        argument(
+            "branch",
+            description="Branch the push belongs to (e.g autoland, try, etc).",
+            optional=True,
+            default="autoland",
+        )
+    ]
+    options = [
+        option(
+            "nb-pushes",
+            description="Number of pushes to analyze.",
+            flag=False,
+            default=15,
+        ),
+        option(
+            "dry-run",
+            description="Do not create tasks on taskcluster, simply output actions.",
+            flag=True,
+        ),
+        option(
+            "environment",
+            description="Environment in which the analysis is running (testing, production, ...).",
+            flag=False,
+            default="testing",
+        ),
+    ]
 
     def handle(self):
         branch = self.argument("branch")

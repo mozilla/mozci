@@ -9,6 +9,7 @@ import uuid
 from multiprocessing import Pool
 
 from cleo.commands.command import Command
+from cleo.helpers import option
 from loguru import logger
 
 from mozci.console.commands.push import (
@@ -118,14 +119,15 @@ def run_combinations_for_push(push):
 
 
 class BatchClassificationCommand(Command):
-    """
-    Run the classification algorithm with various parameters combinations for all submitted pushes within the last 30 days
-
-    classify
-        {--workers= : Number of workers to use in order to parallelize the executions.}
-    """
-
     name = "batch-execution classify"
+    description = "Run the classification algorithm with various parameters combinations for all submitted pushes within the last 30 days"
+    options = [
+        option(
+            "workers",
+            description="Number of workers to use in order to parallelize the executions.",
+            flag=False,
+        )
+    ]
 
     csv_header = (
         ["run_uuid", "push_uuid"]
@@ -188,13 +190,8 @@ class BatchClassificationCommand(Command):
 
 
 class BatchEvaluationCommand(Command):
-    """
-    Evaluate and aggregate the results produced by the classify_batch_execution script
-
-    evaluate
-    """
-
     name = "batch-execution evaluate"
+    description = "Evaluate and aggregate the results produced by the classify_batch_execution script"
 
     csv_header = [
         "configuration",

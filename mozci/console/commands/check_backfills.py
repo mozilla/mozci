@@ -7,6 +7,7 @@ from typing import Any, Dict
 
 import requests
 from cleo.commands.command import Command
+from cleo.helpers import argument, option
 from loguru import logger
 
 from mozci import config
@@ -28,13 +29,6 @@ NOTIFICATION_BACKFILL_GROUP_COMPLETED = "Backfill tasks associated to the Treehe
 
 class CheckBackfillsCommand(Command):
     """
-    Check if backfills on last pushes are finished and notify Sheriffs when they are.
-
-    check-backfills
-        {--branch=autoland : Branch the pushes belongs to (e.g autoland, try, etc).}
-        {--nb-pushes=40 : Number of recent pushes to retrieve for the check.}
-        {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
-
     The command will execute the following workflow:
       1. Retrieve the last <--nb-pushes> Pushes on branch <--branch>
       => Then for each Push:
@@ -48,6 +42,29 @@ class CheckBackfillsCommand(Command):
     """
 
     name = "check-backfills"
+    description = "Check if backfills on last pushes are finished and notify Sheriffs when they are"
+    arguments = [
+        argument(
+            "branch",
+            description="Branch the pushes belongs to (e.g autoland, try, etc).",
+            optional=True,
+            default="autoland",
+        )
+    ]
+    options = [
+        option(
+            "nb-pushes",
+            description="Number of recent pushes to retrieve for the check.",
+            flag=False,
+            default=40,
+        ),
+        option(
+            "environment",
+            description="Environment in which the analysis is running (testing, production, ...).",
+            flag=False,
+            default="testing",
+        ),
+    ]
 
     def handle(self) -> None:
         branch = self.option("branch")

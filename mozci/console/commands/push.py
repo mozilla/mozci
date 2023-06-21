@@ -16,6 +16,7 @@ import arrow
 import taskcluster
 from cleo.commands.command import Command
 from cleo.exceptions import CleoNoSuchOptionError
+from cleo.helpers import argument, option
 from loguru import logger
 from tabulate import tabulate
 from taskcluster.exceptions import TaskclusterRestFailure
@@ -69,15 +70,14 @@ TWO_INTS_TUPLE_REGEXP = r"^\((\d+), ?(\d+)\)$"
 
 
 class PushTasksCommand(Command):
-    """
-    List the tasks that ran on a push.
-
-    tasks
-        {rev : Head revision of the push.}
-        {branch : Branch the push belongs to (e.g autoland, try, etc).}
-    """
-
     name = "push tasks"
+    description = "List the tasks that ran on a push"
+    arguments = [
+        argument("rev", description="Head revision of the push."),
+        argument(
+            "branch", description="Branch the push belongs to (e.g autoland, try, etc)."
+        ),
+    ]
 
     def handle(self):
         push = Push(self.argument("rev"), self.argument("branch"))
@@ -192,29 +192,92 @@ def retrieve_classify_parameters(options):
 
 
 class ClassifyCommand(Command):
-    """
-    Display the classification for a given push (or a range of pushes) as GOOD, BAD or UNKNOWN.
-
-    classify
-        {branch=autoland : Branch the push belongs to (e.g autoland, try, etc).}
-        {--rev= : Head revision of the push.}
-        {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").}
-        {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.}
-        {--intermittent-confidence-threshold= : Medium confidence threshold used to classify the regressions.}
-        {--real-confidence-threshold= : High confidence threshold used to classify the regressions.}
-        {--use-possible-regressions= : Use possible regressions while classifying the regressions.}
-        {--unknown-from-regressions= : Unknown from regressions while classifying the regressions.}
-        {--consider-children-pushes-configs= : Consider children pushes configs while classifying the regressions.}
-        {--cross-config-counts= : Cross-config counts used to classify the regressions.}
-        {--consistent-failures-counts= : Consistent failures counts used to classify the regressions.}
-        {--output= : Path towards a directory to save a JSON file containing classification and regressions details in.}
-        {--show-intermittents : If set, print tasks that should be marked as intermittent.}
-        {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
-        {--retrigger-limit=3 : Number of failing groups (missing information) to be retriggered, defaults to 3.}
-        {--backfill-limit=3 : Number of failing groups (missing information) to be backfilled, defaults to 3.}
-    """
-
     name = "push classify"
+    description = "Display the classification for a given push (or a range of pushes) as GOOD, BAD or UNKNOWN"
+    arguments = [
+        argument(
+            "branch",
+            description="Branch the push belongs to (e.g autoland, try, etc).",
+            optional=True,
+            default="autoland",
+        )
+    ]
+    options = [
+        option("rev", description="Head revision of the push.", flag=False),
+        option(
+            "from-date",
+            description='Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").',
+            flag=False,
+        ),
+        option(
+            "to-date",
+            description='Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.',
+            flag=False,
+        ),
+        option(
+            "intermittent-confidence-threshold",
+            description="Medium confidence threshold used to classify the regressions.",
+            flag=False,
+        ),
+        option(
+            "real-confidence-threshold",
+            description="High confidence threshold used to classify the regressions.",
+            flag=False,
+        ),
+        option(
+            "use-possible-regressions",
+            description="Use possible regressions while classifying the regressions.",
+            flag=True,
+        ),
+        option(
+            "unknown-from-regressions",
+            description="Unknown from regressions while classifying the regressions.",
+            flag=True,
+        ),
+        option(
+            "consider-children-pushes-configs",
+            description="Consider children pushes configs while classifying the regressions.",
+            flag=True,
+        ),
+        option(
+            "cross-config-counts",
+            description="Cross-config counts used to classify the regressions.",
+            flag=False,
+        ),
+        option(
+            "consistent-failures-counts",
+            description="Consistent failures counts used to classify the regressions.",
+            flag=False,
+        ),
+        option(
+            "output",
+            description="Path towards a directory to save a JSON file containing classification and regressions details in.",
+            flag=False,
+        ),
+        option(
+            "show-intermittents",
+            description="If set, print tasks that should be marked as intermittent.",
+            flag=True,
+        ),
+        option(
+            "environment",
+            description="Environment in which the analysis is running (testing, production, ...).",
+            flag=False,
+            default="testing",
+        ),
+        option(
+            "retrigger-limit",
+            description="Number of failing groups (missing information) to be retriggered.",
+            flag=False,
+            default=3,
+        ),
+        option(
+            "backfill-limit",
+            description="Number of failing groups (missing information) to be backfilled.",
+            flag=False,
+            default=3,
+        ),
+    ]
 
     def handle(self) -> None:
         self.branch = self.argument("branch")
@@ -690,29 +753,89 @@ def check_ever_classified_as_cause(push, iterate_on):
 
 
 class ClassifyEvalCommand(Command):
-    """
-    Evaluate the classification results for a given push (or a range of pushes) by comparing them with reality.
-
-    classify-eval
-        {branch=autoland : Branch the push belongs to (e.g autoland, try, etc).}
-        {--rev= : Head revision of the push.}
-        {--from-date= : Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").}
-        {--to-date= : Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.}
-        {--intermittent-confidence-threshold= : Medium confidence threshold used to classify the regressions.}
-        {--real-confidence-threshold= : High confidence threshold used to classify the regressions.}
-        {--use-possible-regressions= : Use possible regressions while classifying the regressions.}
-        {--unknown-from-regressions= : Unknown from regressions while classifying the regressions.}
-        {--consider-children-pushes-configs= : Consider children pushes configs while classifying the regressions.}
-        {--cross-config-counts= : Cross-config counts used to classify the regressions.}
-        {--consistent-failures-counts= : Consistent failures counts used to classify the regressions.}
-        {--recalculate : If set, recalculate the classification instead of fetching an artifact.}
-        {--output= : Path towards a path to save a CSV file with classification states for various pushes.}
-        {--send-email : If set, also send the evaluation report by email instead of just logging it.}
-        {--detailed-classifications : If set, compare real/intermittent group classifications with Sheriff's ones.}
-        {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
-    """
-
     name = "push classify-eval"
+    description = "Evaluate the classification results for a given push (or a range of pushes) by comparing them with reality"
+    arguments = [
+        argument(
+            "branch",
+            description="Branch the push belongs to (e.g autoland, try, etc).",
+            optional=True,
+            default="autoland",
+        )
+    ]
+    options = [
+        option(
+            "from-date",
+            description='Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").',
+            flag=False,
+        ),
+        option(
+            "to-date",
+            description='Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.',
+            flag=False,
+        ),
+        option(
+            "intermittent-confidence-threshold",
+            description="Medium confidence threshold used to classify the regressions.",
+            flag=False,
+        ),
+        option(
+            "real-confidence-threshold",
+            description="High confidence threshold used to classify the regressions.",
+            flag=False,
+        ),
+        option(
+            "use-possible-regressions",
+            description="Use possible regressions while classifying the regressions.",
+            flag=True,
+        ),
+        option(
+            "unknown-from-regressions",
+            description="Unknown from regressions while classifying the regressions.",
+            flag=True,
+        ),
+        option(
+            "consider-children-pushes-configs",
+            description="Consider children pushes configs while classifying the regressions.",
+            flag=True,
+        ),
+        option(
+            "cross-config-counts",
+            description="Cross-config counts used to classify the regressions.",
+            flag=False,
+        ),
+        option(
+            "consistent-failures-counts",
+            description="Consistent failures counts used to classify the regressions.",
+            flag=False,
+        ),
+        option(
+            "recalculate",
+            description="If set, recalculate the classification instead of fetching an artifact.",
+            flag=True,
+        ),
+        option(
+            "output",
+            description="Path towards a path to save a CSV file with classification states for various pushes.",
+            flag=False,
+        ),
+        option(
+            "send-email",
+            description="If set, also send the evaluation report by email instead of just logging it.",
+            flag=True,
+        ),
+        option(
+            "detailed-classifications",
+            description="If set, compare real/intermittent group classifications with Sheriff's ones.",
+            flag=True,
+        ),
+        option(
+            "environment",
+            description="Environment in which the analysis is running (testing, production, ...).",
+            flag=False,
+            default="testing",
+        ),
+    ]
 
     def handle(self) -> None:
         branch = self.argument("branch")
@@ -1174,15 +1297,32 @@ class ClassifyEvalCommand(Command):
 
 
 class ClassifyPerfCommand(Command):
-    """
-    Generate a CSV file with performance stats for all classification tasks
-
-    perf
-        {--environment=testing : Environment in which the analysis is running (testing, production, ...)}
-        {--output=perfs.csv: Output CSV file path}
-    """
-
     name = "push perf"
+    description = (
+        "Generate a CSV file with performance stats for all classification tasks"
+    )
+    arguments = [
+        argument(
+            "branch",
+            description="Branch the push belongs to (e.g autoland, try, etc).",
+            optional=True,
+            default="autoland",
+        )
+    ]
+    options = [
+        option(
+            "environment",
+            description="Environment in which the analysis is running (testing, production, ...).",
+            flag=False,
+            default="testing",
+        ),
+        option(
+            "output",
+            description="Output CSV file path.",
+            flag=False,
+            default="perfs.csv",
+        ),
+    ]
 
     REGEX_ROUTE = re.compile(
         r"^index.project.mozci.classification.([\w\-]+).(revision|push).(\w+)$"

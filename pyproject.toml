@@ -37,7 +37,7 @@ json-e = "^4.4.3"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.20"
-pytest = "^7.3"
+pytest = "^7.4"
 tox = "^4.5"
 responses = "^0.20"
 sphinx = "^5.3.0"

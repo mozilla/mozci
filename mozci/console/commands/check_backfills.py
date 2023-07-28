@@ -7,7 +7,7 @@ from typing import Any, Dict
 
 import requests
 from cleo.commands.command import Command
-from cleo.helpers import argument, option
+from cleo.helpers import option
 from loguru import logger
 
 from mozci import config
@@ -43,15 +43,13 @@ class CheckBackfillsCommand(Command):
 
     name = "check-backfills"
     description = "Check if backfills on last pushes are finished and notify Sheriffs when they are"
-    arguments = [
-        argument(
+    options = [
+        option(
             "branch",
             description="Branch the pushes belongs to (e.g autoland, try, etc).",
-            optional=True,
+            flag=False,
             default="autoland",
-        )
-    ]
-    options = [
+        ),
         option(
             "nb-pushes",
             description="Number of recent pushes to retrieve for the check.",

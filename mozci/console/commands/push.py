@@ -767,6 +767,7 @@ class ClassifyEvalCommand(Command):
         )
     ]
     options = [
+        option("rev", description="Head revision of the push.", flag=False),
         option(
             "from-date",
             description='Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").',

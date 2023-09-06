@@ -20,7 +20,7 @@ tomlkit = "~0"
 boto3 = {version = "~1", optional = true}
 zstandard = {version = "~0"}
 python3-memcached = {version = "~1", optional = true}
-redis = {version = ">=3,<5", optional = true}
+redis = {version = ">=3,<6", optional = true}
 requests = "~2"
 flake8 = ">=3,<5"
 pyyaml = ">=5,<7"

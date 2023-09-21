@@ -173,6 +173,11 @@ def wpt_workaround(group: str) -> str:
     if not group.strip():
         return group
 
+    if group.startswith(":"):
+        assert group.startswith(
+            ":/"
+        ), f"Group {group} starts with : but doesn't start with :/"
+        group = group[1:]
     assert group.startswith("/"), f"Group {group} doesn't start with /"
     if group.startswith("/_mozilla/"):
         return "/".join(

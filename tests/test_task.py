@@ -1009,3 +1009,15 @@ def test_get_suite_from_label_and_get_configuration_from_label():
         get_configuration_from_label("test-windows10-64-2004-qr/opt-mochitest-remote")
         == "test-windows10-64-2004-qr/opt-*"
     )
+    assert (
+        get_suite_from_label(
+            "test-windows11-64-2009-asan-qr/opt-mochitest-browser-media"
+        )
+        == "mochitest-browser-media"
+    )
+    assert (
+        get_configuration_from_label(
+            "test-windows11-64-2009-asan-qr/opt-mochitest-browser-media"
+        )
+        == "test-windows11-64-2009-asan-qr/opt-*"
+    )

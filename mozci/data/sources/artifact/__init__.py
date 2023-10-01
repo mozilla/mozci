@@ -46,13 +46,22 @@ class ErrorSummarySource(DataSource):
         test_results: Dict[GroupName, List[Tuple[TestName, FailureType]]] = {}
 
         lines = (
-            json.loads(line)
+            line
             for path in paths
             for line in get_artifact(task_id, path).iter_lines(decode_unicode=True)
             if line
         )
 
-        for line in lines:
+        for line_text in lines:
+            try:
+                line = json.loads(line_text)
+            except json.decoder.JSONDecodeError:
+                logger.log(
+                    "WARNING",
+                    f"Invalid JSON line in errorsummary.log from task {task_id}",
+                )
+                continue
+
             if line["action"] == "test_groups":
                 groups |= set(line["groups"]) - {"default"}
 

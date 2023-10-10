@@ -1190,34 +1190,28 @@ class Push:
         else:
             all_groups = push_groups
 
-        groups_relevant_failure = {
+        groups_consistent_failure = {
             g.name
             for g in all_groups
-            if (
-                cross_config_counts is not None
-                and g.is_cross_config_failure(cross_config_counts[1])
-            )
-            or (
-                consistent_failures_counts is not None
-                and g.is_config_consistent_failure(consistent_failures_counts[1])
+            if g.is_consistent_failure(
+                cross_config_counts[1] if cross_config_counts is not None else None,
+                consistent_failures_counts[1]
+                if consistent_failures_counts is not None
+                else None,
             )
         }
 
-        groups_non_relevant_failure = {
+        groups_non_consistent_failure = {
             g.name
             for g in all_groups
             if g.status != Status.PASS
-            and (
-                (
-                    cross_config_counts is None
-                    or g.is_cross_config_failure(cross_config_counts[0]) is False
-                )
-                and (
-                    consistent_failures_counts is None
-                    or g.is_config_consistent_failure(consistent_failures_counts[0])
-                    is False
-                )
+            and g.is_consistent_failure(
+                cross_config_counts[0] if cross_config_counts is not None else None,
+                consistent_failures_counts[0]
+                if consistent_failures_counts is not None
+                else None,
             )
+            is False
         }
 
         groups_failing = {g.name for g in all_groups if g.status != Status.PASS}
@@ -1228,10 +1222,10 @@ class Push:
             if g.name not in list(bugbug_selection["groups"].keys())
         }
         logger.debug(
-            f"Got {len(groups_relevant_failure)} groups with cross-config or config-consistent failures"
+            f"Got {len(groups_consistent_failure)} groups with cross-config or config-consistent failures"
         )
         logger.debug(
-            f"Got {len(groups_non_relevant_failure)} groups with no cross-config and no config-consistent failures"
+            f"Got {len(groups_non_consistent_failure)} groups with no cross-config and no config-consistent failures"
         )
         logger.debug(
             f"Got {len(groups_failing)} groups failing in the push or one of its children"
@@ -1241,15 +1235,15 @@ class Push:
         )
 
         # Real failure are groups with likely regressions that were selected with high confidence
-        # AND failing across config
-        real_failures = groups_regressions & groups_relevant_failure & groups_high
+        # AND failing consistently across configs or in retriggers
+        real_failures = groups_regressions & groups_consistent_failure & groups_high
 
         # Intermittent failures are groups that were NOT selected (low confidence)
         # OR without any confidence from bugbug (too low confidence)
-        # AND are not failing across config
+        # AND are failing inconsistently across configs or in retriggers
         # Only consider groups in this push because we don't care about intermittents in other pushes.
         # We only use children pushes information to determine cross-config or config-consistent state.
-        all_intermittent_failures = groups_non_relevant_failure & groups_low.union(
+        all_intermittent_failures = groups_non_consistent_failure & groups_low.union(
             groups_no_confidence
         )
         intermittent_failures = (
@@ -1292,7 +1286,7 @@ class Push:
         # https://github.com/mozilla/mozci/issues/654#issuecomment-1139488070
         real_failures_to_be_retriggered = (
             groups_regressions & groups_high
-        ) - groups_relevant_failure
+        ) - groups_consistent_failure
         real_groups_still_running = groups_still_running | {
             group_name
             for group_name in real_failures_to_be_retriggered
@@ -1303,7 +1297,7 @@ class Push:
         intermittent_failures_to_be_retriggered = (
             set(g.name for g in push_groups if g.status != Status.PASS)
             & groups_low.union(groups_no_confidence)
-        ) - groups_non_relevant_failure
+        ) - groups_non_consistent_failure
         intermittent_groups_still_running = groups_still_running | {
             group_name
             for group_name in intermittent_failures_to_be_retriggered
@@ -1315,9 +1309,9 @@ class Push:
             possible_regressions.difference(likely_regressions) & groups_high
         )
 
-        # Sorting groups to be backfilled, first ones will be groups present in groups_relevant_failure with a high confidence
+        # Sorting groups to be backfilled, first ones will be groups present in groups_consistent_failure with a high confidence
         failures_to_be_backfilled.sort(
-            key=lambda group: int(group in groups_relevant_failure)
+            key=lambda group: int(group in groups_consistent_failure)
             + bugbug_selection["groups"].get(group, 0)
         )
         failures_to_be_backfilled.reverse()

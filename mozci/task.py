@@ -645,6 +645,36 @@ class GroupSummary(RunnableSummary):
         # only in some.
         return nb_failed > 0 and nb_passed == 0
 
+    # A group that is either failing across configurations or multiple times on the same configuration.
+    def is_consistent_failure(
+        self,
+        cross_config_count: Optional[int] = 2,
+        config_consistent_count: Optional[int] = 3,
+    ) -> Optional[bool]:
+        assert cross_config_count is not None or config_consistent_count is not None
+
+        is_cross_config = None
+        if cross_config_count is not None:
+            is_cross_config = self.is_cross_config_failure(cross_config_count)
+            if is_cross_config:
+                return True
+
+        is_config_consistent = None
+        if config_consistent_count is not None:
+            is_config_consistent = self.is_config_consistent_failure(
+                config_consistent_count
+            )
+            if is_config_consistent:
+                return True
+
+        if is_cross_config is None and is_config_consistent is None:
+            return None
+
+        # If we got here, it means the group is:
+        # - either failing on some configuration and passing on others;
+        # - or failing on a run on a given configuration and passing on another run on the same configuration.
+        return False
+
 
 @dataclass
 class LabelSummary(RunnableSummary):

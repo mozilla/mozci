@@ -5,8 +5,8 @@ import requests
 from requests.packages.urllib3.util.retry import Retry
 
 # https://urllib3.readthedocs.io/en/latest/reference/urllib3.util.html#module-urllib3.util.retry
-DEFAULT_RETRIES = 5
-DEFAULT_BACKOFF_FACTOR = 0.1
+DEFAULT_RETRIES = 7
+DEFAULT_BACKOFF_FACTOR = 1
 DEFAULT_STATUS_FORCELIST = [500, 502, 503, 504]
 
 

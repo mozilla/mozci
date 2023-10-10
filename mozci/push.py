@@ -1234,18 +1234,39 @@ class Push:
             f"Got {len(groups_no_confidence)} groups without bugbug confidence"
         )
 
+        # If failure is not classified as NEW, it's likely an intermittent.
+        # We can't say the same if the failure is classified as NEW, but we can use it as a hunch.
+        groups_classified_as_new = set(
+            g.name
+            for g in all_groups
+            if g.status != Status.PASS
+            if any(c == "new failure not classified" for c, n in g.classifications)
+        )
+        groups_not_classified_as_new = set(
+            g.name
+            for g in all_groups
+            if g.status != Status.PASS
+            if all(c != "new failure not classified" for c, n in g.classifications)
+        )
+
         # Real failure are groups with likely regressions that were selected with high confidence
+        # OR were classified as "NEW"
         # AND failing consistently across configs or in retriggers
-        real_failures = groups_regressions & groups_consistent_failure & groups_high
+        real_failures = (
+            groups_regressions
+            & groups_consistent_failure
+            & groups_high.union(groups_classified_as_new)
+        )
 
         # Intermittent failures are groups that were NOT selected (low confidence)
         # OR without any confidence from bugbug (too low confidence)
+        # OR were not classified as "NEW"
         # AND are failing inconsistently across configs or in retriggers
         # Only consider groups in this push because we don't care about intermittents in other pushes.
         # We only use children pushes information to determine cross-config or config-consistent state.
         all_intermittent_failures = groups_non_consistent_failure & groups_low.union(
             groups_no_confidence
-        )
+        ).union(groups_not_classified_as_new)
         intermittent_failures = (
             set(g.name for g in push_groups) & all_intermittent_failures
         )
@@ -1285,7 +1306,7 @@ class Push:
         # See the following comment that explains how we decide the groups to retrigger/backfill
         # https://github.com/mozilla/mozci/issues/654#issuecomment-1139488070
         real_failures_to_be_retriggered = (
-            groups_regressions & groups_high
+            groups_regressions & groups_high.union(groups_classified_as_new)
         ) - groups_consistent_failure
         real_groups_still_running = groups_still_running | {
             group_name
@@ -1296,7 +1317,7 @@ class Push:
 
         intermittent_failures_to_be_retriggered = (
             set(g.name for g in push_groups if g.status != Status.PASS)
-            & groups_low.union(groups_no_confidence)
+            & groups_low.union(groups_no_confidence).union(groups_not_classified_as_new)
         ) - groups_non_consistent_failure
         intermittent_groups_still_running = groups_still_running | {
             group_name
@@ -1306,7 +1327,10 @@ class Push:
         intermittent_failures_to_be_retriggered -= intermittent_groups_still_running
 
         failures_to_be_backfilled = list(
-            possible_regressions.difference(likely_regressions) & groups_high
+            (
+                possible_regressions.difference(likely_regressions)
+                & groups_high.union(groups_classified_as_new)
+            )
         )
 
         # Sorting groups to be backfilled, first ones will be groups present in groups_consistent_failure with a high confidence

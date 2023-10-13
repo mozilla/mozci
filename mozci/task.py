@@ -667,6 +667,9 @@ class GroupSummary(RunnableSummary):
             if is_config_consistent:
                 return True
 
+        # We don't have enough information to tell if this is cross-config or consistently failing on the
+        # same configuration (e.g. if we only run the test once on a single configuration, we can't tell
+        # if it's cross-config or not and we can't tell if a retrigger would have failed).
         if is_cross_config is None and is_config_consistent is None:
             return None
 

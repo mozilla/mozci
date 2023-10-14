@@ -821,6 +821,24 @@ def test_GroupSummary_is_config_consistent_failure(group_summary, expected_resul
     assert group_summary.is_config_consistent_failure(2) == expected_result
 
 
+def test_GroupSummary_is_config_consistent_failure_single():
+    group_summary = GroupSummary(
+        "group1",
+        [
+            Task.create(
+                id=1,
+                label="test-linux1804-64/opt-xpcshell-e10s-1",
+                _results=[
+                    GroupResult(group="group1", ok=False, duration=42),
+                    GR_2,
+                    GR_3,
+                ],
+            )
+        ],
+    )
+    assert group_summary.is_config_consistent_failure(1)
+
+
 @pytest.mark.parametrize(
     "group_summary, expected_result",
     [

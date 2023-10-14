@@ -1306,8 +1306,10 @@ class Push:
         # See the following comment that explains how we decide the groups to retrigger/backfill
         # https://github.com/mozilla/mozci/issues/654#issuecomment-1139488070
         real_failures_to_be_retriggered = (
-            groups_regressions & groups_high.union(groups_classified_as_new)
-        ) - groups_consistent_failure
+            (groups_regressions & groups_high.union(groups_classified_as_new))
+            - groups_consistent_failure
+            - groups_non_consistent_failure
+        )
         real_groups_still_running = groups_still_running | {
             group_name
             for group_name in real_failures_to_be_retriggered
@@ -1316,9 +1318,15 @@ class Push:
         real_failures_to_be_retriggered -= real_groups_still_running
 
         intermittent_failures_to_be_retriggered = (
-            set(g.name for g in push_groups if g.status != Status.PASS)
-            & groups_low.union(groups_no_confidence).union(groups_not_classified_as_new)
-        ) - groups_non_consistent_failure
+            (
+                set(g.name for g in push_groups if g.status != Status.PASS)
+                & groups_low.union(groups_no_confidence).union(
+                    groups_not_classified_as_new
+                )
+            )
+            - groups_non_consistent_failure
+            - groups_consistent_failure
+        )
         intermittent_groups_still_running = groups_still_running | {
             group_name
             for group_name in intermittent_failures_to_be_retriggered
@@ -1331,6 +1339,7 @@ class Push:
                 possible_regressions.difference(likely_regressions)
                 & groups_high.union(groups_classified_as_new)
             )
+            - groups_non_consistent_failure
         )
 
         # Sorting groups to be backfilled, first ones will be groups present in groups_consistent_failure with a high confidence

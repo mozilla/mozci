@@ -1081,6 +1081,7 @@ def generate_mocks(
     get_likely_regressions_value,
     get_possible_regressions_value,
     cross_config_values,
+    classifications,
 ):
     monkeypatch.setattr(config.cache, "get", lambda x: None)
     monkeypatch.setattr(Push, "is_group_running", lambda *args: False)
@@ -1106,35 +1107,48 @@ def generate_mocks(
         Push, "get_possible_regressions", mock_return_get_possible_regressions
     )
 
-    push.group_summaries = GROUP_SUMMARIES_DEFAULT
-    for index, group in enumerate(push.group_summaries.values()):
+    push.group_summaries = {}
+    for name in classifications.keys():
+        push.group_summaries[name] = GROUP_SUMMARIES_DEFAULT[name]
+
+    for name, group in push.group_summaries.items():
         monkeypatch.setattr(
             group,
             "is_cross_config_failure",
-            lambda x, index=index: cross_config_values[index],
+            lambda x, name=name: cross_config_values[name],
         )
         monkeypatch.setattr(
             group,
             "is_config_consistent_failure",
-            lambda x, index=index: cross_config_values[index],
+            lambda x, name=name: cross_config_values[name],
+        )
+        monkeypatch.setattr(
+            group,
+            "classifications",
+            classifications[name],
         )
 
 
 @pytest.mark.parametrize(
-    "test_selection_data, are_cross_config, to_retrigger",
+    "test_selection_data, are_cross_config, classifications, to_retrigger",
     [
         (
             {"groups": {"group1": 0.7, "group2": 0.3}},
-            [True for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
             {
-                "intermittent_retrigger": [
-                    "group1",
-                    "group2",
-                    "group3",
-                    "group4",
-                    "group5",
-                ]
+                "group1": True,
+                "group2": True,
+                "group3": True,
+                "group4": True,
+                "group5": True,
             },
+            {
+                "group1": ["not classified"],
+                "group2": ["not classified"],
+                "group3": ["not classified"],
+                "group4": ["not classified"],
+                "group5": ["not classified"],
+            },
+            {},
         ),  # There are only cross-config failures with low confidence
         (
             {
@@ -1146,7 +1160,20 @@ def generate_mocks(
                     "group5": 0.85,
                 }
             },
-            [False for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
+            {
+                "group1": False,
+                "group2": False,
+                "group3": False,
+                "group4": False,
+                "group5": False,
+            },
+            {
+                "group1": ["new failure not classified"],
+                "group2": ["new failure not classified"],
+                "group3": ["new failure not classified"],
+                "group4": ["new failure not classified"],
+                "group5": ["new failure not classified"],
+            },
             {},
         ),  # There are only non cross-config failures with medium confidence
         (
@@ -1159,13 +1186,26 @@ def generate_mocks(
                     "group5": 0.3,
                 }
             },
-            [False if i % 2 else True for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
-            {"intermittent_retrigger": ["group1", "group3", "group5"]},
-        ),  # There are some non cross-config failures and some low confidence groups but they don't match
+            {
+                "group1": None,
+                "group2": True,
+                "group3": None,
+                "group4": True,
+                "group5": None,
+            },
+            {
+                "group1": ["not classified"],
+                "group2": ["not classified"],
+                "group3": ["not classified"],
+                "group4": ["not classified"],
+                "group5": ["not classified"],
+            },
+            {"intermittent_retrigger": {"group1", "group3", "group5"}},
+        ),  # There are some failures, unknown if cross-config, and some low confidence groups but they don't match
     ],
 )
 def test_classify_almost_good_push(
-    monkeypatch, test_selection_data, are_cross_config, to_retrigger
+    monkeypatch, test_selection_data, are_cross_config, classifications, to_retrigger
 ):
     rev = "a" * 40
     branch = "autoland"
@@ -1177,35 +1217,31 @@ def test_classify_almost_good_push(
         set(),
         set(),
         are_cross_config,
+        classifications,
     )
 
-    to_retrigger_or_backill = {
-        "real_retrigger": {},
-        "intermittent_retrigger": {},
-        "backfill": {},
-    }
-    for key, groups in to_retrigger.items():
-        to_retrigger[key] = {group: make_tasks(group) for group in groups}
-    to_retrigger_or_backill.update(to_retrigger)
-
-    assert push.classify(
+    result = push.classify(
         unknown_from_regressions=False,
         consistent_failures_counts=None,
         consider_children_pushes_configs=False,
-    ) == (
-        PushStatus.UNKNOWN,
-        Regressions(
-            real={},
-            intermittent={},
-            unknown={
-                "group1": make_tasks("group1"),
-                "group2": make_tasks("group2"),
-                "group3": make_tasks("group3"),
-                "group4": make_tasks("group4"),
-                "group5": make_tasks("group5"),
-            },
-        ),
-        ToRetriggerOrBackfill(**to_retrigger_or_backill),
+    )
+
+    assert result[0] == PushStatus.UNKNOWN
+
+    assert set(result[1].real) == set()
+    assert set(result[1].intermittent) == set()
+    assert set(result[1].unknown) == {"group1", "group2", "group3", "group4", "group5"}
+
+    assert set(result[2].real_retrigger) == (
+        to_retrigger["real_retrigger"] if "real_retrigger" in to_retrigger else set()
+    )
+    assert set(result[2].intermittent_retrigger) == (
+        to_retrigger["intermittent_retrigger"]
+        if "intermittent_retrigger" in to_retrigger
+        else set()
+    )
+    assert set(result[2].backfill) == (
+        to_retrigger["backfill"] if "backfill" in to_retrigger else set()
     )
 
 
@@ -1216,7 +1252,14 @@ def test_classify_good_push_only_intermittent_failures(monkeypatch):
 
     test_selection_data = {"groups": {"group1": 0.7, "group2": 0.3}}
     likely_regressions = {"group3", "group4"}
-    are_cross_config = [False for i in range(0, len(GROUP_SUMMARIES_DEFAULT))]
+    are_cross_config = {name: False for name in GROUP_SUMMARIES_DEFAULT.keys()}
+    classifications = {
+        "group1": ["not classified"],
+        "group2": ["not classified"],
+        "group3": ["not classified"],
+        "group4": ["not classified"],
+        "group5": ["not classified"],
+    }
     generate_mocks(
         monkeypatch,
         push,
@@ -1224,49 +1267,80 @@ def test_classify_good_push_only_intermittent_failures(monkeypatch):
         likely_regressions,
         set(),
         are_cross_config,
+        classifications,
     )
 
-    assert push.classify(consider_children_pushes_configs=False) == (
-        PushStatus.GOOD,
-        Regressions(
-            real={},
-            # All groups aren't cross config failures and were either selected by bugbug
-            # with low confidence or not at all (no confidence)
-            intermittent={
-                "group1": make_tasks("group1"),
-                "group2": make_tasks("group2"),
-                "group3": make_tasks("group3"),
-                "group4": make_tasks("group4"),
-                "group5": make_tasks("group5"),
-            },
-            unknown={},
-        ),
-        ToRetriggerOrBackfill(
-            real_retrigger={},
-            intermittent_retrigger={},
-            backfill={},
-        ),
-    )
+    result = push.classify(consider_children_pushes_configs=False)
+
+    assert result[0] == PushStatus.GOOD
+
+    assert set(result[1].real) == set()
+    assert set(result[1].intermittent) == {
+        "group1",
+        "group2",
+        "group3",
+        "group4",
+        "group5",
+    }
+    assert set(result[1].unknown) == set()
+
+    assert set(result[2].real_retrigger) == set()
+    assert set(result[2].intermittent_retrigger) == set()
+    assert set(result[2].backfill) == set()
 
 
 @pytest.mark.parametrize(
-    "test_selection_data, likely_regressions, are_cross_config, to_retrigger",
+    "test_selection_data, likely_regressions, are_cross_config, classifications, to_retrigger",
     [
         (
             {"groups": {}},
             {"group1", "group2", "group3", "group4", "group5"},
-            [True for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
             {
-                "intermittent_retrigger": [
+                "group1": True,
+                "group2": True,
+                "group3": True,
+                "group4": True,
+                "group5": True,
+            },
+            {
+                "group1": ["not classified"],
+                "group2": ["not classified"],
+                "group3": ["not classified"],
+                "group4": ["not classified"],
+                "group5": ["not classified"],
+            },
+            {},
+        ),  # There are only cross-config failures likely to regress
+        # but they weren't selected by bugbug (no confidence)
+        (
+            {"groups": {}},
+            {"group1", "group2", "group3", "group4", "group5"},
+            {
+                "group1": None,
+                "group2": None,
+                "group3": None,
+                "group4": None,
+                "group5": None,
+            },
+            {
+                "group1": ["not classified"],
+                "group2": ["not classified"],
+                "group3": ["not classified"],
+                "group4": ["not classified"],
+                "group5": ["not classified"],
+            },
+            {
+                "intermittent_retrigger": {
                     "group1",
                     "group2",
                     "group3",
                     "group4",
                     "group5",
-                ]
+                }
             },
-        ),  # There are only cross-config failures likely to regress
+        ),  # There are only failures likely to regress
         # but they weren't selected by bugbug (no confidence)
+        # and it is unclear if they are cross-config
         (
             {
                 "groups": {
@@ -1278,7 +1352,20 @@ def test_classify_good_push_only_intermittent_failures(monkeypatch):
                 }
             },
             set(),
-            [True for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
+            {
+                "group1": True,
+                "group2": True,
+                "group3": True,
+                "group4": True,
+                "group5": True,
+            },
+            {
+                "group1": ["not classified"],
+                "group2": ["not classified"],
+                "group3": ["not classified"],
+                "group4": ["not classified"],
+                "group5": ["not classified"],
+            },
             {},
         ),  # There are only cross-config failures that were selected
         # with high confidence by bugbug but weren't likely to regress
@@ -1293,14 +1380,60 @@ def test_classify_good_push_only_intermittent_failures(monkeypatch):
                 }
             },
             {"group1", "group2", "group3", "group4", "group5"},
-            [False for i in range(0, len(GROUP_SUMMARIES_DEFAULT))],
-            {"real_retrigger": ["group1", "group2", "group3", "group4", "group5"]},
+            {
+                "group1": False,
+                "group2": False,
+                "group3": False,
+                "group4": False,
+                "group5": False,
+            },
+            {
+                "group1": ["new failure not classified"],
+                "group2": ["new failure not classified"],
+                "group3": ["new failure not classified"],
+                "group4": ["new failure not classified"],
+                "group5": ["new failure not classified"],
+            },
+            {},
         ),  # There are only groups that were selected with high confidence by
         # bugbug and also likely to regress but they aren't cross-config failures
+        (
+            {
+                "groups": {
+                    "group1": 0.92,
+                    "group2": 0.92,
+                    "group3": 0.92,
+                    "group4": 0.92,
+                    "group5": 0.92,
+                }
+            },
+            {"group1", "group2", "group3", "group4", "group5"},
+            {
+                "group1": None,
+                "group2": None,
+                "group3": None,
+                "group4": None,
+                "group5": None,
+            },
+            {
+                "group1": ["new failure not classified"],
+                "group2": ["new failure not classified"],
+                "group3": ["new failure not classified"],
+                "group4": ["new failure not classified"],
+                "group5": ["new failure not classified"],
+            },
+            {"real_retrigger": {"group1", "group2", "group3", "group4", "group5"}},
+        ),  # There are only groups that were selected with high confidence by
+        # bugbug and also likely to regress but it isn't clear yet if they are cross-config failures
     ],
 )
 def test_classify_almost_bad_push(
-    monkeypatch, test_selection_data, likely_regressions, are_cross_config, to_retrigger
+    monkeypatch,
+    test_selection_data,
+    likely_regressions,
+    are_cross_config,
+    classifications,
+    to_retrigger,
 ):
     rev = "a" * 40
     branch = "autoland"
@@ -1312,35 +1445,31 @@ def test_classify_almost_bad_push(
         likely_regressions,
         set(),
         are_cross_config,
+        classifications,
     )
 
-    to_retrigger_or_backill = {
-        "real_retrigger": {},
-        "intermittent_retrigger": {},
-        "backfill": {},
-    }
-    for key, groups in to_retrigger.items():
-        to_retrigger[key] = {group: make_tasks(group) for group in groups}
-    to_retrigger_or_backill.update(to_retrigger)
-
-    assert push.classify(
+    result = push.classify(
         unknown_from_regressions=False,
         consistent_failures_counts=None,
         consider_children_pushes_configs=False,
-    ) == (
-        PushStatus.UNKNOWN,
-        Regressions(
-            real={},
-            intermittent={},
-            unknown={
-                "group1": make_tasks("group1"),
-                "group2": make_tasks("group2"),
-                "group3": make_tasks("group3"),
-                "group4": make_tasks("group4"),
-                "group5": make_tasks("group5"),
-            },
-        ),
-        ToRetriggerOrBackfill(**to_retrigger_or_backill),
+    )
+
+    assert result[0] == PushStatus.UNKNOWN
+
+    assert set(result[1].real) == set()
+    assert set(result[1].intermittent) == set()
+    assert set(result[1].unknown) == {"group1", "group2", "group3", "group4", "group5"}
+
+    assert set(result[2].real_retrigger) == (
+        to_retrigger["real_retrigger"] if "real_retrigger" in to_retrigger else set()
+    )
+    assert set(result[2].intermittent_retrigger) == (
+        to_retrigger["intermittent_retrigger"]
+        if "intermittent_retrigger" in to_retrigger
+        else set()
+    )
+    assert set(result[2].backfill) == (
+        to_retrigger["backfill"] if "backfill" in to_retrigger else set()
     )
 
 
@@ -1351,9 +1480,20 @@ def test_classify_bad_push_some_real_failures(monkeypatch):
 
     test_selection_data = {"groups": {"group1": 0.99, "group2": 0.95, "group3": 0.91}}
     likely_regressions = {"group1", "group2", "group3"}
-    are_cross_config = [
-        False if i % 2 else True for i in range(0, len(GROUP_SUMMARIES_DEFAULT))
-    ]
+    are_cross_config = {
+        "group1": True,
+        "group2": False,
+        "group3": True,
+        "group4": False,
+        "group5": True,
+    }
+    classifications = {
+        "group1": ["not classified"],
+        "group2": ["new failure not classified"],
+        "group3": ["not classified"],
+        "group4": ["not classified"],
+        "group5": ["not classified"],
+    }
     generate_mocks(
         monkeypatch,
         push,
@@ -1361,25 +1501,24 @@ def test_classify_bad_push_some_real_failures(monkeypatch):
         likely_regressions,
         set(),
         are_cross_config,
+        classifications,
     )
 
-    assert push.classify(
+    result = push.classify(
         unknown_from_regressions=False, consider_children_pushes_configs=False
-    ) == (
-        PushStatus.BAD,
-        Regressions(
-            # group1 & group3 were both selected by bugbug with high confidence, likely to regress
-            # and are cross config failures
-            real={"group1": make_tasks("group1"), "group3": make_tasks("group3")},
-            # group4 isn't a cross config failure and was not selected by bugbug (no confidence)
-            intermittent={"group4": make_tasks("group4")},
-            # group2 isn't a cross config failure but was selected with high confidence by bugbug
-            # group5 is a cross config failure but was not selected by bugbug nor likely to regress
-            unknown={"group2": make_tasks("group2"), "group5": make_tasks("group5")},
-        ),
-        ToRetriggerOrBackfill(
-            real_retrigger={"group2": make_tasks("group2")},
-            intermittent_retrigger={"group5": make_tasks("group5")},
-            backfill={},
-        ),
     )
+
+    assert result[0] == PushStatus.BAD
+
+    # group1 & group3 were both selected by bugbug with high confidence, likely to regress
+    # and are cross config failures
+    assert set(result[1].real) == {"group1", "group3"}
+    # group4 isn't a cross config failure and was not selected by bugbug (no confidence)
+    assert set(result[1].intermittent) == {"group4"}
+    # group2 isn't a cross config failure but was selected with high confidence by bugbug
+    # group5 is a cross config failure but was not selected by bugbug nor likely to regress
+    assert set(result[1].unknown) == {"group2", "group5"}
+
+    assert set(result[2].real_retrigger) == set()
+    assert set(result[2].intermittent_retrigger) == set()
+    assert set(result[2].backfill) == set()

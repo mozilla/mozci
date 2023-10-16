@@ -547,6 +547,12 @@ class GroupSummary(RunnableSummary):
             and any(result.group == self.name and not result.ok for result in t.results)
         ]
 
+    # TODO: Only used for testing, find a way to monkey patch!
+    @classifications.setter
+    def classifications(self, classifications):
+        for c, t in zip(classifications, self.tasks):
+            t.classification = c
+
     @property
     def durations(self) -> List[int]:
         data = []

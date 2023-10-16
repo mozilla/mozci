@@ -1522,3 +1522,188 @@ def test_classify_bad_push_some_real_failures(monkeypatch):
     assert set(result[2].real_retrigger) == set()
     assert set(result[2].intermittent_retrigger) == set()
     assert set(result[2].backfill) == set()
+
+
+@pytest.mark.parametrize(
+    "test_selection_confidence, is_likely_regression, is_possible_regression, is_cross_config, classification, status, action",
+    [
+        # high confidence, likely regression, consistent, "new" -> BAD
+        # (0.99, True, True, True, "new", PushStatus.BAD, None),
+        # high confidence, likely regression, consistent, "not new" -> BAD
+        (0.99, True, True, True, "not new", PushStatus.BAD, None),
+        # no confidence, likely regression, consistent, "new" -> BAD
+        (None, True, True, True, "new", PushStatus.BAD, None),
+        # low confidence, likely regression, consistent, "new" -> BAD
+        (0.01, True, True, True, "new", PushStatus.BAD, None),
+        # high confidence, not likely nor possible regression, consistent, "new" -> UNKNOWN
+        (0.99, False, False, True, "new", PushStatus.UNKNOWN, None),
+        # high confidence, not likely nor possible regression, consistent, "not new" -> UNKNOWN
+        (0.99, False, False, True, "not new", PushStatus.UNKNOWN, None),
+        # high confidence, not likely nor possible regression, not consistent, "new" -> UNKNOWN
+        (0.99, False, False, False, "new", PushStatus.UNKNOWN, None),
+        # low confidence, not likely nor possible regression, consistent, "not new" -> UNKNOWN
+        (0.01, False, False, True, "not new", PushStatus.UNKNOWN, None),
+        # low confidence, not likely nor possible regression, consistent, "new" -> UNKNOWN
+        (0.01, False, False, True, "new", PushStatus.UNKNOWN, None),
+        # no confidence, not likely nor possible regression, consistent, "not new" -> UNKNOWN
+        (None, False, False, True, "not new", PushStatus.UNKNOWN, None),
+        # no confidence, not likely nor possible regression, consistent, "new" -> UNKNOWN
+        (None, False, False, True, "new", PushStatus.UNKNOWN, None),
+        # high confidence, likely regression, consistent, "new" -> UNKNOWN
+        (0.99, True, True, False, "new", PushStatus.UNKNOWN, None),
+        # low confidence, likely regression, consistent, "not new" -> UNKNOWN
+        (0.01, True, True, True, "not new", PushStatus.UNKNOWN, None),
+        # no confidence, likely regression, consistent, "not new" -> UNKNOWN
+        (None, True, True, True, "not new", PushStatus.UNKNOWN, None),
+        # no confidence, not likely nor possible regression, not consistent, "not new" -> GOOD
+        (None, False, False, False, "not new", PushStatus.GOOD, None),
+        # no confidence, likely regression, not consistent, "new" -> GOOD
+        (None, True, True, False, "new", PushStatus.GOOD, None),
+        # low confidence, likely regression, not consistent, "not new" -> GOOD
+        (0.01, True, True, False, "not new", PushStatus.GOOD, None),
+        # no confidence, likely regression, not consistent, "not new" -> GOOD
+        (None, True, True, False, "not new", PushStatus.GOOD, None),
+        # high confidence, not likely nor possible regression, not consistent, "not new" -> GOOD
+        (0.99, False, False, False, "not new", PushStatus.GOOD, None),
+        # high confidence, likely regression, not consistent, "not new" -> GOOD
+        (0.99, True, True, False, "not new", PushStatus.GOOD, None),
+        # low confidence, likely regression, not consistent, "new" -> GOOD
+        (0.01, True, True, False, "new", PushStatus.GOOD, None),
+        # low confidence, not likely nor possible regression, not consistent, "not new" -> GOOD
+        (0.01, False, False, False, "not new", PushStatus.GOOD, None),
+        # low confidence, not likely nor possible regression, not consistent, "new" -> GOOD
+        (0.01, False, False, False, "new", PushStatus.GOOD, None),
+        # no confidence, not likely nor possible regression, not consistent, "new" -> GOOD
+        (None, False, False, False, "new", PushStatus.GOOD, None),
+        # high confidence, likely regression, unknown consistency, "not new" -> UNKNOWN, retrigger to find if real
+        (0.99, True, True, None, "not new", PushStatus.UNKNOWN, "real|intermittent"),
+        # high confidence, likely regression, unknown consistency, "new" -> UNKNOWN, retrigger to find if real
+        (0.99, True, True, None, "new", PushStatus.UNKNOWN, "real"),
+        # high confidence, not likely nor possible regression, unknown consistency, "not new" -> UNKNOWN, retrigger to find if intermittent
+        (0.99, False, False, None, "not new", PushStatus.UNKNOWN, "intermittent"),
+        # high confidence, not likely nor possible regression, unknown consistency, "new" -> UNKNOWN, retrigger won't help
+        (0.99, False, False, None, "new", PushStatus.UNKNOWN, None),
+        # low confidence, likely regression, unknown consistency, "not new" -> UNKNOWN, retrigger to find if intermittent
+        (0.01, True, True, None, "not new", PushStatus.UNKNOWN, "intermittent"),
+        # low confidence, likely regression, unknown consistency, "new" -> UNKNOWN, retrigger to find if real or intermittent
+        (0.01, True, True, None, "new", PushStatus.UNKNOWN, "real|intermittent"),
+        # low confidence, not likely nor possible regression, unknown consistency, "not new" -> UNKNOWN, retrigger to find if intermittent
+        (0.01, False, False, None, "not new", PushStatus.UNKNOWN, "intermittent"),
+        # low confidence, not likely nor possible regression, unknown consistency, "new" -> UNKNOWN, retrigger to find if intermittent
+        (0.01, False, False, None, "new", PushStatus.UNKNOWN, "intermittent"),
+        # no confidence, likely regression, unknown consistency, "not new" -> UNKNOWN, retrigger to find if intermittent
+        (None, True, True, None, "not new", PushStatus.UNKNOWN, "intermittent"),
+        # no confidence, likely regression, unknown consistency, "new" -> UNKNOWN, retrigger to find if intermittent
+        (None, True, True, None, "new", PushStatus.UNKNOWN, "real|intermittent"),
+        # no confidence, not likely nor possible regression, unknown consistency, "not new" -> UNKNOWN, retrigger to find if real or intermittent
+        (None, False, False, None, "not new", PushStatus.UNKNOWN, "intermittent"),
+        # no confidence, not likely nor possible regression, unknown consistency, "new" -> UNKNOWN, retrigger to find if intermittent
+        (None, False, False, None, "new", PushStatus.UNKNOWN, "intermittent"),
+        # high confidence, possible regression, consistent, "new" -> UNKNOWN, backfill to find if regression
+        (0.99, False, True, True, "new", PushStatus.UNKNOWN, "backfill"),
+        # high confidence, possible regression, consistent, "not new" -> UNKNOWN, backfill to find if regression
+        (0.99, False, True, True, "not new", PushStatus.UNKNOWN, "backfill"),
+        # high confidence, possible regression, not consistent, "new" -> UNKNOWN, nothing would change if we backfilled or retriggered
+        (0.99, False, True, False, "new", PushStatus.UNKNOWN, None),
+        # low confidence, possible regression, consistent, "not new" -> UNKNOWN, nothing would change if we backfilled
+        (0.01, False, True, True, "not new", PushStatus.UNKNOWN, None),
+        # low confidence, possible regression, consistent, "new" -> UNKNOWN, backfill to find if regression
+        (0.01, False, True, True, "new", PushStatus.UNKNOWN, "backfill"),
+        # no confidence, possible regression, consistent, "not new" -> UNKNOWN, nothing would change if we backfilled
+        (None, False, True, True, "not new", PushStatus.UNKNOWN, None),
+        # no confidence, possible regression, consistent, "new" -> UNKNOWN, backfill to find if regression
+        (None, False, True, True, "new", PushStatus.UNKNOWN, "backfill"),
+        # no confidence, possible regression, not consistent, "not new" -> GOOD
+        (None, False, True, False, "not new", PushStatus.GOOD, None),
+        # high confidence, possible regression, not consistent, "not new" -> GOOD
+        (0.99, False, True, False, "not new", PushStatus.GOOD, None),
+        # low confidence, possible regression, not consistent, "not new" -> GOOD
+        (0.01, False, True, False, "not new", PushStatus.GOOD, None),
+        # low confidence, possible regression, not consistent, "new" -> GOOD
+        (0.01, False, True, False, "new", PushStatus.GOOD, None),
+        # no confidence, possible regression, not consistent, "new" -> GOOD
+        (None, False, True, False, "new", PushStatus.GOOD, None),
+        # high confidence, possible regression, unknown consistency, "not new" -> UNKNOWN, backfill to find if regression and retrigger to find if intermittent
+        (
+            0.99,
+            False,
+            True,
+            None,
+            "not new",
+            PushStatus.UNKNOWN,
+            "backfill|intermittent",
+        ),
+        # high confidence, possible regression, unknown consistency, "new" -> UNKNOWN, backfill to find if regression
+        (0.99, False, True, None, "new", PushStatus.UNKNOWN, "backfill"),
+        # low confidence, possible regression, unknown consistency, "not new" -> UNKNOWN, retrigger to find if intermittent
+        (0.01, False, True, None, "not new", PushStatus.UNKNOWN, "intermittent"),
+        # low confidence, possible regression, unknown consistency, "new" -> UNKNOWN, backfill to find if regression and retrigger to find if intermittent
+        (0.01, False, True, None, "new", PushStatus.UNKNOWN, "backfill|intermittent"),
+        # no confidence, possible regression, unknown consistency, "not new" -> UNKNOWN, retrigger to find if intermittent
+        (None, False, True, None, "not new", PushStatus.UNKNOWN, "intermittent"),
+        # no confidence, possible regression, unknown consistency, "new" -> UNKNOWN, backfill to find if regression and retrigger to find if intermittent
+        (None, False, True, None, "new", PushStatus.UNKNOWN, "backfill|intermittent"),
+    ],
+)
+def test_classify_cases(
+    monkeypatch,
+    test_selection_confidence,
+    is_likely_regression,
+    is_possible_regression,
+    is_cross_config,
+    classification,
+    status,
+    action,
+):
+    push = Push("a" * 40, "autoland")
+
+    generate_mocks(
+        monkeypatch,
+        push,
+        {
+            "groups": {"group1": test_selection_confidence}
+            if test_selection_confidence
+            else {}
+        },
+        {"group1"} if is_likely_regression else set(),
+        {"group1"} if is_possible_regression else set(),
+        {"group1": is_cross_config},
+        {
+            "group1": [
+                "new failure not classified"
+                if classification == "new"
+                else "not classified"
+            ]
+        },
+    )
+
+    result = push.classify(
+        unknown_from_regressions=False, consider_children_pushes_configs=False
+    )
+
+    assert result[0] == status
+    if status == PushStatus.BAD:
+        assert set(result[1].real) == {"group1"}
+        assert set(result[1].intermittent) == set()
+        assert set(result[1].unknown) == set()
+    elif status == PushStatus.GOOD:
+        assert set(result[1].real) == set()
+        assert set(result[1].intermittent) == {"group1"}
+        assert set(result[1].unknown) == set()
+    elif status == PushStatus.UNKNOWN:
+        assert set(result[1].real) == set()
+        assert set(result[1].intermittent) == set()
+        assert set(result[1].unknown) == {"group1"}
+
+    if action is None:
+        assert set(result[2].real_retrigger) == set()
+        assert set(result[2].intermittent_retrigger) == set()
+        assert set(result[2].backfill) == set()
+    else:
+        real_retrigger = {"group1"} if "real" in action else set()
+        intermittent_retrigger = {"group1"} if "intermittent" in action else set()
+        backfill = {"group1"} if "backfill" in action else set()
+
+        assert set(result[2].real_retrigger) == real_retrigger
+        assert set(result[2].intermittent_retrigger) == intermittent_retrigger
+        assert set(result[2].backfill) == backfill

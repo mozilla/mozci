@@ -1073,6 +1073,14 @@ class Push:
             if failure_summary.is_intermittent:
                 count *= 2
 
+            # if confirmed = True; then assume regression
+            # if confirmed = False; then assume it's very unlikely a regression
+            if isinstance(failure_summary, GroupSummary):
+                if failure_summary.is_confirmed_failure():
+                    count = 0
+                elif failure_summary.is_confirmed_failure() is False:
+                    count = MAX_DEPTH + 1
+
             if not prior_regression and count <= MAX_DEPTH:
                 regressions[name] = int(count) if count > 0 else 0
 
@@ -1189,28 +1197,37 @@ class Push:
         else:
             all_groups = push_groups
 
+        groups_confirmed = {g.name: g.is_confirmed_failure() for g in all_groups}
+
         groups_consistent_failure = {
             g.name
             for g in all_groups
-            if g.is_consistent_failure(
-                cross_config_counts[1] if cross_config_counts is not None else None,
-                consistent_failures_counts[1]
-                if consistent_failures_counts is not None
-                else None,
+            if groups_confirmed[g.name]
+            or (
+                groups_confirmed[g.name] is None
+                and g.is_consistent_failure(
+                    cross_config_counts[1] if cross_config_counts is not None else None,
+                    consistent_failures_counts[1]
+                    if consistent_failures_counts is not None
+                    else None,
+                )
             )
         }
 
         groups_non_consistent_failure = {
             g.name
             for g in all_groups
-            if g.status != Status.PASS
-            and g.is_consistent_failure(
-                cross_config_counts[0] if cross_config_counts is not None else None,
-                consistent_failures_counts[0]
-                if consistent_failures_counts is not None
-                else None,
+            if groups_confirmed[g.name] is False
+            or (
+                groups_confirmed[g.name] is None
+                and g.is_consistent_failure(
+                    cross_config_counts[0] if cross_config_counts is not None else None,
+                    consistent_failures_counts[0]
+                    if consistent_failures_counts is not None
+                    else None,
+                )
+                is False
             )
-            is False
         }
 
         groups_failing = {g.name for g in all_groups if g.status != Status.PASS}

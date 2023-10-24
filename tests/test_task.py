@@ -858,6 +858,217 @@ def test_GroupSummary_is_config_consistent_failure(group_summary, expected_resul
     assert group_summary.is_config_consistent_failure(2) == expected_result
 
 
+@pytest.mark.parametrize(
+    "group_summary, expected_result",
+    [
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=1,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        _results=[
+                            GroupResult(group="group1", ok=True, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
+                    )
+                ],
+            ),
+            None,
+        ),  # passing task, expected status none
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=1,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
+                    )
+                ],
+            ),
+            None,
+        ),  # failing task, expected status none
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=1,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
+                    ),
+                    Task.create(
+                        id=2,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1-cf",
+                        _results=[GroupResult(group="group1", ok=False, duration=42)],
+                    ),
+                ],
+            ),
+            True,
+        ),  # failing task, failing confirm == verified fail (i.e. True)
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=1,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GR_2,
+                            GR_3,
+                        ],
+                    ),
+                    Task.create(
+                        id=2,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1-cf",
+                        _results=[GroupResult(group="group1", ok=True, duration=42)],
+                    ),
+                ],
+            ),
+            False,
+        ),  # failing task, passing confirm == intermittent (i.e. False)
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=1,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GroupResult(group="group2", ok=False, duration=42),
+                            GroupResult(group="group3", ok=True, duration=42),
+                        ],
+                    ),
+                    Task.create(
+                        id=2,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1-cf",
+                        _results=[
+                            GroupResult(group="group1", ok=True, duration=42),
+                        ],
+                    ),
+                    Task.create(
+                        id=3,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1-cf",
+                        _results=[
+                            GroupResult(group="group1", ok=True, duration=42),
+                        ],
+                    ),
+                ],
+            ),
+            False,
+        ),  # failing task, 2 different failures in group 1 confirms, both true; confirmed = False (i.e. intermittent)
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=1,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GroupResult(group="group2", ok=False, duration=42),
+                            GroupResult(group="group3", ok=True, duration=42),
+                        ],
+                    ),
+                    Task.create(
+                        id=2,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1-cf",
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                        ],
+                    ),
+                    Task.create(
+                        id=3,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1-cf",
+                        _results=[
+                            GroupResult(group="group1", ok=True, duration=42),
+                        ],
+                    ),
+                ],
+            ),
+            True,
+        ),  # failing task, 2 different failures in group 1 confirms, one true, one false; confirmed = True (i.e. regression)
+        (
+            GroupSummary(
+                "group1",
+                [
+                    Task.create(
+                        id=1,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GroupResult(group="group2", ok=False, duration=42),
+                            GroupResult(group="group3", ok=True, duration=42),
+                        ],
+                    ),
+                    Task.create(
+                        id=2,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1-cf",
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                        ],
+                    ),
+                    Task.create(
+                        id=3,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1-cf",
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                        ],
+                    ),
+                ],
+            ),
+            True,
+        ),  # failing task, 2 different failures in group 1 confirms, both false; confirmed = True (i.e. regression)
+        (
+            GroupSummary(
+                "group2",
+                [
+                    Task.create(
+                        id=1,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        _results=[
+                            GroupResult(group="group1", ok=False, duration=42),
+                            GroupResult(group="group2", ok=False, duration=42),
+                            GroupResult(group="group3", ok=True, duration=42),
+                        ],
+                    ),
+                    Task.create(
+                        id=2,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1-cf",
+                        _results=[
+                            GroupResult(group="group2", ok=False, duration=42),
+                        ],
+                    ),
+                    Task.create(
+                        id=3,
+                        label="test-linux1804-64/opt-xpcshell-e10s-1-cf",
+                        _results=[
+                            GroupResult(group="group2", ok=True, duration=42),
+                        ],
+                    ),
+                ],
+            ),
+            True,
+        ),  # failing task, 2 different failures in group 2 confirms, both false; confirmed = True (i.e. regression)
+    ],
+)
+def test_GroupSummary_is_confirmed_failure(group_summary, expected_result):
+    assert group_summary.is_confirmed_failure() == expected_result
+
+
 def test_GroupSummary_is_config_consistent_failure_single():
     group_summary = GroupSummary(
         "group1",

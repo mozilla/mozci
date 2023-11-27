@@ -767,13 +767,13 @@ files = [
 
 [[package]]
 name = "json-e"
-version = "4.5.3"
+version = "4.6.0"
 description = "A data-structure parameterization system written for embedding context in JSON objects"
 optional = false
 python-versions = "*"
 files = [
-    {file = "json-e-4.5.3.tar.gz", hash = "sha256:4d40ed481d19e475bb4b21807675a34b077a19197385007fed0ca4e867b5d9cd"},
-    {file = "json_e-4.5.3-py3-none-any.whl", hash = "sha256:b150f590e4febd77589f6becb45a99dc503351c3927d2c41b7310ab7dfd547e2"},
+    {file = "json-e-4.6.0.tar.gz", hash = "sha256:2ec3796a6fb40097642a0cc17ba1a0c08b637a76d32f27633fa4cd9def1e77f8"},
+    {file = "json_e-4.6.0-py3-none-any.whl", hash = "sha256:c5fd5c7d98b9394fbc9041c380134f4ed8b055c487f2607ee4f306383ab4d8b8"},
 ]
 
 [package.extras]

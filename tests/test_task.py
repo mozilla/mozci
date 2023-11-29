@@ -439,7 +439,7 @@ def test_configuration():
     assert (
         Task.create(
             id=1,
-            label="test-windows7-32-shippable/opt-firefox-ui-functional-remote-e10s",
+            label="test-windows7-32-shippable/opt-firefox-ui-functional-e10s",
         ).configuration
         == "test-windows7-32-shippable/opt-*-e10s"
     )

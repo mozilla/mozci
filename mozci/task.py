@@ -14,12 +14,13 @@ from typing import Dict, List, NewType, Optional, Tuple
 import jsone
 import requests
 import taskcluster
+import yaml
 from loguru import logger
 
 from mozci import config, data
 from mozci.errors import ArtifactNotFound, TaskNotFound
 from mozci.util.defs import INTERMITTENT_CLASSES
-from mozci.util.memoize import memoized_property
+from mozci.util.memoize import memoize, memoized_property
 from mozci.util.taskcluster import (
     PRODUCTION_TASKCLUSTER_ROOT_URL,
     find_task_id,
@@ -34,51 +35,33 @@ class Status(Enum):
     INTERMITTENT = 2
 
 
-SUITES = (
-    "mochitest-plain-gpu",
-    "mochitest-plain",
-    "mochitest-chrome-gpu",
-    "mochitest-chrome",
-    "mochitest-devtools-chrome",
-    "mochitest-browser-a11y",
-    "mochitest-browser-chrome",
-    "mochitest-browser-media",
-    "web-platform-tests-crashtest",
-    "web-platform-tests-reftest",
-    "web-platform-tests-wdspec",
-    "web-platform-tests-print-reftest",
-    "web-platform-tests",
-    "mochitest-media",
-    "mochitest-webgpu",
-    "mochitest-webgl1-ext",
-    "mochitest-webgl2-ext",
-    "mochitest-webgl1-core",
-    "mochitest-webgl2-core",
-    "mochitest-remote",
-    "mochitest-a11y",
-    "xpcshell",
-    "crashtest",
-    "jsreftest",
-    "reftest-no-accel",
-    "gtest",
-    "telemetry-tests-client",
-    "browser-screenshots",
-    "marionette-gpu",
-    "marionette",
-    "cppunit",
-    "firefox-ui-functional-remote",
-    "firefox-ui-functional-local",
-    "reftest",
-    "junit",
-    "test-verify",
-    "test-coverage",
-    "jittest",
-)
+@memoize
+def get_suites():
+    try:
+        r = requests.get(
+            "https://hg.mozilla.org/mozilla-central/raw-file/tip/taskcluster/ci/test/test-sets.yml"
+        )
+        test_sets = yaml.load(r.text, yaml.BaseLoader)
+    except requests.ConnectionError:
+        raise
+    test_types = set.union(*(set(test_sets[item]) for item in test_sets))
+
+    # remove perf suites
+    suites = [
+        x
+        for x in test_types
+        if not (
+            x.startswith("talos") or x.startswith("browsertime") or x.startswith("awsy")
+        )
+    ]
+    # sort in reverse to get longer suite names first chance at matching
+    suites.sort(reverse=True)
+    return suites
 
 
 # We can stop relying on parsing the label when https://bugzilla.mozilla.org/show_bug.cgi?id=1632870 is fixed.
 def get_suite_from_label(label: str) -> Optional[str]:
-    for s in SUITES:
+    for s in get_suites():
         if f"-{s}-" in label or label.endswith(f"-{s}"):
             return s
 
@@ -89,7 +72,7 @@ def get_suite_from_label(label: str) -> Optional[str]:
 def get_configuration_from_label(label: str) -> str:
     # Remove the suite name.
     config = label
-    for s in SUITES:
+    for s in get_suites():
         if f"-{s}-" in config or label.endswith(f"-{s}"):
             config = config.replace(s, "*")
 

@@ -45,6 +45,7 @@ class Responses:
                         "task": {
                             "extra": {
                                 "treeherder": {"tier": 3},
+                                "suite": None,
                             },
                         },
                         "status": {
@@ -54,6 +55,7 @@ class Responses:
                     {
                         "task": {
                             "extra": {"treeherder": {}},
+                            "suite": None,
                         },
                         "status": {
                             "taskId": "abc123",
@@ -61,7 +63,7 @@ class Responses:
                     },
                     {
                         "task": {
-                            "extra": {"treeherder": {}},
+                            "extra": {"treeherder": {}, "suite": None},
                             "metadata": {
                                 "name": "ActionTask",
                             },
@@ -74,6 +76,7 @@ class Responses:
                         "task": {
                             "extra": {
                                 "treeherder": {"tier": 3},
+                                "suite": "task",
                             },
                             "metadata": {
                                 "name": "task-A",
@@ -89,6 +92,7 @@ class Responses:
                         "task": {
                             "extra": {
                                 "treeherder": {"tier": 3},
+                                "suite": "task",
                             },
                             "metadata": {
                                 "name": "task-B",
@@ -105,6 +109,7 @@ class Responses:
                         "task": {
                             "extra": {
                                 "treeherder": {"tier": 3},
+                                "suite": "task",
                             },
                             "metadata": {
                                 "name": "task-B-2",
@@ -121,6 +126,7 @@ class Responses:
                         "task": {
                             "extra": {
                                 "treeherder": {"tier": 3},
+                                "suite": "task",
                             },
                             "metadata": {
                                 "name": "task-C",
@@ -142,6 +148,7 @@ class Responses:
                         "task": {
                             "extra": {
                                 "treeherder": {"tier": 3},
+                                "suite": "task",
                             },
                             "metadata": {
                                 "name": "task-D",
@@ -162,6 +169,7 @@ class Responses:
                         "task": {
                             "extra": {
                                 "treeherder": {"tier": 3},
+                                "suite": "task",
                             },
                             "metadata": {
                                 "name": "task-E",
@@ -184,6 +192,7 @@ class Responses:
                         "task": {
                             "extra": {
                                 "treeherder": {"tier": 3},
+                                "suite": "task",
                             },
                             "metadata": {
                                 "name": "task-F",
@@ -334,6 +343,7 @@ class Responses:
                 {
                     "id": "task-id-A",
                     "label": "task-A",
+                    "suite": "task",
                     "state": "unscheduled",
                     "tags": {"name": "tag-A"},
                     "tier": 3,
@@ -341,6 +351,7 @@ class Responses:
                 {
                     "id": "task-id-B",
                     "label": "task-B",
+                    "suite": "task",
                     "state": "pending",
                     "tags": {},
                     "tier": 3,
@@ -348,6 +359,7 @@ class Responses:
                 {
                     "id": "task-id-B-2",
                     "label": "task-B-2",
+                    "suite": "task",
                     "state": "exception",
                     "tags": {},
                     "tier": 3,
@@ -355,6 +367,7 @@ class Responses:
                 {
                     "id": "task-id-C",
                     "label": "task-C",
+                    "suite": "task",
                     "result": "exception",
                     "state": "pending",
                     "tags": {"name": "tag-C"},
@@ -363,6 +376,7 @@ class Responses:
                 {
                     "id": "task-id-D",
                     "label": "task-D",
+                    "suite": "task",
                     "state": "running",
                     "tags": {},
                     "tier": 3,
@@ -371,6 +385,7 @@ class Responses:
                     "duration": 60000,
                     "id": "task-id-E",
                     "label": "task-E",
+                    "suite": "task",
                     "result": "failed",
                     "state": "completed",
                     "tags": {},
@@ -380,6 +395,7 @@ class Responses:
                     "duration": 60000,
                     "id": "task-id-F",
                     "label": "task-F",
+                    "suite": "task",
                     "result": "passed",
                     "state": "completed",
                     "tags": {},

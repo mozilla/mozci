@@ -32,6 +32,7 @@ _contracts: Tuple[Contract, ...] = (
                 {
                     "id": v.Str(),
                     "label": v.Str(),
+                    "suite": v.Str(nullable=True),
                     "state": v.Str(
                         options=[
                             "completed",

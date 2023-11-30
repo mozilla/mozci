@@ -34,64 +34,15 @@ class Status(Enum):
     INTERMITTENT = 2
 
 
-SUITES = (
-    "mochitest-plain-gpu",
-    "mochitest-plain",
-    "mochitest-chrome-gpu",
-    "mochitest-chrome",
-    "mochitest-devtools-chrome",
-    "mochitest-browser-a11y",
-    "mochitest-browser-chrome",
-    "mochitest-browser-media",
-    "web-platform-tests-crashtest",
-    "web-platform-tests-reftest",
-    "web-platform-tests-wdspec",
-    "web-platform-tests-print-reftest",
-    "web-platform-tests",
-    "mochitest-media",
-    "mochitest-webgpu",
-    "mochitest-webgl1-ext",
-    "mochitest-webgl2-ext",
-    "mochitest-webgl1-core",
-    "mochitest-webgl2-core",
-    "mochitest-remote",
-    "mochitest-a11y",
-    "xpcshell",
-    "crashtest",
-    "jsreftest",
-    "reftest-no-accel",
-    "gtest",
-    "telemetry-tests-client",
-    "browser-screenshots",
-    "marionette-gpu",
-    "marionette",
-    "cppunit",
-    "firefox-ui-functional-remote",
-    "firefox-ui-functional-local",
-    "reftest",
-    "junit",
-    "test-verify",
-    "test-coverage",
-    "jittest",
-)
+def get_configuration_from_label(label: str, suite: str) -> str:
+    # Temporary hack to translate task.extra.suite into what we can find in the label
+    if suite == "cppunittest":
+        suite = "cppunit"
+    elif suite == "mochitest-browser-chrome-screenshots":
+        suite = "browser-screenshots"
 
-
-# We can stop relying on parsing the label when https://bugzilla.mozilla.org/show_bug.cgi?id=1632870 is fixed.
-def get_suite_from_label(label: str) -> Optional[str]:
-    for s in SUITES:
-        if f"-{s}-" in label or label.endswith(f"-{s}"):
-            return s
-
-    return None
-
-
-# We can stop relying on parsing the label when https://bugzilla.mozilla.org/show_bug.cgi?id=1632870 is fixed.
-def get_configuration_from_label(label: str) -> str:
     # Remove the suite name.
-    config = label
-    for s in SUITES:
-        if f"-{s}-" in config or label.endswith(f"-{s}"):
-            config = config.replace(s, "*")
+    config = label.replace(suite, "*")
 
     # Remove the chunk number.
     parts = config.split("-")
@@ -201,6 +152,7 @@ class Task:
     classification_note: Optional[str] = field(default=None)
     tags: Dict = field(default_factory=dict)
     tier: Optional[int] = field(default=None)
+    suite: Optional[str] = field(default=None)
 
     @staticmethod
     def create(index=None, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL, **kwargs):
@@ -486,7 +438,8 @@ class TestTask(Task):
     @property
     def configuration(self) -> str:
         assert self.label is not None
-        return get_configuration_from_label(self.label)
+        assert self.suite is not None
+        return get_configuration_from_label(self.label, self.suite)
 
 
 # Don't perform type checking because of https://github.com/python/mypy/issues/5374.

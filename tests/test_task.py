@@ -17,7 +17,6 @@ from mozci.task import (
     Task,
     TestTask,
     get_configuration_from_label,
-    get_suite_from_label,
     is_autoclassifiable,
 )
 from mozci.util.taskcluster import (
@@ -406,13 +405,17 @@ def test_to_json():
 def test_configuration():
     assert (
         Task.create(
-            id=1, label="test-windows7-32/debug-reftest-gpu-e10s-1"
+            id=1,
+            label="test-windows7-32/debug-reftest-gpu-e10s-1",
+            suite="reftest-gpu",
         ).configuration
-        == "test-windows7-32/debug-*-gpu-e10s"
+        == "test-windows7-32/debug-*-e10s"
     )
     assert (
         Task.create(
-            id=1, label="test-linux1804-64/debug-mochitest-plain-gpu-e10s"
+            id=1,
+            label="test-linux1804-64/debug-mochitest-plain-gpu-e10s",
+            suite="mochitest-plain-gpu",
         ).configuration
         == "test-linux1804-64/debug-*-e10s"
     )
@@ -420,12 +423,15 @@ def test_configuration():
         Task.create(
             id=1,
             label="test-macosx1014-64-shippable/opt-web-platform-tests-wdspec-headless-e10s-1",
+            suite="web-platform-tests-wdspec",
         ).configuration
         == "test-macosx1014-64-shippable/opt-*-headless-e10s"
     )
     assert (
         Task.create(
-            id=1, label="test-linux1804-64-asan/opt-web-platform-tests-e10s-3"
+            id=1,
+            label="test-linux1804-64-asan/opt-web-platform-tests-e10s-3",
+            suite="web-platform-tests",
         ).configuration
         == "test-linux1804-64-asan/opt-*-e10s"
     )
@@ -433,13 +439,15 @@ def test_configuration():
         Task.create(
             id=1,
             label="test-linux1804-64-qr/debug-web-platform-tests-wdspec-fis-e10s-1",
+            suite="web-platform-tests-wdspec",
         ).configuration
         == "test-linux1804-64-qr/debug-*-fis-e10s"
     )
     assert (
         Task.create(
             id=1,
-            label="test-windows7-32-shippable/opt-firefox-ui-functional-remote-e10s",
+            label="test-windows7-32-shippable/opt-firefox-ui-functional-e10s",
+            suite="firefox-ui-functional",
         ).configuration
         == "test-windows7-32-shippable/opt-*-e10s"
     )
@@ -600,6 +608,7 @@ def test_results_for_incomplete_task(responses):
                     Task.create(
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -609,6 +618,7 @@ def test_results_for_incomplete_task(responses):
                     Task.create(
                         id=2,
                         label="test-macosx1015-64/opt-xpcshell-e10s-1",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -691,6 +701,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                     Task.create(
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -708,6 +719,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                     Task.create(
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -717,6 +729,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                     Task.create(
                         id=2,
                         label="test-macosx1015-64/opt-xpcshell-e10s-1",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -734,6 +747,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                     Task.create(
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -752,6 +766,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                     Task.create(
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(
                                 group="group1", ok=False if i % 2 else True, duration=42
@@ -772,6 +787,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                     Task.create(
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=True, duration=42),
                             GR_2,
@@ -790,6 +806,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                     Task.create(
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -802,6 +819,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                     Task.create(
                         id=i,
                         label=f"test-macosx1015-64/opt-xpcshell-e10s-{i}",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(
                                 group="group1", ok=False if i % 2 else True, duration=42
@@ -828,6 +846,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
             Task.create(
                 id=1,
                 label="test-linux1804-64/opt-xpcshell-e10s-1",
+                suite="xpcshell",
                 _results=[
                     GroupResult(group="group1", ok=False, duration=42),
                     GR_2,
@@ -849,6 +868,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                     Task.create(
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -866,6 +886,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                     Task.create(
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -875,6 +896,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                     Task.create(
                         id=2,
                         label="test-macosx1015-64/opt-xpcshell-e10s-1",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -892,6 +914,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                     Task.create(
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -901,6 +924,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                     Task.create(
                         id=2,
                         label="test-macosx1015-64/opt-xpcshell-e10s-1",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=True, duration=42),
                             GR_2,
@@ -918,6 +942,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                     Task.create(
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -936,6 +961,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                     Task.create(
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(
                                 group="group1", ok=False if i % 2 else True, duration=42
@@ -956,6 +982,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                     Task.create(
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=True, duration=42),
                             GR_2,
@@ -974,6 +1001,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                     Task.create(
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -986,6 +1014,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                     Task.create(
                         id=i,
                         label=f"test-macosx1015-64/opt-xpcshell-e10s-{i}",
+                        suite="xpcshell",
                         _results=[
                             GroupResult(
                                 group="group1", ok=False if i % 2 else True, duration=42
@@ -1159,49 +1188,37 @@ def test_autoclassify(
     assert is_autoclassifiable(task) is result
 
 
-def test_get_suite_from_label_and_get_configuration_from_label():
-    assert (
-        get_suite_from_label("test-macosx1015-64-qr/opt-mochitest-devtools-chrome-1")
-        == "mochitest-devtools-chrome"
-    )
+def test_get_configuration_from_label():
     assert (
         get_configuration_from_label(
-            "test-macosx1015-64-qr/opt-mochitest-devtools-chrome-1"
+            "test-macosx1015-64-qr/opt-mochitest-devtools-chrome-1",
+            "mochitest-devtools-chrome",
         )
         == "test-macosx1015-64-qr/opt-*"
     )
-    assert get_suite_from_label("test-linux1804-64-qr/debug-crashtest") == "crashtest"
-    assert (
-        get_configuration_from_label("test-linux1804-64-qr/debug-crashtest")
-        == "test-linux1804-64-qr/debug-*"
-    )
-    assert (
-        get_suite_from_label("test-linux1804-64-qr/debug-mochitest-browser-a11y")
-        == "mochitest-browser-a11y"
-    )
     assert (
         get_configuration_from_label(
-            "test-linux1804-64-qr/debug-mochitest-browser-a11y"
+            "test-linux1804-64-qr/debug-crashtest", "crashtest"
         )
         == "test-linux1804-64-qr/debug-*"
     )
     assert (
-        get_suite_from_label("test-windows10-64-2004-qr/opt-mochitest-remote")
-        == "mochitest-remote"
+        get_configuration_from_label(
+            "test-linux1804-64-qr/debug-mochitest-browser-a11y",
+            "mochitest-browser-a11y",
+        )
+        == "test-linux1804-64-qr/debug-*"
     )
     assert (
-        get_configuration_from_label("test-windows10-64-2004-qr/opt-mochitest-remote")
+        get_configuration_from_label(
+            "test-windows10-64-2004-qr/opt-mochitest-remote", "mochitest-remote"
+        )
         == "test-windows10-64-2004-qr/opt-*"
     )
     assert (
-        get_suite_from_label(
-            "test-windows11-64-2009-asan-qr/opt-mochitest-browser-media"
-        )
-        == "mochitest-browser-media"
-    )
-    assert (
         get_configuration_from_label(
-            "test-windows11-64-2009-asan-qr/opt-mochitest-browser-media"
+            "test-windows11-64-2009-asan-qr/opt-mochitest-browser-media",
+            "mochitest-browser-media",
         )
         == "test-windows11-64-2009-asan-qr/opt-*"
     )

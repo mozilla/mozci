@@ -244,6 +244,7 @@ def test_push_tasks_with_tier(responses):
                     "task": {
                         "extra": {
                             "treeherder": {"tier": 3},
+                            "suite": "task",
                         },
                         "metadata": {
                             "name": "task-A",
@@ -259,6 +260,7 @@ def test_push_tasks_with_tier(responses):
                     "task": {
                         "extra": {
                             "treeherder": {"tier": 1},
+                            "suite": "task",
                         },
                         "metadata": {
                             "name": "task-B",
@@ -691,8 +693,9 @@ def test_generate_all_shadow_scheduler_tasks(responses):
         (
             "bar",
             ["task-1", "task-3", "task-4"],
+            "task",  # suite name to use
         ),  # names will be generated alphabetically
-        ("foo", ["task-2", "task-4"]),
+        ("foo", ["task-2", "task-4"], "task"),
     )
 
     push = Push(rev)
@@ -728,7 +731,7 @@ def test_generate_all_shadow_scheduler_tasks(responses):
             responses.GET,
             get_artifact_url(s_id, "public/shadow-scheduler/optimized-tasks.json"),
             stream=True,
-            json={next(id): {"label": task} for task in ss[1]},
+            json={next(id): {"label": task, "suite": ss[2]} for task in ss[1]},
             status=200,
         )
 
@@ -748,9 +751,14 @@ def test_generate_all_shadow_scheduler_config_groups(responses):
                 (
                     "test-linux1804-64/debug-xpcshell-spi-nw-e10s-1",
                     ["group1", "group5"],
+                    "xpcshell",
                 ),
-                ("test-linux1804-64/debug-xpcshell-spi-nw-e10s-2", ["group2"]),
-                ("test-windows7-32/opt-xpcshell-e10s-1", ["group3"]),
+                (
+                    "test-linux1804-64/debug-xpcshell-spi-nw-e10s-2",
+                    ["group2"],
+                    "xpcshell",
+                ),
+                ("test-windows7-32/opt-xpcshell-e10s-1", ["group3"], "xpcshell"),
             ],
             {
                 ("test-linux1804-64/debug-*-spi-nw-e10s", "group2"),
@@ -762,10 +770,11 @@ def test_generate_all_shadow_scheduler_config_groups(responses):
         (
             "foo",
             [
-                ("test-macosx1014-64/opt-xpcshell-e10s-1", ["group4"]),
+                ("test-macosx1014-64/opt-xpcshell-e10s-1", ["group4"], "xpcshell"),
                 (
                     "test-android-em-7.0-x86_64/debug-geckoview-xpcshell-e10s-1",
                     ["group3"],
+                    "xpcshell",
                 ),
             ],
             {
@@ -788,7 +797,10 @@ def test_generate_all_shadow_scheduler_config_groups(responses):
         responses.GET,
         get_artifact_url(1, "public/task-graph.json"),
         json={
-            next(id): {"label": f"source-test-shadow-scheduler-{s[0]}"}
+            next(id): {
+                "label": f"source-test-shadow-scheduler-{s[0]}",
+                "suite": "shadow-scheduler",
+            }
             for s in shadow_schedulers
         },
         status=200,
@@ -809,8 +821,12 @@ def test_generate_all_shadow_scheduler_config_groups(responses):
             get_artifact_url(s_id, "public/shadow-scheduler/optimized-tasks.json"),
             stream=True,
             json={
-                next(id): {"label": label, "attributes": {"test_manifests": groups}}
-                for label, groups in ss[1]
+                next(id): {
+                    "label": label,
+                    "suite": suite,
+                    "attributes": {"test_manifests": groups},
+                }
+                for label, groups, suite in ss[1]
             },
             status=200,
         )

@@ -1973,13 +1973,18 @@ def test_fixed_by_commit_multiple_backout(monkeypatch, create_pushes):
 
     monkeypatch.setattr(HgRev, "pushid", property(mock_pushid))
 
-    p[i - 1].tasks = [create_task(id=fake_id(1), label="test-failure", result="passed")]
+    p[i - 1].tasks = [
+        create_task(
+            id=fake_id(1), label="test-failure", suite="failure", result="passed"
+        )
+    ]
     p[i]._revs = ["rev1.1", "rev1.2"]
     p[i].backedoutby = "rev4.2"
     p[i + 1].tasks = [
         create_task(
             id=fake_id(1),
             label="test-failure",
+            suite="failure",
             result="failed",
             classification="fixed by commit",
             classification_note=p[i + 2].rev,

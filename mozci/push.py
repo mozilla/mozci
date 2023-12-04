@@ -28,7 +28,6 @@ from mozci.task import (
     Task,
     TestTask,
     get_configuration_from_label,
-    get_suite_from_label,
 )
 from mozci.util.defs import FAILURE_CLASSES, TASK_FINAL_STATES
 from mozci.util.hgmo import HgRev, parse_bugs
@@ -558,7 +557,7 @@ class Push:
 
         group_types = set()
         for task in group.tasks:
-            suite = get_suite_from_label(task.label)
+            suite = task.suite
             assert (
                 suite is not None
             ), f"Couldn't parse suite for {task.label} ({task.id})"
@@ -566,7 +565,7 @@ class Push:
 
         if all(task.is_tests_grouped for task in group.tasks):
             for task in running_tasks:
-                if get_suite_from_label(task.label) not in group_types:
+                if task.suite not in group_types:
                     continue
 
                 task_def = get_task(task.id)
@@ -581,7 +580,7 @@ class Push:
                     return True
             return False
 
-        running_types = {get_suite_from_label(task.label) for task in running_tasks}
+        running_types = {task.suite for task in running_tasks}
         return not group_types.isdisjoint(running_types)
 
     def _is_classified_as_cause(self, first_appearance_push, classifications):
@@ -1460,7 +1459,12 @@ class Push:
         for name in sorted(self.shadow_scheduler_names):
             try:
                 config_groups = {
-                    (get_configuration_from_label(task["label"]), group)
+                    (
+                        get_configuration_from_label(
+                            task["label"], task.get("suite", None)
+                        ),
+                        group,
+                    )
                     for task in self.get_shadow_scheduler_tasks(name)
                     for group in task["attributes"].get("test_manifests", [])
                 }

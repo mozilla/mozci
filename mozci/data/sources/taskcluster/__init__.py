@@ -59,6 +59,7 @@ class TaskclusterSource(DataSource):
                 "label": result["task"]["metadata"]["name"],
                 "tags": result["task"]["tags"],
                 "state": result["status"]["state"],
+                "suite": result["task"]["extra"].get("suite", None),
             }
             tier = result["task"]["extra"].get("treeherder", {}).get("tier")
             if tier:

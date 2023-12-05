@@ -731,7 +731,19 @@ def test_generate_all_shadow_scheduler_tasks(responses):
             responses.GET,
             get_artifact_url(s_id, "public/shadow-scheduler/optimized-tasks.json"),
             stream=True,
-            json={next(id): {"label": task, "suite": ss[2]} for task in ss[1]},
+            json={
+                next(id): {
+                    "label": task,
+                    "task": {
+                        "extra": {
+                            "suite": ss[2],
+                            "test-settings": {"runtime": {}},
+                            "treeherder-platform": "",
+                        },
+                    },
+                }
+                for task in ss[1]
+            },
             status=200,
         )
 
@@ -749,37 +761,50 @@ def test_generate_all_shadow_scheduler_config_groups(responses):
             "bar",
             [
                 (
-                    "test-linux1804-64/debug-xpcshell-spi-nw-e10s-1",
+                    "test-linux1804-64/debug-xpcshell-spi-nw-1",
                     ["group1", "group5"],
                     "xpcshell",
+                    "linux1804-64/debug",
                 ),
                 (
-                    "test-linux1804-64/debug-xpcshell-spi-nw-e10s-2",
+                    "test-linux1804-64/debug-xpcshell-spi-nw-2",
                     ["group2"],
                     "xpcshell",
+                    "linux1804-64/debug",
                 ),
-                ("test-windows7-32/opt-xpcshell-e10s-1", ["group3"], "xpcshell"),
+                (
+                    "test-windows7-32/opt-xpcshell-spi-nw-1",
+                    ["group3"],
+                    "xpcshell",
+                    "windows7-32/opt",
+                ),
             ],
             {
-                ("test-linux1804-64/debug-*-spi-nw-e10s", "group2"),
-                ("test-linux1804-64/debug-*-spi-nw-e10s", "group5"),
-                ("test-linux1804-64/debug-*-spi-nw-e10s", "group1"),
-                ("test-windows7-32/opt-*-e10s", "group3"),
+                ("test-linux1804-64/debug-*-spi-nw", "group2"),
+                ("test-linux1804-64/debug-*-spi-nw", "group5"),
+                ("test-linux1804-64/debug-*-spi-nw", "group1"),
+                ("test-windows7-32/opt-*-spi-nw", "group3"),
             },
         ),
         (
             "foo",
             [
-                ("test-macosx1014-64/opt-xpcshell-e10s-1", ["group4"], "xpcshell"),
                 (
-                    "test-android-em-7.0-x86_64/debug-geckoview-xpcshell-e10s-1",
+                    "test-macosx1014-64/opt-xpcshell-e10s-1",
+                    ["group4"],
+                    "xpcshell",
+                    "macosx1014-64/opt",
+                ),
+                (
+                    "test-android-em-7-0-x86_64/debug-geckoview-xpcshell-spi-nw-1",
                     ["group3"],
                     "xpcshell",
+                    "android-em-7-0-x86_64/debug",
                 ),
             ],
             {
-                ("test-android-em-7.0-x86_64/debug-geckoview-*-e10s", "group3"),
-                ("test-macosx1014-64/opt-*-e10s", "group4"),
+                ("test-android-em-7.0-x86_64/debug-geckoview-*-spi-nw", "group3"),
+                ("test-macosx1014-64/opt-*-spi-nw", "group4"),
             },
         ),
     )
@@ -799,6 +824,11 @@ def test_generate_all_shadow_scheduler_config_groups(responses):
         json={
             next(id): {
                 "label": f"source-test-shadow-scheduler-{s[0]}",
+                "task": {
+                    "extra": {
+                        "suite": "shadow-scheduler",
+                    }
+                },
                 "suite": "shadow-scheduler",
             }
             for s in shadow_schedulers
@@ -809,6 +839,21 @@ def test_generate_all_shadow_scheduler_config_groups(responses):
     id = count(2)
     for ss in shadow_schedulers:
         s_id = next(id)
+        responses.add(
+            responses.GET,
+            "https://hg.mozilla.org/mozilla-central/raw-file/tip/taskcluster/ci/test/variants.yml",
+            json={
+                "socketprocess_networking": {"suffix": "spi-nw"},
+                "no-fission": {"suffix": "nofis"},
+                "webrender-sw": {"suffix": "swr"},
+                "1proc": {"suffix": "1proc"},
+                "msix": {"suffix": "msix"},
+                "headless": {"suffix": "headless"},
+                "fission": {"suffix": "fis"},
+            },
+            status=200,
+        )
+
         responses.add(
             responses.GET,
             get_index_url(f"{push.index}.source.shadow-scheduler-{ss[0]}"),
@@ -823,10 +868,18 @@ def test_generate_all_shadow_scheduler_config_groups(responses):
             json={
                 next(id): {
                     "label": label,
-                    "suite": suite,
+                    "task": {
+                        "extra": {
+                            "suite": suite,
+                            "test-settings": {
+                                "runtime": {"socketprocess_networking": True}
+                            },
+                            "treeherder-platform": platform,
+                        }
+                    },
                     "attributes": {"test_manifests": groups},
                 }
-                for label, groups, suite in ss[1]
+                for label, groups, suite, platform in ss[1]
             },
             status=200,
         )

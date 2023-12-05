@@ -27,7 +27,7 @@ from mozci.task import (
     Status,
     Task,
     TestTask,
-    get_configuration_from_label,
+    get_configuration,
 )
 from mozci.util.defs import FAILURE_CLASSES, TASK_FINAL_STATES
 from mozci.util.hgmo import HgRev, parse_bugs
@@ -1460,9 +1460,7 @@ class Push:
             try:
                 config_groups = {
                     (
-                        get_configuration_from_label(
-                            task["label"], task.get("suite", None)
-                        ),
+                        get_configuration(task),
                         group,
                     )
                     for task in self.get_shadow_scheduler_tasks(name)

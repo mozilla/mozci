@@ -60,7 +60,12 @@ class TaskclusterSource(DataSource):
                 "tags": result["task"]["tags"],
                 "state": result["status"]["state"],
                 "suite": result["task"]["extra"].get("suite", None),
+                "platform": result["task"]["extra"].get("treeherder-platform", ""),
+                "variant": result["task"]["extra"]
+                .get("test-setting", {})
+                .get("runtime", {}),
             }
+
             tier = result["task"]["extra"].get("treeherder", {}).get("tier")
             if tier:
                 task["tier"] = tier

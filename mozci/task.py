@@ -14,12 +14,13 @@ from typing import Dict, List, NewType, Optional, Tuple
 import jsone
 import requests
 import taskcluster
+import yaml
 from loguru import logger
 
 from mozci import config, data
 from mozci.errors import ArtifactNotFound, TaskNotFound
 from mozci.util.defs import INTERMITTENT_CLASSES
-from mozci.util.memoize import memoized_property
+from mozci.util.memoize import memoize, memoized_property
 from mozci.util.taskcluster import (
     PRODUCTION_TASKCLUSTER_ROOT_URL,
     find_task_id,
@@ -34,19 +35,20 @@ class Status(Enum):
     INTERMITTENT = 2
 
 
-def get_configuration_from_label(label: str, suite: str) -> str:
-    # Temporary hack to translate task.extra.suite into what we can find in the label
-    if suite == "cppunittest":
-        suite = "cppunit"
-    elif suite == "mochitest-browser-chrome-screenshots":
-        suite = "browser-screenshots"
-
-    # Remove the suite name.
-    config = label.replace(suite, "*")
-
-    # Remove the chunk number.
-    parts = config.split("-")
-    return "-".join(parts[:-1] if parts[-1].isdigit() else parts)
+@memoize
+def fetch_test_variant_yaml() -> Dict:
+    # load variants.yml from mozilla-central
+    test_variants = {}
+    try:
+        r = requests.get(
+            "https://hg.mozilla.org/mozilla-central/raw-file/tip/taskcluster/ci/test/variants.yml"
+        )
+        tv = yaml.load(r.text, yaml.BaseLoader)
+        for v in tv:
+            test_variants[v] = tv[v]["suffix"]
+    except requests.ConnectionError:
+        raise
+    return test_variants
 
 
 NO_GROUPS_SUITES = (
@@ -139,6 +141,62 @@ def wpt_workaround(group: str) -> str:
         return "/".join(["testing/web-platform/tests", group[1:]])
 
 
+def get_test_variant(variants, label) -> str:
+    if not variants:
+        return ""
+
+    suffixes = []
+    yaml_variants = fetch_test_variant_yaml()
+    for variant in variants:
+        if variant not in yaml_variants:
+            raise Exception(
+                f"Missing test variant {variant} in variants.yml: {yaml_variants}"
+            )
+        suffixes.append(yaml_variants[variant])
+
+    # figure out which order to pack the suffixes; we can cheat by using self.label
+    retVal = sorted(suffixes, key=lambda x: label.find(x))
+    return "-".join(retVal)
+
+
+def get_configuration(task) -> str:
+    platform = task["task"]["extra"]["treeherder-platform"]
+    suite = task["task"]["extra"]["suite"]
+    label = task["label"]
+    test_variant = get_test_variant(
+        task["task"]["extra"].get("test-settings", {}).get("runtime", {}), label
+    )
+    return _get_configuration(platform, suite, label, test_variant)
+
+
+def _get_configuration(platform, suite, label, test_variant) -> str:
+    assert platform is not None
+    retVal = f"test-{platform}"
+
+    # Hack #1: Android platform names do not match
+    if "android" in platform:
+        platform = platform.replace("7-0", "7.0")
+        retVal = f"test-{platform}"
+        if "junit" not in suite:
+            retVal += "-geckoview"
+
+    # account for the suite being replaced
+    retVal += "-*"
+
+    # Hack #2: wpt tasks using tag=<X> have no attributes in test-settings
+    wpt_tags = ["privatebrowsing", "canvas", "webgpu"]
+    for wt in wpt_tags:
+        if f"web-platform-tests-{wt}" in label:
+            retVal += f"-{wt}"
+
+    # Hack #3: xpcshell-msix is a separate suite, but still has test_variant listed
+    if test_variant:
+        if not (suite == "xpcshell-msix" and test_variant == "msix"):
+            retVal += f"-{test_variant}"
+
+    return retVal
+
+
 @dataclass
 class Task:
     """Contains information pertaining to a single task."""
@@ -153,6 +211,8 @@ class Task:
     tags: Dict = field(default_factory=dict)
     tier: Optional[int] = field(default=None)
     suite: Optional[str] = field(default=None)
+    platform: Optional[str] = field(default=None)
+    variant: Optional[Dict] = field(default=None)
 
     @staticmethod
     def create(index=None, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL, **kwargs):
@@ -199,6 +259,15 @@ class Task:
     def artifacts(self):
         """List the artifacts that were uploaded by this task."""
         return [artifact["name"] for artifact in list_artifacts(self.id)]
+
+    @property
+    def configuration(self):
+        return _get_configuration(
+            self.platform,
+            self.suite,
+            self.label,
+            get_test_variant(self.variant, self.label),
+        )
 
     def get_artifact(self, path, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
         """Downloads and returns the content of an artifact.
@@ -434,12 +503,6 @@ class TestTask(Task):
                 "test_task_failure_types", task_id=self.id
             )
         return self._failure_types
-
-    @property
-    def configuration(self) -> str:
-        assert self.label is not None
-        assert self.suite is not None
-        return get_configuration_from_label(self.label, self.suite)
 
 
 # Don't perform type checking because of https://github.com/python/mypy/issues/5374.

@@ -5,7 +5,6 @@ import shutil
 import tarfile
 import tempfile
 import threading
-from distutils.dir_util import copy_tree
 
 import taskcluster
 from cachy.contracts.store import Store
@@ -90,7 +89,7 @@ class SeededFileStore(FileStore):
                 if self._archive_relpath:
                     path = os.path.join(tempdir, self._archive_relpath)
 
-                copy_tree(path, self._directory)
+                shutil.copytree(path, self._directory, dirs_exist_ok=True)
 
         # Make sure we don't reseed again for another 'reseed_interval' minutes.
         self.put(self.RESEED_KEY, False, self._reseed_interval)

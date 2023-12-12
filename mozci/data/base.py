@@ -104,5 +104,3 @@ def register_sources():
     ]
 
     DataHandler.ALL_SOURCES = {src.name: src for src in sources}
-    # XXX Create an alias for backwards compatibility. Remove with the next major release.
-    DataHandler.ALL_SOURCES["treeherder"] = DataHandler.ALL_SOURCES["treeherder_db"]

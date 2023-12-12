@@ -457,23 +457,6 @@ class Responses:
             {"devtools/client/netmonitor/test": (True, None)},
             id="treeherder_client.test_task_groups",
         ),
-        # treeherder_db
-        pytest.param(
-            "treeherder_client",
-            "test_task_groups",
-            # treeherder_db shares a cache with treeherder_client, so no
-            # responses should be generated here either
-            [],
-            # input
-            {
-                "branch": "autoland",
-                "rev": "abcdef",
-                "task": create_task("amn79ZnzQbWAbrSvxJ-GBQ"),
-            },
-            # expected output
-            {"dom/media/test": (False, None)},
-            id="treeherder_db.test_task_groups",
-        ),
         # errorsummary
         pytest.param(
             "errorsummary",

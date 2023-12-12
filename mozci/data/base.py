@@ -97,7 +97,6 @@ def register_sources():
         hgmo.HGMOSource(),
         taskcluster.TaskclusterSource(),
         treeherder.TreeherderClientSource(),
-        treeherder.TreeherderDBSource(),
         # By default, we set the "bugbug" source after taskcluster in this list
         # as we prefer to try fetching schedules from cache first.
         bugbug.BugbugSource(),

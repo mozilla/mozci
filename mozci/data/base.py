@@ -97,12 +97,9 @@ def register_sources():
         hgmo.HGMOSource(),
         taskcluster.TaskclusterSource(),
         treeherder.TreeherderClientSource(),
-        treeherder.TreeherderDBSource(),
         # By default, we set the "bugbug" source after taskcluster in this list
         # as we prefer to try fetching schedules from cache first.
         bugbug.BugbugSource(),
     ]
 
     DataHandler.ALL_SOURCES = {src.name: src for src in sources}
-    # XXX Create an alias for backwards compatibility. Remove with the next major release.
-    DataHandler.ALL_SOURCES["treeherder"] = DataHandler.ALL_SOURCES["treeherder_db"]

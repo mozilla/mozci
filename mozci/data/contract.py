@@ -33,6 +33,8 @@ _contracts: Tuple[Contract, ...] = (
                     "id": v.Str(),
                     "label": v.Str(),
                     "suite": v.Str(nullable=True),
+                    "platform": v.Str(nullable=True),
+                    "variant": v.Dict(extra=(v.Str(), v.Bool())),
                     "state": v.Str(
                         options=[
                             "completed",
@@ -55,7 +57,7 @@ _contracts: Tuple[Contract, ...] = (
                         ]
                     ),
                 },
-                optional=["duration", "result", "tier"],
+                optional=["duration", "result", "tier", "suite", "platform", "variant"],
             )
         ),
     ),

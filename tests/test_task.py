@@ -16,7 +16,7 @@ from mozci.task import (
     GroupSummary,
     Task,
     TestTask,
-    get_configuration_from_label,
+    get_test_variant,
     is_autoclassifiable,
 )
 from mozci.util.taskcluster import (
@@ -406,50 +406,59 @@ def test_configuration():
     assert (
         Task.create(
             id=1,
-            label="test-windows7-32/debug-reftest-gpu-e10s-1",
+            label="test-windows7-32/debug-reftest-gpu-nofis-1",
             suite="reftest-gpu",
+            platform="windows7-32/debug",
+            variant={"no-fission": True},
         ).configuration
-        == "test-windows7-32/debug-*-e10s"
+        == "test-windows7-32/debug-*-nofis"
     )
     assert (
         Task.create(
             id=1,
-            label="test-linux1804-64/debug-mochitest-plain-gpu-e10s",
+            label="test-linux1804-64/debug-mochitest-plain-gpu",
             suite="mochitest-plain-gpu",
+            platform="linux1804-64/debug",
         ).configuration
-        == "test-linux1804-64/debug-*-e10s"
+        == "test-linux1804-64/debug-*"
     )
     assert (
         Task.create(
             id=1,
-            label="test-macosx1014-64-shippable/opt-web-platform-tests-wdspec-headless-e10s-1",
+            label="test-macosx1014-64-shippable/opt-web-platform-tests-wdspec-headless-nofis-1",
             suite="web-platform-tests-wdspec",
+            platform="macosx1014-64-shippable/opt",
+            variant={"no-fission": True, "headless": True},
         ).configuration
-        == "test-macosx1014-64-shippable/opt-*-headless-e10s"
+        == "test-macosx1014-64-shippable/opt-*-headless-nofis"
     )
     assert (
         Task.create(
             id=1,
-            label="test-linux1804-64-asan/opt-web-platform-tests-e10s-3",
+            label="test-linux1804-64-asan/opt-web-platform-tests-3",
             suite="web-platform-tests",
+            platform="linux1804-64-asan/opt",
         ).configuration
-        == "test-linux1804-64-asan/opt-*-e10s"
+        == "test-linux1804-64-asan/opt-*"
     )
     assert (
         Task.create(
             id=1,
-            label="test-linux1804-64-qr/debug-web-platform-tests-wdspec-fis-e10s-1",
+            label="test-linux1804-64-qr/debug-web-platform-tests-wdspec-fis-1proc-1",
             suite="web-platform-tests-wdspec",
+            platform="linux1804-64-qr/debug",
+            variant={"fission": True, "1proc": True},
         ).configuration
-        == "test-linux1804-64-qr/debug-*-fis-e10s"
+        == "test-linux1804-64-qr/debug-*-fis-1proc"
     )
     assert (
         Task.create(
             id=1,
-            label="test-windows7-32-shippable/opt-firefox-ui-functional-e10s",
+            label="test-windows7-32-shippable/opt-firefox-ui-functional",
             suite="firefox-ui-functional",
+            platform="windows7-32-shippable/opt",
         ).configuration
-        == "test-windows7-32-shippable/opt-*-e10s"
+        == "test-windows7-32-shippable/opt-*"
     )
 
 
@@ -609,6 +618,7 @@ def test_results_for_incomplete_task(responses):
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
                         suite="xpcshell",
+                        platform="test-linux1804-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -619,6 +629,7 @@ def test_results_for_incomplete_task(responses):
                         id=2,
                         label="test-macosx1015-64/opt-xpcshell-e10s-1",
                         suite="xpcshell",
+                        platform="test-macosx1015-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -702,6 +713,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
                         suite="xpcshell",
+                        platform="test-linux1804-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -720,6 +732,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
                         suite="xpcshell",
+                        platform="test-linux1804-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -730,6 +743,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                         id=2,
                         label="test-macosx1015-64/opt-xpcshell-e10s-1",
                         suite="xpcshell",
+                        platform="test-macosx1015-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -748,6 +762,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
                         suite="xpcshell",
+                        platform="test-linux1804-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -767,6 +782,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
                         suite="xpcshell",
+                        platform="test-linux1804-64/opt",
                         _results=[
                             GroupResult(
                                 group="group1", ok=False if i % 2 else True, duration=42
@@ -788,6 +804,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
                         suite="xpcshell",
+                        platform="test-linux1804-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=True, duration=42),
                             GR_2,
@@ -807,6 +824,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
                         suite="xpcshell",
+                        platform="test-linux1804-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -820,6 +838,7 @@ def test_GroupSummary_is_cross_config_failure(group_summary, expected_result):
                         id=i,
                         label=f"test-macosx1015-64/opt-xpcshell-e10s-{i}",
                         suite="xpcshell",
+                        platform="test-macosx1015-64/opt",
                         _results=[
                             GroupResult(
                                 group="group1", ok=False if i % 2 else True, duration=42
@@ -847,6 +866,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                 id=1,
                 label="test-linux1804-64/opt-xpcshell-e10s-1",
                 suite="xpcshell",
+                platform="test-linux1804-64/opt",
                 _results=[
                     GroupResult(group="group1", ok=False, duration=42),
                     GR_2,
@@ -869,6 +889,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
                         suite="xpcshell",
+                        platform="test-linux1804-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -887,6 +908,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
                         suite="xpcshell",
+                        platform="test-linux1804-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -897,6 +919,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                         id=2,
                         label="test-macosx1015-64/opt-xpcshell-e10s-1",
                         suite="xpcshell",
+                        platform="test-macosx1015-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -915,6 +938,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                         id=1,
                         label="test-linux1804-64/opt-xpcshell-e10s-1",
                         suite="xpcshell",
+                        platform="test-linux1804-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -925,6 +949,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                         id=2,
                         label="test-macosx1015-64/opt-xpcshell-e10s-1",
                         suite="xpcshell",
+                        platform="test-macosx1015-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=True, duration=42),
                             GR_2,
@@ -943,6 +968,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
                         suite="xpcshell",
+                        platform="test-linux1804-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -962,6 +988,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
                         suite="xpcshell",
+                        platform="test-linux1804-64/opt",
                         _results=[
                             GroupResult(
                                 group="group1", ok=False if i % 2 else True, duration=42
@@ -983,6 +1010,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
                         suite="xpcshell",
+                        platform="test-linux1804-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=True, duration=42),
                             GR_2,
@@ -1002,6 +1030,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                         id=i,
                         label=f"test-linux1804-64/opt-xpcshell-e10s-{i}",
                         suite="xpcshell",
+                        platform="test-linux1804-64/opt",
                         _results=[
                             GroupResult(group="group1", ok=False, duration=42),
                             GR_2,
@@ -1015,6 +1044,7 @@ def test_GroupSummary_is_config_consistent_failure_single():
                         id=i,
                         label=f"test-macosx1015-64/opt-xpcshell-e10s-{i}",
                         suite="xpcshell",
+                        platform="test-macosx1015-64/opt",
                         _results=[
                             GroupResult(
                                 group="group1", ok=False if i % 2 else True, duration=42
@@ -1188,37 +1218,84 @@ def test_autoclassify(
     assert is_autoclassifiable(task) is result
 
 
-def test_get_configuration_from_label():
-    assert (
-        get_configuration_from_label(
-            "test-macosx1015-64-qr/opt-mochitest-devtools-chrome-1",
-            "mochitest-devtools-chrome",
-        )
-        == "test-macosx1015-64-qr/opt-*"
-    )
-    assert (
-        get_configuration_from_label(
-            "test-linux1804-64-qr/debug-crashtest", "crashtest"
-        )
-        == "test-linux1804-64-qr/debug-*"
-    )
-    assert (
-        get_configuration_from_label(
-            "test-linux1804-64-qr/debug-mochitest-browser-a11y",
-            "mochitest-browser-a11y",
-        )
-        == "test-linux1804-64-qr/debug-*"
-    )
-    assert (
-        get_configuration_from_label(
-            "test-windows10-64-2004-qr/opt-mochitest-remote", "mochitest-remote"
-        )
-        == "test-windows10-64-2004-qr/opt-*"
-    )
-    assert (
-        get_configuration_from_label(
-            "test-windows11-64-2009-asan-qr/opt-mochitest-browser-media",
-            "mochitest-browser-media",
-        )
-        == "test-windows11-64-2009-asan-qr/opt-*"
-    )
+# TODO: mock the variants.yml stuff
+@pytest.mark.parametrize(
+    "task, suite, platform, variant, configuration",
+    [
+        (
+            Task.create(
+                id=1,
+                label="test-macosx1015-64/opt-mochitest-plain-e10s-swr-2",
+                suite="mochitest-plain",
+                platform="macosx1015-64-qr/opt",
+                variant={"webrender-sw": True},
+                _results=[GR_2],
+            ),
+            "mochitest-plain",
+            "macosx1015-64-qr/opt",
+            "swr",
+            "test-macosx1015-64-qr/opt-*-swr",
+        ),
+        (
+            Task.create(
+                id=1,
+                label="test-macosx1015-64/opt-mochitest-plain-e10s-swr-nofis-2",
+                suite="mochitest-plain",
+                platform="macosx1015-64-qr/opt",
+                variant={"no-fission": True, "webrender-sw": True},
+                _results=[GR_2],
+            ),
+            "mochitest-plain",
+            "macosx1015-64-qr/opt",
+            "swr-nofis",
+            "test-macosx1015-64-qr/opt-*-swr-nofis",
+        ),
+        (  # test out android platform change, as well as cppunit
+            Task.create(
+                id=1,
+                label="test-android-em-7-0-x86_64-qr/debug-geckoview-cppunit-1proc",
+                suite="cppunittest",
+                platform="android-em-7-0-x86_64-qr/debug",
+                variant={"1proc": True},
+                _results=[GR_2],
+            ),
+            "cppunittest",
+            "android-em-7-0-x86_64-qr/debug",
+            "1proc",
+            "test-android-em-7.0-x86_64-qr/debug-geckoview-*-1proc",
+        ),
+        (  # test out android platform change, as well as cppunit
+            Task.create(
+                id=1,
+                label="test-macosx1015-64/opt-web-platform-tests-privatebrowsing-e10s-swr-2",
+                suite="web-platform-tests",
+                platform="macosx1015-64/opt",
+                variant={"webrender-sw": True},
+                _results=[GR_2],
+            ),
+            "web-platform-tests",
+            "macosx1015-64/opt",
+            "swr",
+            "test-macosx1015-64/opt-*-privatebrowsing-swr",
+        ),
+        (  # test out android platform change, as well as cppunit
+            Task.create(
+                id=1,
+                label="test-macosx1015-64/opt-xpcshell-msix-2",
+                suite="xpcshell-msix",
+                platform="macosx1015-64/opt",
+                variant={"msix": True},
+                _results=[GR_2],
+            ),
+            "xpcshell-msix",
+            "macosx1015-64/opt",
+            "msix",
+            "test-macosx1015-64/opt-*",
+        ),
+    ],
+)
+def test_get_configuration(task, suite, platform, variant, configuration):
+    assert task.suite == suite
+    assert task.platform == platform
+    assert get_test_variant(task.variant, task.label) == variant
+    assert task.configuration == configuration

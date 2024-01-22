@@ -438,7 +438,7 @@ class ClassifyCommand(Command):
             groups_with_failures.values(), 0, retrigger_limit
         ):
             # If there is more than one task failing in this group, we should retrigger only one of them
-            failing_tasks[0].retrigger(push, count)
+            failing_tasks[0].confirm(push)
 
     def backfill_and_retrigger_failures(
         self,

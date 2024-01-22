@@ -357,6 +357,33 @@ class Task:
         logger.info("Retriggering task '{}'".format(self.tags.get("label", "")))
         return self._trigger_action(retrigger_action, hook_payload)
 
+    def confirm(self, push):
+        """This function implements ability to perform retriggers on tasks"""
+        if self._should_retrigger() == "false":
+            logger.info(
+                "Not confirming task '{}' failures, task should not be confirmed".format(
+                    self.tags.get("label")
+                )
+            )
+            return None
+
+        decision_task = push.decision_task
+        retrigger_action = self._get_action(decision_task, "confirm-failures")
+
+        hook_payload = jsone.render(
+            retrigger_action["hookPayload"],
+            context={
+                "taskId": self.id,
+                "taskGroupId": decision_task.id,
+                "input": {},
+            },
+        )
+
+        logger.info(
+            "confirming failures for task '{}'".format(self.tags.get("label", ""))
+        )
+        return self._trigger_action(retrigger_action, hook_payload)
+
     def _should_retrigger(self):
         """Return whether this task should be retriggered."""
         return self.tags.get("retrigger", "false")
@@ -629,6 +656,29 @@ class GroupSummary(RunnableSummary):
                 not result.ok and result.group == self.name for result in task.results
             )
         ]
+
+    def is_confirmed_failure(self) -> Optional[bool]:
+        # match labels to -cf labels, and if ran, return True || False
+        # if not run -cf task, return None
+        # return False = intermittent
+        # return True = regression
+        cf_to_results = []
+
+        for task in self.tasks:
+            for result in task.results:
+                if (
+                    task.label
+                    and task.label.endswith("-cf")
+                    and result.group == self.name
+                ):
+                    cf_to_results.append(result.ok)
+
+        if not cf_to_results:
+            return None
+
+        if False in cf_to_results:
+            return True
+        return False
 
     def is_config_consistent_failure(self, minimum_count: int = 3) -> Optional[bool]:
         config_to_results = collections.defaultdict(list)

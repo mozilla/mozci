@@ -177,6 +177,8 @@ def _get_configuration(platform, suite, label, test_variant) -> str:
     if "android" in platform:
         platform = platform.replace("7-0", "7.0")
         retVal = f"test-{platform}"
+        if suite is None:
+            suite = "junit"
         if "junit" not in suite:
             retVal += "-geckoview"
 

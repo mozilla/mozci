@@ -41,7 +41,7 @@ def fetch_test_variant_yaml() -> Dict:
     test_variants = {}
     try:
         r = requests.get(
-            "https://hg.mozilla.org/mozilla-central/raw-file/tip/taskcluster/ci/test/variants.yml"
+            "https://hg.mozilla.org/mozilla-central/raw-file/tip/taskcluster/kinds/test/variants.yml"
         )
         tv = yaml.load(r.text, yaml.BaseLoader)
         for v in tv:

@@ -1493,15 +1493,15 @@ def test_autoclassify(
             Task.create(
                 id=1,
                 label="test-macosx1015-64/opt-xpcshell-msix-2",
-                suite="xpcshell-msix",
+                suite="xpcshell",
                 platform="macosx1015-64/opt",
                 variant={"msix": True},
                 _results=[GR_2],
             ),
-            "xpcshell-msix",
+            "xpcshell",
             "macosx1015-64/opt",
             "msix",
-            "test-macosx1015-64/opt-*",
+            "test-macosx1015-64/opt-*-msix",
         ),
     ],
 )

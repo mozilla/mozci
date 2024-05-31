@@ -192,6 +192,7 @@ def _get_configuration(platform, suite, label, test_variant) -> str:
             retVal += f"-{wt}"
 
     # Hack #3: xpcshell-msix is a separate suite, but still has test_variant listed
+    # remove this on April 15, 2025 as that is 1 year after bug 1891629 landed
     if test_variant:
         if not (suite == "xpcshell-msix" and test_variant == "msix"):
             retVal += f"-{test_variant}"

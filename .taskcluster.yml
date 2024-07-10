@@ -58,7 +58,7 @@ tasks:
       dependencies:
         - { $eval: as_slugid("tests_task") }
       provisionerId: proj-mozci
-      workerType: generic-worker-ubuntu-22-04
+      workerType: generic-worker-ubuntu-24-04
       payload:
         maxRunTime: 3600
         command:

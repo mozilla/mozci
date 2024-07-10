@@ -33,7 +33,7 @@ cleo = "^2.0.1"
 tabulate = ">=0.8.9,<0.10.0"
 arrow = "^1.2.2"
 markdown2 = "^2.4.2"
-json-e = "^4.4.3"
+json-e = "^4.7.1"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.20"

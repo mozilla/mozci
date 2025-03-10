@@ -44,7 +44,7 @@ tasks:
           - "git clone --quiet ${repository} &&
             cd mozci &&
             git -c advice.detachedHead=false checkout ${head_rev} &&
-            pip install --quiet tox==3.28.0 &&
+            pip install --quiet tox==4.24.2 &&
             tox"
       metadata:
         name: mozci linting and tests

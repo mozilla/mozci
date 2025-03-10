@@ -7,8 +7,8 @@ COPY mozci /src/mozci/
 
 # Run in a single step to get a small image
 RUN apk add --virtual build gcc libffi-dev musl-dev postgresql-dev && \
-  # Setup latest poetry through pip
-  pip install --no-cache-dir poetry && \
+  # Setup poetry through pip
+  pip install --no-cache-dir poetry==1.4.2 && \
   # Install mozci with poetry
   poetry config virtualenvs.create false && \
   poetry install --no-dev --no-interaction --no-ansi && \

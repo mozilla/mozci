@@ -50,5 +50,5 @@ cache-redis = ["redis"]
 cache-seeded-file = ["zstandard"]
 
 [build-system]
-requires = ["poetry>=1.0.2"]
+requires = ["poetry==1.4.2"]
 build-backend = "poetry.masonry.api"

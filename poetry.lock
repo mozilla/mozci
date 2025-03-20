@@ -1820,19 +1820,19 @@ widechars = ["wcwidth"]
 
 [[package]]
 name = "taskcluster"
-version = "72.0.1"
+version = "83.3.0"
 description = "Python client for Taskcluster"
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "taskcluster-72.0.1-py3-none-any.whl", hash = "sha256:c6b499504a8df6641ee41d3239e01f805d8b7e444cc0ec51ef0d951282f86c98"},
-    {file = "taskcluster-72.0.1.tar.gz", hash = "sha256:88595669b68f0a4cb4e2fff2d7f428be106bf2ef1b35bd19f629b30ab6141cd6"},
+    {file = "taskcluster-83.3.0-py3-none-any.whl", hash = "sha256:e32531a13bd5c6652b1ab8f7a7f917dedb9a63a1ae9af0ed8a83498afa036a85"},
+    {file = "taskcluster-83.3.0.tar.gz", hash = "sha256:0e882ca827109c32d9feea39232fbbc68451fb238618cf9c45c1e5053a845cc5"},
 ]
 
 [package.dependencies]
 aiohttp = ">=3.7.4"
-async-timeout = ">=2.0.0"
+async_timeout = ">=2.0.0"
 mohawk = ">=0.3.4"
 python-dateutil = ">=2.8.2"
 requests = ">=2.4.3"

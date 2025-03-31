@@ -66,9 +66,13 @@ class TaskclusterSource(DataSource):
                 .get("runtime", {}),
             }
 
-            tier = result["task"]["extra"].get("treeherder", {}).get("tier")
+            treeherder = result["task"]["extra"].get("treeherder", {})
+            tier = treeherder.get("tier")
             if tier:
                 task["tier"] = tier
+            job_kind = treeherder.get("jobKind")
+            if job_kind:
+                task["job_kind"] = job_kind
 
             # Use the latest run (earlier ones likely had exceptions that
             # caused an automatic retry).

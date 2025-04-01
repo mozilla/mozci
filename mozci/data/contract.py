@@ -56,8 +56,17 @@ _contracts: Tuple[Contract, ...] = (
                             "superseded",
                         ]
                     ),
+                    "job_kind": v.Str(),
                 },
-                optional=["duration", "result", "tier", "suite", "platform", "variant"],
+                optional=[
+                    "duration",
+                    "result",
+                    "tier",
+                    "suite",
+                    "platform",
+                    "variant",
+                    "job_kind",
+                ],
             )
         ),
     ),

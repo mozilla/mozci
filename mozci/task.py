@@ -216,6 +216,7 @@ class Task:
     suite: Optional[str] = field(default=None)
     platform: Optional[str] = field(default=None)
     variant: Optional[Dict] = field(default=None)
+    job_kind: Optional[str] = field(default=None)
 
     @staticmethod
     def create(index=None, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL, **kwargs):

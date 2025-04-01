@@ -44,7 +44,7 @@ class Responses:
                     {
                         "task": {
                             "extra": {
-                                "treeherder": {"tier": 3},
+                                "treeherder": {"tier": 3, "jobKind": "test"},
                                 "suite": None,
                             },
                         },
@@ -75,7 +75,7 @@ class Responses:
                     {
                         "task": {
                             "extra": {
-                                "treeherder": {"tier": 3},
+                                "treeherder": {"tier": 3, "jobKind": "build"},
                                 "suite": "task",
                             },
                             "metadata": {
@@ -168,7 +168,7 @@ class Responses:
                     {
                         "task": {
                             "extra": {
-                                "treeherder": {"tier": 3},
+                                "treeherder": {"tier": 3, "jobKind": "build"},
                                 "suite": "task",
                             },
                             "metadata": {
@@ -191,7 +191,7 @@ class Responses:
                     {
                         "task": {
                             "extra": {
-                                "treeherder": {"tier": 3},
+                                "treeherder": {"tier": 3, "jobKind": "test"},
                                 "suite": "task",
                             },
                             "metadata": {
@@ -349,6 +349,7 @@ class Responses:
                     "state": "unscheduled",
                     "tags": {"name": "tag-A"},
                     "tier": 3,
+                    "job_kind": "build",
                 },
                 {
                     "id": "task-id-B",
@@ -402,6 +403,7 @@ class Responses:
                     "state": "completed",
                     "tags": {},
                     "tier": 3,
+                    "job_kind": "build",
                 },
                 {
                     "duration": 60000,
@@ -414,6 +416,7 @@ class Responses:
                     "state": "completed",
                     "tags": {},
                     "tier": 3,
+                    "job_kind": "test",
                 },
             ],
             id="taskcluster.push_tasks",

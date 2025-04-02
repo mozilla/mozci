@@ -16,6 +16,7 @@ from mozci.console.commands.push import (
     ClassifyPerfCommand,
     PushTasksCommand,
 )
+from mozci.console.commands.regression import RegressionCommand
 
 
 def cli():
@@ -28,6 +29,7 @@ def cli():
     application.add(ClassifyPerfCommand())
     application.add(PushTasksCommand())
     application.add(DecisionCommand())
+    application.add(RegressionCommand())
     application.run()
 
 

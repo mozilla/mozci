@@ -273,6 +273,22 @@ class Task:
             get_test_variant(self.variant, self.label),
         )
 
+    @property
+    def is_potential_regression(self):
+        # Check if the job is either tier 1 or 2
+        if self.tier not in (1, 2):
+            return False
+
+        # Check if job result is busted or exception
+        if self.result not in ("busted", "exception"):
+            return False
+
+        # Check if extra.treeherder.jobKind is build
+        if self.job_kind != "build":
+            return False
+
+        return True
+
     def get_artifact(self, path, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):
         """Downloads and returns the content of an artifact.
 

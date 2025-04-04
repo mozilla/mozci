@@ -87,6 +87,9 @@ class Push:
         branch (str): Branch to look on (default: autoland).
     """
 
+    # Details fetched by Treeherder API via mozci.util.treeherder
+    treeherder = None
+
     # static thread pool, to avoid spawning threads too often.
     THREAD_POOL_EXECUTOR = concurrent.futures.ThreadPoolExecutor()
 

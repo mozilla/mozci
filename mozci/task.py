@@ -217,8 +217,6 @@ class Task:
     platform: Optional[str] = field(default=None)
     variant: Optional[Dict] = field(default=None)
     job_kind: Optional[str] = field(default=None)
-    # Details fetched by Treeherder API via mozci.util.treeherder
-    treeherder: Optional[dict] = field(default=None)
 
     @staticmethod
     def create(index=None, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL, **kwargs):

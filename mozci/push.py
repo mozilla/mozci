@@ -980,9 +980,20 @@ class Push:
 
         return find("label") or find("config_group")
 
+    def _check_build_task_regression(self, task: Task):
+        """Specific rules for retriggering build tasks"""
+        if task.job_kind != "build":
+            return False
+        if task.tier not in (1, 2):
+            return False
+        # Check if job result is busted or exception
+        if task.result not in ("busted", "exception"):
+            return False
+        return True
+
     @memoize
     def get_regressions(
-        self, runnable_type: str, historical_analysis: bool = True
+        self, runnable_type: str, historical_analysis: bool = True, build: bool = False
     ) -> Dict[str, int]:
         """All regressions, both likely and definite.
 
@@ -993,6 +1004,8 @@ class Push:
         last time the task passed (so any one of them could have caused it).
         A count of MAX_DEPTH means that the maximum number of parents were
         searched without finding the task and we gave up.
+
+        If the `build` parameter is set to True, only build tasks are analyzed.
 
         Returns:
             dict: A dict of the form {<str>: <int>}.
@@ -1009,9 +1022,21 @@ class Push:
         ):
             return regressions
 
-        for name, (count, failure_summary) in self.get_candidate_regressions(
-            runnable_type
-        ).items():
+        if build:
+            if runnable_type != "label":
+                raise ValueError(
+                    "Only label can be set as runnable type to analyze build regressions"
+                )
+            candidate_regressions = {
+                task.label: (0.0, summary)
+                for task in self.tasks
+                if self._check_build_task_regression(task)
+                and (summary := self.label_summaries.get(task.label))
+            }
+        else:
+            candidate_regressions = self.get_candidate_regressions(runnable_type)
+
+        for name, (count, failure_summary) in candidate_regressions.items():
             other = self.parent
             prior_regression = False
 

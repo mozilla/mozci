@@ -3,6 +3,7 @@
 from loguru import logger
 
 from mozci.console.commands.push import BasePushCommand
+from mozci.errors import ChildPushNotFound
 from mozci.push import Push
 
 
@@ -15,18 +16,31 @@ class RegressionCommand(BasePushCommand):
         rev = self.argument("rev")
         push = Push(rev, branch="autoland")
 
-        push = Push(rev, branch="autoland")
-        logger.info(f"Fetched {len(push.tasks)} tasks")
+        try:
+            push.child
+        except ChildPushNotFound:
+            pass
+        else:
+            logger.warning("Push {push.id} has a child push, skipping.")
+
+        logger.info(f"Fetched {len(push.tasks)} tasks for push {push.id}.")
 
         # Try to identify a potential regressions from the failed build
         regressions = push.get_regressions("label", build=True)
 
-        # Debug
-        table = self.table()
-        table.set_headers(["Label", "Previous occurrences"])
-        table.set_rows([(label, str(count)) for label, count in regressions.items()])
-        table.render()
+        if not regressions:
+            logger.info("No regression detected.")
+            return
+
+        logger.info("Detected {len(regressions)} tasks that can be regressions.")
+        new_regressions = [
+            label for label, prev_count in regressions.items() if prev_count == 0
+        ]
+        if new_regressions:
+            logger.info("Tasks that looks like new regressions:")
+            for label in new_regressions:
+                logger.info(f" * {label}")
 
     def handle(self):
         for push in self.pushes:
-            self.handle_push()
+            self.handle_push(push)

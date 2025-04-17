@@ -982,9 +982,7 @@ class Push:
 
     @memoize
     def get_regressions(
-        self,
-        runnable_type: str,
-        historical_analysis: bool = True,
+        self, runnable_type: str, historical_analysis: bool = True
     ) -> Dict[str, int]:
         """All regressions, both likely and definite.
 

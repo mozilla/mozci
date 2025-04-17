@@ -3,7 +3,6 @@
 from loguru import logger
 
 from mozci.console.commands.push import BasePushCommand
-from mozci.errors import ChildPushNotFound
 from mozci.push import Push
 from mozci.task import Task
 
@@ -26,15 +25,6 @@ class RegressionCommand(BasePushCommand):
         return True
 
     def handle_push(self, push: Push) -> None:
-        # Initiate push from its head revision, forcing autoland branch
-        try:
-            push.child
-        except ChildPushNotFound:
-            pass
-        else:
-            logger.warning(f"Push {push.id} has a child push, skipping.")
-            return
-
         logger.info(f"Fetched {len(push.tasks)} tasks for push {push.id}.")
 
         # Try to identify a potential regressions from the failed build

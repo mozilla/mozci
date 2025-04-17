@@ -871,7 +871,7 @@ class Push:
             count += 1
 
     def get_candidate_regressions(
-        self, runnable_type: str
+        self, runnable_type: str, build: bool = False
     ) -> Dict[str, Tuple[float, RunnableSummary]]:
         """Retrieve the set of "runnables" that are regression candidates for this push.
 
@@ -882,10 +882,25 @@ class Push:
         associated task failed (therefore including intermittents), and which
         is either not classified or fixed by commit.
 
+        In case the `build` parameter is set to True, only return tasks that have a build
+        type and match specific checks.
+
         Returns:
             set: Set of runnable names (str).
         """
         logger.debug(f"Retrieving candidate regressions for {self.rev}...")
+
+        if build:
+            if runnable_type != "label":
+                raise ValueError(
+                    "Only label can be set as runnable type to analyze build regressions"
+                )
+            return {
+                task.label: (0.0, summary)
+                for task in self.tasks
+                if self._check_build_task_regression(task)
+                and (summary := self.label_summaries.get(task.label))
+            }
 
         max_depth = None if self.backedout or self.bustage_fixed_by else MAX_DEPTH
 
@@ -1022,21 +1037,9 @@ class Push:
         ):
             return regressions
 
-        if build:
-            if runnable_type != "label":
-                raise ValueError(
-                    "Only label can be set as runnable type to analyze build regressions"
-                )
-            candidate_regressions = {
-                task.label: (0.0, summary)
-                for task in self.tasks
-                if self._check_build_task_regression(task)
-                and (summary := self.label_summaries.get(task.label))
-            }
-        else:
-            candidate_regressions = self.get_candidate_regressions(runnable_type)
-
-        for name, (count, failure_summary) in candidate_regressions.items():
+        for name, (count, failure_summary) in self.get_candidate_regressions(
+            runnable_type, build
+        ).items():
             other = self.parent
             prior_regression = False
 

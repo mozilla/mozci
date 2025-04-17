@@ -136,7 +136,7 @@ def test_classification_evolution(
     # Run the notification code from mozci push classify
     cmd = ClassifyCommand()
     cmd.name = "classify"
-    cmd.branch = "unittest"
+    cmd.argument = lambda arg: "unittest" if arg == "branch" else None
     cmd.send_notifications(
         emails=["test@mozilla.com"],
         matrix_room="!tEsTmAtRIxRooM:mozilla.org",

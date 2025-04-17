@@ -871,7 +871,7 @@ class Push:
             count += 1
 
     def get_candidate_regressions(
-        self, runnable_type: str, build_only: bool = False
+        self, runnable_type: str
     ) -> Dict[str, Tuple[float, RunnableSummary]]:
         """Retrieve the set of "runnables" that are regression candidates for this push.
 
@@ -882,25 +882,10 @@ class Push:
         associated task failed (therefore including intermittents), and which
         is either not classified or fixed by commit.
 
-        In case the `build_only` parameter is set to True, only return tasks that have
-        a build type and match specific checks.
-
         Returns:
             set: Set of runnable names (str).
         """
         logger.debug(f"Retrieving candidate regressions for {self.rev}...")
-
-        if build_only:
-            if runnable_type != "label":
-                raise ValueError(
-                    "Only label can be set as runnable type to analyze build regressions"
-                )
-            return {
-                task.label: (0.0, summary)
-                for task in self.tasks
-                if self._is_build_failure(task)
-                and (summary := self.label_summaries.get(task.label))
-            }
 
         max_depth = None if self.backedout or self.bustage_fixed_by else MAX_DEPTH
 
@@ -995,16 +980,11 @@ class Push:
 
         return find("label") or find("config_group")
 
-    def _is_build_failure(self, task: Task) -> bool:
-        """Returns whether a build task has failed."""
-        return task.job_kind == "build" and task.result in ("busted", "exception")
-
     @memoize
     def get_regressions(
         self,
         runnable_type: str,
         historical_analysis: bool = True,
-        build_only: bool = False,
     ) -> Dict[str, int]:
         """All regressions, both likely and definite.
 
@@ -1015,8 +995,6 @@ class Push:
         last time the task passed (so any one of them could have caused it).
         A count of MAX_DEPTH means that the maximum number of parents were
         searched without finding the task and we gave up.
-
-        If the `build_only` parameter is set to True, only build tasks are analyzed.
 
         Returns:
             dict: A dict of the form {<str>: <int>}.
@@ -1034,7 +1012,7 @@ class Push:
             return regressions
 
         for name, (count, failure_summary) in self.get_candidate_regressions(
-            runnable_type, build_only
+            runnable_type
         ).items():
             other = self.parent
             prior_regression = False

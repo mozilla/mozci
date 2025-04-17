@@ -8,6 +8,7 @@ import json
 import os
 import re
 import traceback
+from abc import abstractmethod
 from inspect import signature
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlencode
@@ -34,6 +35,7 @@ from mozci.push import (
 from mozci.task import Task, TestTask, is_autoclassifiable
 from mozci.util.defs import INTERMITTENT_CLASSES
 from mozci.util.hgmo import HgRev
+from mozci.util.memoize import memoized_property
 from mozci.util.taskcluster import (
     COMMUNITY_TASKCLUSTER_ROOT_URL,
     get_taskcluster_options,
@@ -87,52 +89,6 @@ class PushTasksCommand(Command):
             table.append([task.label, task.result or "running"])
 
         self.line(tabulate(table, headers=["Label", "Result"]))
-
-
-def classify_commands_pushes(
-    branch: str, from_date: str, to_date: str, rev: str
-) -> List[Push]:
-    if not (bool(rev) ^ bool(from_date or to_date)):
-        raise Exception(
-            "You must either provide a single push revision with --rev or define at least --from-date option to classify a range of pushes (note: --to-date will default to current time if not given)."
-        )
-
-    if rev:
-        pushes = [Push(rev, branch)]
-    else:
-        if not from_date:
-            raise Exception(
-                "You must provide at least --from-date to classify a range of pushes (note: --to-date will default to current time if not given)."
-            )
-
-        now = datetime.datetime.now()
-        if not to_date:
-            to_date = datetime.datetime.strftime(now, "%Y-%m-%d")
-
-        arrow_now = arrow.get(now)
-        try:
-            datetime.datetime.strptime(from_date, "%Y-%m-%d")
-        except ValueError:
-            try:
-                from_date = arrow_now.dehumanize(from_date).format("YYYY-MM-DD")
-            except ValueError:
-                raise Exception(
-                    'Provided --from-date should be a date in yyyy-mm-dd format or a human expression like "1 days ago".'
-                )
-
-        try:
-            datetime.datetime.strptime(to_date, "%Y-%m-%d")
-        except ValueError:
-            try:
-                to_date = arrow_now.dehumanize(to_date).format("YYYY-MM-DD")
-            except ValueError:
-                raise Exception(
-                    'Provided --to-date should be a date in yyyy-mm-dd format or a human expression like "1 days ago".'
-                )
-
-        pushes = make_push_objects(from_date=from_date, to_date=to_date, branch=branch)
-
-    return pushes
 
 
 def check_type(parameter_type, hint, value):
@@ -191,9 +147,11 @@ def retrieve_classify_parameters(options):
     return classify_parameters
 
 
-class ClassifyCommand(Command):
-    name = "push classify"
-    description = "Display the classification for a given push (or a range of pushes) as GOOD, BAD or UNKNOWN"
+class BasePushCommand(Command):
+    """
+    Provide abstraction class to fetch a list of pushes based on provided arguments.
+    """
+
     arguments = [
         argument(
             "branch",
@@ -214,6 +172,78 @@ class ClassifyCommand(Command):
             description='Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.',
             flag=False,
         ),
+    ]
+
+    def list_pushes(
+        self, branch: str, from_date: str, to_date: str, rev: str
+    ) -> List[Push]:
+        if not (bool(rev) ^ bool(from_date or to_date)):
+            raise Exception(
+                "You must either provide a single push revision with --rev or define at least --from-date option to classify a range of pushes (note: --to-date will default to current time if not given)."
+            )
+
+        if rev:
+            pushes = [Push(rev, branch)]
+        else:
+            if not from_date:
+                raise Exception(
+                    "You must provide at least --from-date to classify a range of pushes (note: --to-date will default to current time if not given)."
+                )
+
+            now = datetime.datetime.now()
+            if not to_date:
+                to_date = datetime.datetime.strftime(now, "%Y-%m-%d")
+
+            arrow_now = arrow.get(now)
+            try:
+                datetime.datetime.strptime(from_date, "%Y-%m-%d")
+            except ValueError:
+                try:
+                    from_date = arrow_now.dehumanize(from_date).format("YYYY-MM-DD")
+                except ValueError:
+                    raise Exception(
+                        'Provided --from-date should be a date in yyyy-mm-dd format or a human expression like "1 days ago".'
+                    )
+
+            try:
+                datetime.datetime.strptime(to_date, "%Y-%m-%d")
+            except ValueError:
+                try:
+                    to_date = arrow_now.dehumanize(to_date).format("YYYY-MM-DD")
+                except ValueError:
+                    raise Exception(
+                        'Provided --to-date should be a date in yyyy-mm-dd format or a human expression like "1 days ago".'
+                    )
+
+            pushes = make_push_objects(
+                from_date=from_date, to_date=to_date, branch=branch
+            )
+
+        return pushes
+
+    @property
+    def branch(self):
+        return self.argument("branch")
+
+    @memoized_property
+    def pushes(self) -> list[Push]:
+        return self.list_pushes(
+            self.branch,
+            self.option("from-date"),
+            self.option("to-date"),
+            self.option("rev"),
+        )
+
+    @abstractmethod
+    def handle(self):
+        ...
+
+
+class ClassifyCommand(BasePushCommand):
+    name = "push classify"
+    description = "Display the classification for a given push (or a range of pushes) as GOOD, BAD or UNKNOWN"
+
+    options = BasePushCommand.options + [
         option(
             "intermittent-confidence-threshold",
             description="Medium confidence threshold used to classify the regressions.",
@@ -283,14 +313,6 @@ class ClassifyCommand(Command):
     ]
 
     def handle(self) -> None:
-        self.branch = self.argument("branch")
-
-        pushes = classify_commands_pushes(
-            self.branch,
-            self.option("from-date"),
-            self.option("to-date"),
-            self.option("rev"),
-        )
         classify_parameters = retrieve_classify_parameters(self.option)
 
         output = self.option("output")
@@ -314,7 +336,7 @@ class ClassifyCommand(Command):
         except ValueError:
             raise Exception("Provided --backfill-limit should be an int.")
 
-        for push in pushes:
+        for push in self.pushes:
             try:
                 classification, regressions, to_retrigger_or_backfill = push.classify(
                     **classify_parameters
@@ -758,26 +780,7 @@ def check_ever_classified_as_cause(push, iterate_on):
 class ClassifyEvalCommand(Command):
     name = "push classify-eval"
     description = "Evaluate the classification results for a given push (or a range of pushes) by comparing them with reality"
-    arguments = [
-        argument(
-            "branch",
-            description="Branch the push belongs to (e.g autoland, try, etc).",
-            optional=True,
-            default="autoland",
-        )
-    ]
-    options = [
-        option("rev", description="Head revision of the push.", flag=False),
-        option(
-            "from-date",
-            description='Lower bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago").',
-            flag=False,
-        ),
-        option(
-            "to-date",
-            description='Upper bound of the push range (as a date in yyyy-mm-dd format or a human expression like "1 days ago"), defaults to now.',
-            flag=False,
-        ),
+    options = BasePushCommand.options + [
         option(
             "intermittent-confidence-threshold",
             description="Medium confidence threshold used to classify the regressions.",
@@ -848,12 +851,6 @@ class ClassifyEvalCommand(Command):
         branch = self.argument("branch")
 
         self.line("<comment>Loading pushes...</comment>")
-        self.pushes = classify_commands_pushes(
-            branch,
-            self.option("from-date"),
-            self.option("to-date"),
-            self.option("rev"),
-        )
 
         option_names = [
             name.replace("_", "-")

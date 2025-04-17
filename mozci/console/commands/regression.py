@@ -1,20 +1,16 @@
 # -*- coding: utf-8 -*-
 
-from cleo.commands.command import Command
-from cleo.helpers import argument
 from loguru import logger
 
+from mozci.console.commands.push import BasePushCommand
 from mozci.push import Push
 
 
-class RegressionCommand(Command):
+class RegressionCommand(BasePushCommand):
     name = "regression"
     description = "Identify if a build bustage is a regression from a check-in"
-    arguments = [
-        argument("rev", description="Head revision of the push."),
-    ]
 
-    def handle(self):
+    def handle_push(self, push: Push) -> None:
         # Initiate push from its head revision, forcing autoland branch
         rev = self.argument("rev")
         push = Push(rev, branch="autoland")
@@ -30,3 +26,7 @@ class RegressionCommand(Command):
         table.set_headers(["Label", "Previous occurrences"])
         table.set_rows([(label, str(count)) for label, count in regressions.items()])
         table.render()
+
+    def handle(self):
+        for push in self.pushes:
+            self.handle_push()

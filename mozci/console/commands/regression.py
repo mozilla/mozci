@@ -13,7 +13,11 @@ class RegressionCommand(BasePushCommand):
 
     def is_build_failure(self, task: Task) -> bool:
         """Returns whether a build task has failed."""
-        return task.job_kind == "build" and task.result in ("busted", "exception")
+        return task.job_kind == "build" and task.result in (
+            "busted",
+            "exception",
+            "failed",
+        )
 
     def should_retrigger_task(self, task: Task, previous_occurrences: int) -> bool:
         """Specific rules for retriggering build tasks"""

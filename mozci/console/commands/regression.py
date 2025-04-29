@@ -32,7 +32,7 @@ class RegressionCommand(BasePushCommand):
         logger.info(f"Fetched {len(push.tasks)} tasks for push {push.id}.")
 
         # Try to identify a potential regressions from the failed build
-        potential_regressions = push.get_regressions("label")
+        potential_regressions = push.get_regressions("label", historical_analysis=False)
 
         # Map labels to tasks again
         build_regressions = [

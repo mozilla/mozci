@@ -23,6 +23,7 @@ from tabulate import tabulate
 from taskcluster.exceptions import TaskclusterRestFailure
 
 from mozci import config
+from mozci.console.commands.build_regressions import check_build_regressions
 from mozci.errors import PushNotFound, SourcesNotFound, TaskNotFound
 from mozci.push import (
     MAX_DEPTH,
@@ -294,7 +295,7 @@ class ClassifyCommand(BasePushCommand):
         ),
         option(
             "environment",
-            description="Environment in which the analysis is running (testing, production, ...).",
+            description="Environment in which the analysis is running (testing, production, ...). ",
             flag=False,
             default="testing",
         ),
@@ -309,6 +310,11 @@ class ClassifyCommand(BasePushCommand):
             description="Number of failing groups (missing information) to be backfilled.",
             flag=False,
             default=3,
+        ),
+        option(
+            "disable-build-regressions",
+            description="If set, skip the analysis of build tasks regressions.",
+            flag=True,
         ),
     ]
 
@@ -337,6 +343,24 @@ class ClassifyCommand(BasePushCommand):
             raise Exception("Provided --backfill-limit should be an int.")
 
         for push in self.pushes:
+            if self.option("disable-build-regressions"):
+                self.line("Skipping build regressions analysis")
+            else:
+                try:
+                    tasks_to_retrigger = check_build_regressions(push)
+                    if not tasks_to_retrigger:
+                        self.line("No build task detected as potential regression")
+                    else:
+                        self.line(
+                            f"Retriggering {len(tasks_to_retrigger)} build regression that may introduce a build bustage"
+                        )
+                        for task in tasks_to_retrigger:
+                            task.retrigger(push)
+                except Exception as e:
+                    self.line(
+                        f"<error> Couldn't run build regressions analysis on push {push.push_uuid}: {e}.</error>"
+                    )
+
             try:
                 classification, regressions, to_retrigger_or_backfill = push.classify(
                     **classify_parameters

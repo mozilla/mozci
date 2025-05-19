@@ -431,9 +431,7 @@ class ClassifyCommand(BasePushCommand):
                     emails, matrix_room, push, previous, classification, regressions
                 )
 
-    def retrigger_failures(
-        self, push, groups, count, allowed_patterns, retrigger_limit
-    ):
+    def retrigger_failures(self, push, groups, allowed_patterns, retrigger_limit):
         groups_with_failures = {}
         for name, failing_tasks in groups.items():
             filtered_failing_tasks = [
@@ -478,7 +476,6 @@ class ClassifyCommand(BasePushCommand):
         self.retrigger_failures(
             push,
             to_retrigger_or_backfill.real_retrigger,
-            classify_parameters.get("consistent_failures_counts", (2, 3))[1],
             allowed_patterns,
             retrigger_limit,
         )
@@ -488,7 +485,6 @@ class ClassifyCommand(BasePushCommand):
         self.retrigger_failures(
             push,
             to_retrigger_or_backfill.intermittent_retrigger,
-            classify_parameters.get("consistent_failures_counts", (2, 3))[0],
             allowed_patterns,
             retrigger_limit,
         )
@@ -498,7 +494,6 @@ class ClassifyCommand(BasePushCommand):
         self.retrigger_failures(
             push,
             to_retrigger_or_backfill.build_retrigger,
-            None,
             allowed_patterns,
             retrigger_limit,
         )

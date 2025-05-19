@@ -2,7 +2,6 @@
 
 from loguru import logger
 
-from mozci.console.commands.build_regressions import check_build_regressions
 from mozci.console.commands.push import BasePushCommand
 
 
@@ -14,7 +13,7 @@ class RegressionCommand(BasePushCommand):
 
     def handle(self):
         for push in self.pushes:
-            tasks_to_retrigger = check_build_regressions(push)
+            tasks_to_retrigger = push.check_build_regressions()
             if not tasks_to_retrigger:
                 logger.info("No build task detected as potential regression")
                 return

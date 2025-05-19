@@ -23,7 +23,6 @@ from tabulate import tabulate
 from taskcluster.exceptions import TaskclusterRestFailure
 
 from mozci import config
-from mozci.console.commands.build_regressions import check_build_regressions
 from mozci.errors import PushNotFound, SourcesNotFound, TaskNotFound
 from mozci.push import (
     MAX_DEPTH,
@@ -295,7 +294,7 @@ class ClassifyCommand(BasePushCommand):
         ),
         option(
             "environment",
-            description="Environment in which the analysis is running (testing, production, ...). ",
+            description="Environment in which the analysis is running (testing, production, ...).",
             flag=False,
             default="testing",
         ),
@@ -347,7 +346,7 @@ class ClassifyCommand(BasePushCommand):
                 self.line("Skipping build regressions analysis")
             else:
                 try:
-                    tasks_to_retrigger = check_build_regressions(push)
+                    tasks_to_retrigger = push.check_build_regressions()
                     if not tasks_to_retrigger:
                         self.line("No build task detected as potential regression")
                     else:

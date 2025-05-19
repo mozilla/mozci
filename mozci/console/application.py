@@ -8,6 +8,7 @@ from mozci.console.commands.batch_execution import (
     BatchClassificationCommand,
     BatchEvaluationCommand,
 )
+from mozci.console.commands.build_regression import RegressionCommand
 from mozci.console.commands.check_backfills import CheckBackfillsCommand
 from mozci.console.commands.decision import DecisionCommand
 from mozci.console.commands.push import (
@@ -28,6 +29,7 @@ def cli():
     application.add(ClassifyPerfCommand())
     application.add(PushTasksCommand())
     application.add(DecisionCommand())
+    application.add(RegressionCommand())
     application.run()
 
 

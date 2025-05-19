@@ -1125,6 +1125,36 @@ class Push:
             if count == 0
         )
 
+    def check_build_regressions(self) -> list[Task]:
+        logger.info(f"Fetched {len(self.tasks)} tasks for push {self.id}.")
+
+        # Try to identify a potential regressions from the failed build
+        potential_regressions = self.get_regressions("label", historical_analysis=False)
+
+        # Map labels to tasks again
+        build_regressions = [
+            (task, past_occurrences)
+            for label, past_occurrences in potential_regressions.items()
+            if (task := next((t for t in self.tasks if t.label == label), None))
+            and task.is_build_failure()
+        ]
+        if not build_regressions:
+            logger.info("No regression detected.")
+            return []
+
+        new_regressions = sum(occurrences > 0 for _, occurrences in build_regressions)
+        logger.info(
+            f"Detected {len(build_regressions)} build tasks that may contain a regression "
+            f"({new_regressions} potentially introduced by this push)."
+        )
+
+        # Filter tasks by retrigger criteria
+        return [
+            task
+            for task, count in build_regressions
+            if task.should_retrigger_build(previous_occurrences_count=count)
+        ]
+
     def classify_regressions(
         self,
         intermittent_confidence_threshold: float = 0.8,

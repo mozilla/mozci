@@ -310,11 +310,6 @@ class ClassifyCommand(BasePushCommand):
             flag=False,
             default=3,
         ),
-        option(
-            "disable-build-regressions",
-            description="If set, skip the analysis of build tasks regressions.",
-            flag=True,
-        ),
     ]
 
     def handle(self) -> None:
@@ -342,24 +337,6 @@ class ClassifyCommand(BasePushCommand):
             raise Exception("Provided --backfill-limit should be an int.")
 
         for push in self.pushes:
-            if self.option("disable-build-regressions"):
-                self.line("Skipping build regressions analysis")
-            else:
-                try:
-                    tasks_to_retrigger = push.check_build_regressions()
-                    if not tasks_to_retrigger:
-                        self.line("No build task detected as potential regression")
-                    else:
-                        self.line(
-                            f"Retriggering {len(tasks_to_retrigger)} build regression that may introduce a build bustage"
-                        )
-                        for task in tasks_to_retrigger:
-                            task.retrigger(push)
-                except Exception as e:
-                    self.line(
-                        f"<error> Couldn't run build regressions analysis on push {push.push_uuid}: {e}.</error>"
-                    )
-
             try:
                 classification, regressions, to_retrigger_or_backfill = push.classify(
                     **classify_parameters
@@ -512,6 +489,16 @@ class ClassifyCommand(BasePushCommand):
             push,
             to_retrigger_or_backfill.intermittent_retrigger,
             classify_parameters.get("consistent_failures_counts", (2, 3))[0],
+            allowed_patterns,
+            retrigger_limit,
+        )
+
+        # Retrigger build failures
+        self.line("Retriggering failures that may introduce a build bustage")
+        self.retrigger_failures(
+            push,
+            to_retrigger_or_backfill.build_retrigger,
+            None,
             allowed_patterns,
             retrigger_limit,
         )
@@ -924,6 +911,7 @@ class ClassifyEvalCommand(Command):
                         "real": regressions.real,
                         "intermittent": regressions.intermittent,
                         "unknown": regressions.unknown,
+                        "build": regressions.build,
                     }
                 except Exception as e:
                     self.line(

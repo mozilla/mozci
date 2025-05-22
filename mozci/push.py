@@ -1139,7 +1139,7 @@ class Push:
             and task.is_build_failure()
         ]
         if not build_regressions:
-            logger.info("No regression detected.")
+            logger.info("No build regression detected.")
             return []
 
         new_regressions = sum(occurrences == 0 for _, occurrences in build_regressions)
@@ -1148,12 +1148,15 @@ class Push:
             f"({new_regressions} were never seen before)."
         )
 
-        # Filter tasks by retrigger criteria
-        return [
+        tasks_to_retrigger = [
             task
             for task, count in build_regressions
             if task.should_retrigger_build(previous_occurrences_count=count)
         ]
+        if not tasks_to_retrigger:
+            logger.info("No build task should be retriggered.")
+        logger.info("{len(tasks)} build tasks should be retriggered.")
+        return tasks_to_retrigger
 
     def classify_regressions(
         self,

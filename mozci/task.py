@@ -427,9 +427,13 @@ class Task:
         """Extra logic to determine if a build task should be retriggered."""
         if self.tier not in (1, 2):
             return False
-        # For now only process new build failures
-        if previous_occurrences_count > 0:
-            return False
+        if previous_occurrences_count == 0:
+            # Build error was probably introduced by this task
+            return True
+        # TODO: Look for the `previous_occurrences_count` previous pushes:
+        # * If the error is marked as "intermittent", we should retrigger
+        # * If the error is marked as "fixed by commit", we should retrigger
+        # * Else, we should not retrigger
         return True
 
 

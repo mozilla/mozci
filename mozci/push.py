@@ -1142,10 +1142,10 @@ class Push:
             logger.info("No regression detected.")
             return []
 
-        new_regressions = sum(occurrences > 0 for _, occurrences in build_regressions)
+        new_regressions = sum(occurrences == 0 for _, occurrences in build_regressions)
         logger.info(
             f"Detected {len(build_regressions)} build tasks that may contain a regression "
-            f"({new_regressions} potentially introduced by this push)."
+            f"({new_regressions} were never seen before)."
         )
 
         # Filter tasks by retrigger criteria

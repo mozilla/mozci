@@ -87,7 +87,12 @@ class TaskclusterSource(DataSource):
                 reason = run.get("reasonResolved")
                 if reason == "completed":
                     task["result"] = "passed"
-                elif reason in ("canceled", "superseded", "failed"):
+                elif reason in (
+                    "canceled",
+                    "superseded",
+                    "failed",
+                    "deadline-exceeded",
+                ):
                     task["result"] = reason
                 elif reason:
                     task["result"] = "exception"

@@ -1142,9 +1142,7 @@ class Push:
             logger.info("No build regression detected.")
             return []
 
-        new_regressions = sum(
-            past_occurrences == 0 for _, past_occurrences in build_regressions
-        )
+        new_regressions = sum(past_occurrences == 0 for _, past_occurrences in build_regressions)
         logger.info(
             f"Detected {len(build_regressions)} build tasks that may contain a regression "
             f"({new_regressions} were never seen before)."

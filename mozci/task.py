@@ -257,6 +257,9 @@ class Task:
 
     @property
     def failed(self):
+        """Tasks with result `deadline-exceeded` are not considered as
+        failures because it is likely that a dependency did not run.
+        """
         return self.result in ("busted", "failed", "exception")
 
     @property
@@ -416,11 +419,7 @@ class Task:
         return self._trigger_action(backfill_action, hook_payload)
 
     def is_build_failure(self) -> bool:
-        """
-        Returns whether a build task has failed.
-        Tasks with result `deadline-exceeded` are not considered as
-        failures because it is likely that a dependency did not run.
-        """
+        """Returns whether a build task has failed."""
         return self.job_kind == "build" and self.failed
 
     def should_retrigger_build(self, previous_occurrences_count: int = 0) -> bool:

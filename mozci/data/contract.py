@@ -54,6 +54,7 @@ _contracts: Tuple[Contract, ...] = (
                             "exception",
                             "canceled",
                             "superseded",
+                            "deadline-exceeded",
                         ]
                     ),
                     "job_kind": v.Str(),

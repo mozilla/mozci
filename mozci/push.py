@@ -1155,7 +1155,7 @@ class Push:
         ]
         if not tasks_to_retrigger:
             logger.info("No build task should be retriggered.")
-        logger.info("{len(tasks)} build tasks should be retriggered.")
+        logger.info(f"{len(tasks_to_retrigger)} build tasks should be retriggered.")
         return tasks_to_retrigger
 
     def classify_regressions(

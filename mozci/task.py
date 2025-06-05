@@ -257,7 +257,7 @@ class Task:
 
     @property
     def failed(self):
-        return self.result in ("failed", "exception", "deadline-exceeded")
+        return self.result in ("busted", "failed", "exception")
 
     @property
     def artifacts(self):
@@ -421,11 +421,7 @@ class Task:
         Tasks with result `deadline-exceeded` are not considered as
         failures because it is likely that a dependency did not run.
         """
-        return self.job_kind == "build" and self.result in (
-            "busted",
-            "exception",
-            "failed",
-        )
+        return self.job_kind == "build" and self.failed
 
     def should_retrigger_build(self, previous_occurrences_count: int = 0) -> bool:
         """Extra logic to determine if a build task should be retriggered."""

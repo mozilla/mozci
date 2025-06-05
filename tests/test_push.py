@@ -1137,6 +1137,7 @@ def test_classify(monkeypatch, classify_regressions_return_value, expected_resul
             real_retrigger={},
             intermittent_retrigger={},
             backfill={},
+            build_retrigger={},
         )
 
     monkeypatch.setattr(Push, "classify_regressions", mock_return)
@@ -1149,6 +1150,7 @@ def generate_mocks(
     get_test_selection_data_value,
     get_likely_regressions_value,
     get_possible_regressions_value,
+    get_build_regressions_value,
     confirmed_failure_value,
     cross_config_values,
     classifications,
@@ -1175,6 +1177,13 @@ def generate_mocks(
 
     monkeypatch.setattr(
         Push, "get_possible_regressions", mock_return_get_possible_regressions
+    )
+
+    def mock_return_get_build_regressions(*args, **kwargs):
+        return get_build_regressions_value
+
+    monkeypatch.setattr(
+        Push, "get_build_regressions", mock_return_get_build_regressions
     )
 
     push.group_summaries = {}
@@ -1294,6 +1303,7 @@ def test_classify_almost_good_push(
         test_selection_data,
         set(),
         set(),
+        [],
         None,
         are_cross_config,
         classifications,
@@ -1345,6 +1355,7 @@ def test_classify_good_push_only_intermittent_failures(monkeypatch):
         test_selection_data,
         likely_regressions,
         set(),
+        [],
         None,
         are_cross_config,
         classifications,
@@ -1524,6 +1535,7 @@ def test_classify_almost_bad_push(
         test_selection_data,
         likely_regressions,
         set(),
+        [],
         None,
         are_cross_config,
         classifications,
@@ -1581,6 +1593,7 @@ def test_classify_bad_push_some_real_failures(monkeypatch):
         test_selection_data,
         likely_regressions,
         set(),
+        [],
         None,
         are_cross_config,
         classifications,
@@ -1782,6 +1795,7 @@ def test_classify_cases(
         },
         {"group1"} if is_likely_regression else set(),
         {"group1"} if is_possible_regression else set(),
+        [],
         is_confirmed_failure,
         {"group1": is_cross_config},
         {

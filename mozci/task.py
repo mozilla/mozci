@@ -422,14 +422,78 @@ class Task:
         """Returns whether a build task has failed."""
         return self.job_kind == "build" and self.failed
 
-    def should_retrigger_build(self, previous_occurrences_count: int = 0) -> bool:
-        """Extra logic to determine if a build task should be retriggered."""
+    def should_retrigger_build(self, push, previous_occurrences_count: int = 0) -> bool:
+        """
+        Extra logic to determine if a build task should be retriggered.
+        When previous occurrences are found, retrigger according to the above rules:
+          * There is a push between the last failure occurrence and the current push where the build didn't fail;
+          * No previous occurrence have a classification;
+          * The last failure occurrence is "intermittent";
+          * The last failure occurrence is "fixed by commit" and the commit
+            belongs to a push between the occurrence and the current push;
+          * There is only one task on the current push with the same name and its status is one of testfailed, busted, exception, unknown. This ensures the same task is not retriggered multiple times.
+
+        Reference: https://github.com/mozilla/mozci/pull/1163#issuecomment-2903668720
+        """
+
+        def _list_previous_tasks(push):
+            """Iterate on previous pushes until we found the same failure or reach max depth"""
+            previous_push = push.parent
+            if (push.id - previous_push.id) >= previous_occurrences_count:
+                return []
+            previous_task = next(
+                task for task in push.tasks if task.label == self.label
+            )
+            if not previous_task:
+                return _list_previous_tasks(previous_push)
+            if previous_task.failed:
+                return [previous_task]
+
+            # Continue iterating on previous pushes
+            return [previous_task, *_list_previous_tasks(previous_push)]
+
         if self.tier not in (1, 2):
             return False
-        # For now only process new build failures
-        if previous_occurrences_count > 0:
-            return False
-        return True
+        if previous_occurrences_count == 0:
+            # The build error was probably introduced by this task
+            return True
+
+        # Look at previous occurrences containing the same task until we reach the same failure
+        previous_tasks = _list_previous_tasks(push)
+        if len(previous_tasks) < 1:
+            return True
+
+        # 1. Push between the last failure occurrence and the current push with a successful build
+        if len(previous_tasks) > 1 and any(
+            task.result == "passed" for task in previous_tasks[:-1]
+        ):
+            return True
+
+        last_failure_occurrence = next(
+            (task for task in previous_tasks if task.failed), None
+        )
+
+        # 2. No previous occurrence have a classification
+        if last_failure_occurrence is None:
+            return True
+
+        # 3. Last failure occurrence is classified as intermittent
+        if last_failure_occurrence.is_intermittent:
+            return True
+
+        # 4. Last failure occurrence is not classified yet
+        if last_failure_occurrence.classification == "not classified":
+            return True
+
+        # 5. There is only one task on the current push with the same name and failed status
+        if (
+            len(push.tasks) == 1
+            and last_failure_occurrence.label == self.label
+            and last_failure_occurrence.result == self.result
+        ):
+            return True
+
+        return False
 
 
 @dataclass

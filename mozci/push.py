@@ -1045,16 +1045,13 @@ class Push:
                             # Otherwise, if it passed or was intermittent, it is likely not a prior
                             # regression.
 
-                            include_not_classified = True
-                            if assume_unclassified_is_intermittent:
-                                include_not_classified = (
-                                    summary.classification != "not classified"
-                                )
-
                             if (
                                 summary.status != Status.PASS
                                 and not summary.is_intermittent
-                                and include_not_classified
+                                and (
+                                    not assume_unclassified_is_intermittent
+                                    or summary.classification != "not classified"
+                                )
                             ):
                                 prior_regression = True
 

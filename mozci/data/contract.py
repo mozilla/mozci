@@ -129,6 +129,8 @@ _contracts: Tuple[Contract, ...] = (
                                 "branch": v.Str(),
                                 "desc": v.Str(),
                                 "files": v.List(v.Str()),
+                                "git_node": v.Str(),
+                                "git_parents": v.List(v.Str()),
                                 "node": v.Str(),
                                 "parents": v.List(v.Str()),
                                 "tags": v.List(v.Str()),

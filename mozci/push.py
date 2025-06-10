@@ -997,7 +997,7 @@ class Push:
         A count of MAX_DEPTH means that the maximum number of parents were
         searched without finding the task and we gave up.
         If the parameter `assume_unclassified_is_intermittent` is set to True, previous
-        failures that have not been classified will be considered as regressions.
+        failures that have not been classified will be considered as intermittent.
 
         Returns:
             dict: A dict of the form {<str>: <int>}.
@@ -1044,7 +1044,6 @@ class Push:
                             # prior regression.
                             # Otherwise, if it passed or was intermittent, it is likely not a prior
                             # regression.
-
                             if (
                                 summary.status != Status.PASS
                                 and not summary.is_intermittent
@@ -1137,7 +1136,7 @@ class Push:
         if task.tier not in (1, 2):
             return False
 
-        # There should be only one task on the current push with the same label
+        # There should be only one task on the current push with the same label, as we only want to retrigger once
         if sum(1 for t in self.tasks if t.label == task.label) > 1:
             return False
 
@@ -1147,7 +1146,11 @@ class Push:
         logger.info(f"Fetched {len(self.tasks)} tasks for push {self.id}.")
 
         # Try to identify a potential regressions from the failed build
-        potential_regressions = self.get_regressions("label", historical_analysis=False)
+        potential_regressions = self.get_regressions(
+            "label",
+            historical_analysis=False,
+            assume_unclassified_is_intermittent=True,
+        )
 
         # Map labels to tasks again
         build_regressions = [

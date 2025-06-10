@@ -1134,7 +1134,7 @@ class Push:
             if count == 0
         )
 
-    def should_retrigger_build(self, task, previous_occurrences_count: int = 0) -> bool:
+    def should_retrigger_build(self, task: Task) -> bool:
         """Extra logic to determine if a build task of the current push should be retriggered."""
 
         if task.tier not in (1, 2):
@@ -1172,9 +1172,7 @@ class Push:
         )
 
         tasks_to_retrigger = [
-            task
-            for task, count in build_regressions
-            if self.should_retrigger_build(task, previous_occurrences_count=count)
+            task for task, _ in build_regressions if self.should_retrigger_build(task)
         ]
         if not tasks_to_retrigger:
             logger.info("No build task should be retriggered.")

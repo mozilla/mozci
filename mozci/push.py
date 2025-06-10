@@ -982,7 +982,10 @@ class Push:
 
     @memoize
     def get_regressions(
-        self, runnable_type: str, historical_analysis: bool = True
+        self,
+        runnable_type: str,
+        historical_analysis: bool = True,
+        assume_unclassified_is_intermittent: bool = False,
     ) -> Dict[str, int]:
         """All regressions, both likely and definite.
 
@@ -993,6 +996,8 @@ class Push:
         last time the task passed (so any one of them could have caused it).
         A count of MAX_DEPTH means that the maximum number of parents were
         searched without finding the task and we gave up.
+        If the parameter `assume_unclassified_is_intermittent` is set to True, previous
+        failures that have not been classified will be considered as regressions.
 
         Returns:
             dict: A dict of the form {<str>: <int>}.
@@ -1039,9 +1044,17 @@ class Push:
                             # prior regression.
                             # Otherwise, if it passed or was intermittent, it is likely not a prior
                             # regression.
+
+                            include_not_classified = True
+                            if assume_unclassified_is_intermittent:
+                                include_not_classified = (
+                                    summary.classification != "not classified"
+                                )
+
                             if (
                                 summary.status != Status.PASS
                                 and not summary.is_intermittent
+                                and include_not_classified
                             ):
                                 prior_regression = True
 
@@ -1122,61 +1135,16 @@ class Push:
         )
 
     def should_retrigger_build(self, task, previous_occurrences_count: int = 0) -> bool:
-        """
-        Extra logic to determine if a build task of the current push should be retriggered.
-
-        The `Push.get_regressions` method already filters out the previous failures that fall into the following rules:
-          * There is a push between the last failure occurrence and the current push where the build didn't fail;
-          * No previous occurrence have a classification.
-
-        If there are previous occurrences, we decide whether to retrigger based on the following rules:
-          * There are not tasks on the current push with a similar label, ensuring to only retrigger a build once;
-          * The last failure occurrence is "intermittent";
-          * The last failure occurrence is "fixed by commit", and the commit belongs to a push between the
-          occurrence and the current push.
-
-        Reference: https://github.com/mozilla/mozci/pull/1163
-        """
+        """Extra logic to determine if a build task of the current push should be retriggered."""
 
         if task.tier not in (1, 2):
             return False
 
-        # 1. There should be only one task on the current push with the same label
+        # There should be only one task on the current push with the same label
         if sum(1 for t in self.tasks if t.label == task.label) > 1:
             return False
 
-        def _iter_previous_tasks():
-            """Iterate on previous pushes until we found the same failure or reach max known occurrences"""
-            parents = self._iterate_parents(max_depth=previous_occurrences_count)
-            # Exclude the current push itself
-            next(parents)
-            for parent in parents:
-                previous_task = next(
-                    prev_task
-                    for prev_task in parent.tasks
-                    if prev_task.label == task.label
-                )
-                if not previous_task:
-                    continue
-                yield previous_task
-                if previous_task.failed:
-                    return
-
-        previous_tasks = list(_iter_previous_tasks())
-
-        last_failure_occurrence = next(
-            (prev_task for prev_task in previous_tasks if prev_task.failed), None
-        )
-
-        # 2. No previous occurrence have a classification, build failure was probably introduced
-        if last_failure_occurrence is None:
-            return True
-
-        # 3. Last failure occurrence is classified as intermittent
-        if last_failure_occurrence.is_intermittent:
-            return True
-
-        return False
+        return True
 
     def check_build_regressions(self) -> list[Task]:
         logger.info(f"Fetched {len(self.tasks)} tasks for push {self.id}.")

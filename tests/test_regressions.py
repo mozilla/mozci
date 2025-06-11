@@ -63,6 +63,57 @@ def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_failed_in_gran
     assert p[i + 2].get_regressions("label", False) == {}
 
 
+def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_failed_in_grandchild_assume_unclassified_is_intermittent(
+    create_pushes,
+):
+    """
+    Tests the scenario where a task succeeded in a parent push, didn't run in the
+    push of interest, and failed in its following pushes.
+    """
+    p = create_pushes(7)
+    i = 3  # the index of the push we are mainly interested in
+
+    # setup
+    p[i - 1].tasks = [create_task(id=fake_id(1), label="test-prova", result="passed")]
+    p[i].backedoutby = p[i + 3].rev
+    p[i + 1].tasks = [
+        create_task(
+            id=fake_id(1),
+            label="test-prova",
+            result="failed",
+            classification="not classified",
+        )
+    ]
+    p[i + 1].backedoutby = p[i + 3].rev
+    p[i + 2].tasks = [
+        create_task(
+            id=fake_id(1),
+            label="test-prova",
+            result="failed",
+            classification="not classified",
+        )
+    ]
+    p[i + 2].backedoutby = p[i + 3].rev
+
+    assert (
+        p[i - 2].get_regressions("label", assume_unclassified_is_intermittent=True)
+        == {}
+    )
+    assert (
+        p[i - 1].get_regressions("label", assume_unclassified_is_intermittent=True)
+        == {}
+    )
+    assert p[i].get_regressions("label", assume_unclassified_is_intermittent=True) == {
+        "test-prova": 1
+    }
+    assert p[i + 1].get_regressions(
+        "label", assume_unclassified_is_intermittent=True
+    ) == {"test-prova": 1}
+    assert p[i + 2].get_regressions(
+        "label", assume_unclassified_is_intermittent=True
+    ) == {"test-prova": 0}
+
+
 def test_succeeded_in_parent_didnt_run_in_current_failed_in_child_failed_in_grandchild_no_backout(
     create_pushes,
 ):
@@ -2266,6 +2317,53 @@ def test_try(
 
     assert p[i].get_regressions("label") == {"test-preexisting": 0}
     assert try_p.get_regressions("label") == {"test-new": 1}
+
+
+def test_try_assume_unclassified_is_intermittent(
+    create_push,
+    create_pushes,
+):
+    p = create_pushes(3)
+    i = 1
+
+    try_p = create_push(branch="try")
+    try_p.parent = p[i]
+
+    p[i - 1].tasks = [
+        create_task(id=fake_id(1), label="test-new", result="passed"),
+        create_task(id=fake_id(1), label="test-preexisting", result="passed"),
+    ]
+    p[i].tasks = [
+        create_task(
+            id=fake_id(1),
+            label="test-preexisting",
+            result="failed",
+            classification="not classified",
+        ),
+    ]
+    p[i].backedoutby = p[i + 1].rev
+    try_p.tasks = [
+        create_task(
+            id=fake_id(1),
+            label="test-new",
+            result="failed",
+            classification="not classified",
+        ),
+        create_task(
+            id=fake_id(1),
+            label="test-preexisting",
+            result="failed",
+            classification="not classified",
+        ),
+    ]
+
+    assert p[i].get_regressions("label", assume_unclassified_is_intermittent=True) == {
+        "test-preexisting": 0
+    }
+    assert try_p.get_regressions("label", assume_unclassified_is_intermittent=True) == {
+        "test-new": 1,
+        "test-preexisting": 0,
+    }
 
 
 def test_intermittent_failure_in_parent(create_pushes):

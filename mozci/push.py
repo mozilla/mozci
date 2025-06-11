@@ -1049,7 +1049,10 @@ class Push:
                                 and not summary.is_intermittent
                                 and (
                                     not assume_unclassified_is_intermittent
-                                    or summary.classification != "not classified"
+                                    or all(
+                                        c != "not classified"
+                                        for c, n in summary.classifications
+                                    )
                                 )
                             ):
                                 prior_regression = True

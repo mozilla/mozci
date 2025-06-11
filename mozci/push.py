@@ -1002,7 +1002,7 @@ class Push:
         # If the push was not backed-out and was not "bustage fixed", it can't
         # have caused regressions.
         if (
-            (historical_analysis or self.is_finalized)
+            historical_analysis
             and self.branch != "try"
             and not self.backedout
             and not self.bustage_fixed_by
@@ -1062,11 +1062,7 @@ class Push:
             # penalize regressions for pushes which weren't backed-out by doubling their count
             # (basically, we consider the push to be further away from the failure, which makes
             # it more likely to fall outside of MAX_DEPTH).
-            if (
-                (historical_analysis or self.is_finalized)
-                and self.branch != "try"
-                and not self.backedout
-            ):
+            if historical_analysis and self.branch != "try" and not self.backedout:
                 count *= 2
 
             # Also penalize cases where the status was intermittent.

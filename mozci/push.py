@@ -982,7 +982,10 @@ class Push:
 
     @memoize
     def get_regressions(
-        self, runnable_type: str, historical_analysis: bool = True
+        self,
+        runnable_type: str,
+        historical_analysis: bool = True,
+        assume_unclassified_is_intermittent: bool = False,
     ) -> Dict[str, int]:
         """All regressions, both likely and definite.
 
@@ -993,6 +996,8 @@ class Push:
         last time the task passed (so any one of them could have caused it).
         A count of MAX_DEPTH means that the maximum number of parents were
         searched without finding the task and we gave up.
+        If the parameter `assume_unclassified_is_intermittent` is set to True, previous
+        failures that have not been classified will be considered as intermittent.
 
         Returns:
             dict: A dict of the form {<str>: <int>}.
@@ -1042,6 +1047,13 @@ class Push:
                             if (
                                 summary.status != Status.PASS
                                 and not summary.is_intermittent
+                                and (
+                                    not assume_unclassified_is_intermittent
+                                    or all(
+                                        c != "not classified"
+                                        for c, n in summary.classifications
+                                    )
+                                )
                             ):
                                 prior_regression = True
 
@@ -1121,11 +1133,27 @@ class Push:
             if count == 0
         )
 
+    def should_retrigger_build(self, task: Task) -> bool:
+        """Extra logic to determine if a build task of the current push should be retriggered."""
+
+        if task.tier not in (1, 2):
+            return False
+
+        # There should be only one task on the current push with the same label, as we only want to retrigger once
+        if sum(1 for t in self.tasks if t.label == task.label) > 1:
+            return False
+
+        return True
+
     def check_build_regressions(self) -> list[Task]:
         logger.info(f"Fetched {len(self.tasks)} tasks for push {self.id}.")
 
         # Try to identify a potential regressions from the failed build
-        potential_regressions = self.get_regressions("label", historical_analysis=False)
+        potential_regressions = self.get_regressions(
+            "label",
+            historical_analysis=False,
+            assume_unclassified_is_intermittent=True,
+        )
 
         # Map labels to tasks again
         build_regressions = [
@@ -1138,16 +1166,16 @@ class Push:
             logger.info("No build regression detected.")
             return []
 
-        new_regressions = sum(past_occurrences == 0 for _, past_occurrences in build_regressions)
+        new_regressions = sum(
+            past_occurrences == 0 for _, past_occurrences in build_regressions
+        )
         logger.info(
             f"Detected {len(build_regressions)} build tasks that may contain a regression "
             f"({new_regressions} were never seen before)."
         )
 
         tasks_to_retrigger = [
-            task
-            for task, count in build_regressions
-            if task.should_retrigger_build(previous_occurrences_count=count)
+            task for task, _ in build_regressions if self.should_retrigger_build(task)
         ]
         if not tasks_to_retrigger:
             logger.info("No build task should be retriggered.")

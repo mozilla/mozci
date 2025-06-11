@@ -422,15 +422,6 @@ class Task:
         """Returns whether a build task has failed."""
         return self.job_kind == "build" and self.failed
 
-    def should_retrigger_build(self, previous_occurrences_count: int = 0) -> bool:
-        """Extra logic to determine if a build task should be retriggered."""
-        if self.tier not in (1, 2):
-            return False
-        # For now only process new build failures
-        if previous_occurrences_count > 0:
-            return False
-        return True
-
 
 @dataclass
 class GroupResult:

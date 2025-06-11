@@ -63,6 +63,7 @@ class ToRetriggerOrBackfill:
     # each item being a single group, with its failing tasks
     real_retrigger: Dict[str, List[TestTask]]
     intermittent_retrigger: Dict[str, List[TestTask]]
+    build_retrigger: Dict[str, List[Task]]
     backfill: Dict[str, List[TestTask]]
 
 
@@ -1121,7 +1122,7 @@ class Push:
             if count == 0
         )
 
-    def check_build_regressions(self) -> list[Task]:
+    def get_build_regressions(self) -> list[Task]:
         logger.info(f"Fetched {len(self.tasks)} tasks for push {self.id}.")
 
         # Try to identify a potential regressions from the failed build
@@ -1138,7 +1139,9 @@ class Push:
             logger.info("No build regression detected.")
             return []
 
-        new_regressions = sum(past_occurrences == 0 for _, past_occurrences in build_regressions)
+        new_regressions = sum(
+            past_occurrences == 0 for _, past_occurrences in build_regressions
+        )
         logger.info(
             f"Detected {len(build_regressions)} build tasks that may contain a regression "
             f"({new_regressions} were never seen before)."
@@ -1394,6 +1397,9 @@ class Push:
         )
         failures_to_be_backfilled.reverse()
 
+        # Look for build tasks failure
+        build_regressions = self.get_build_regressions()
+
         # Output real, intermittent and unknown groupfailures
         # along with their failing configurations + groupfailures to retrigger/backfill
         return Regressions(
@@ -1405,6 +1411,7 @@ class Push:
             intermittent_retrigger=_map_failing_tasks(
                 intermittent_failures_to_be_retriggered
             ),
+            build_retrigger=_map_failing_tasks(build_regressions),
             backfill=_map_failing_tasks(failures_to_be_backfilled),
         )
 

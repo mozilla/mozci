@@ -1,4 +1,4 @@
-[![Task Status](https://community-tc.services.mozilla.com/api/github/v1/repository/mozilla/coverage-crawler/master/badge.svg)](https://community-tc.services.mozilla.com/api/github/v1/repository/mozilla/coverage-crawler/master/latest)
+[![Task Status](https://community-tc.services.mozilla.com/api/github/v1/repository/mozilla/mozci/master/badge.svg)](https://community-tc.services.mozilla.com/api/github/v1/repository/mozilla/mozci/master/latest)
 [![PyPI version](https://badge.fury.io/py/mozci.svg)](https://badge.fury.io/py/mozci)
 [![Docs](https://readthedocs.org/projects/mozci/badge/?version=latest)](https://mozci.readthedocs.io/en/latest/?badge=latest)
 

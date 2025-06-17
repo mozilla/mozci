@@ -339,9 +339,12 @@ class Task:
         result = hooks.triggerHook(action["hookGroupId"], action["hookId"], payload)
         return result["status"]["taskId"]
 
-    def retrigger(self, push, times=3):
-        """This function implements ability to perform retriggers on tasks"""
-        if self._should_retrigger() == "false":
+    def retrigger(self, push, times=3, force_retrigger=False):
+        """This function implements ability to perform retriggers on tasks.
+        The `retrigger` tag should be set to true in the task's payload, unless
+        force_retrigger parameter is set to True.
+        """
+        if not force_retrigger and self._should_retrigger() == "false":
             logger.info(
                 "Not retriggering task '{}', task should not be retriggered".format(
                     self.tags.get("label")

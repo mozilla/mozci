@@ -355,6 +355,10 @@ class Push:
             }
             tasks = [{**t, **completed_cached_tasks.get(t["id"], {})} for t in tasks]
 
+        logger.debug(
+            f"{len(completed_cached_tasks)} tasks were retrieved from the cache..."
+        )
+
         logger.debug(f"Gathering task classifications for {self.rev}...")
 
         # Gather task classifications.

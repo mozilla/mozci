@@ -124,7 +124,7 @@ class Configuration(Mapping):
                 "errorsummary",
                 "bugbug",
             ],
-            "verbose": 0,
+            "verbose": 1,
             "tier": 2,
         },
     }

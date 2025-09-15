@@ -1820,14 +1820,14 @@ widechars = ["wcwidth"]
 
 [[package]]
 name = "taskcluster"
-version = "87.1.2"
+version = "89.0.0"
 description = "Python client for Taskcluster"
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "taskcluster-87.1.2-py3-none-any.whl", hash = "sha256:2a6d1367ebf62e88678492f7073212b1036926c4781080ebddd81438a4cf5ddf"},
-    {file = "taskcluster-87.1.2.tar.gz", hash = "sha256:34442a9ff6fd0ebc1816a8ac3f677789009da2839214970bf6820a8f53677e4d"},
+    {file = "taskcluster-89.0.0-py3-none-any.whl", hash = "sha256:fea17d66179bf214136dc2abc8e118b38ba8b35f52431b6b7a56453d16c8b1a2"},
+    {file = "taskcluster-89.0.0.tar.gz", hash = "sha256:1904be0d38637f95ee00caf834e8feaf4ee9214d530d5f6be8ff58da88f64899"},
 ]
 
 [package.dependencies]

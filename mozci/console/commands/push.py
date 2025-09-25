@@ -317,7 +317,10 @@ class ClassifyCommand(BasePushCommand):
         ),
         option(
             "maximum_build_tasks_to_retrigger",
-            description="The maximum number of build task failures to retrigger for a single push",
+            description=(
+                "The maximum number of build task failures to retrigger for a single push. "
+                "The value can be set to -1 for no maximum."
+            ),
             flag=False,
             default=15,
         ),
@@ -357,16 +360,17 @@ class ClassifyCommand(BasePushCommand):
                         self.line("No build task detected as potential regression")
                     else:
                         max_retrigger = self.option("maximum_build_tasks_to_retrigger")
-                        if len(tasks_to_retrigger) > max_retrigger:
-                            # In case many build failures are observed, the issue is likely not
-                            # general intermittentness of the tasks if the tree/repository/project
-                            # is mozilla-central but either a permanent failure of the executed
-                            # task payload or an infrastructure, e.g. to access required resources
-                            self.line(
-                                f"<error> More than {max_retrigger} build tasks were detected as potential regressions. "
-                                "Only the first {max_retrigger} will be retriggered."
-                            )
-                        tasks_to_retrigger = tasks_to_retrigger[:max_retrigger]
+                        if max_retrigger > 0:
+                            if len(tasks_to_retrigger) > max_retrigger:
+                                # In case many build failures are observed, the issue is likely not
+                                # general intermittentness of the tasks if the tree/repository/project
+                                # is mozilla-central but either a permanent failure of the executed
+                                # task payload or an infrastructure, e.g. to access required resources
+                                self.line(
+                                    f"<error> More than {max_retrigger} build tasks were detected as potential regressions. "
+                                    "Only the first {max_retrigger} will be retriggered."
+                                )
+                            tasks_to_retrigger = tasks_to_retrigger[:max_retrigger]
                         self.line(
                             f"Retriggering {len(tasks_to_retrigger)} build regression that may introduce a build bustage"
                         )

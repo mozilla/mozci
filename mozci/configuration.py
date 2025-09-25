@@ -108,7 +108,6 @@ class Configuration(Mapping):
     ) or os.environ.get("TASKCLUSTER_SECRET")
     DEFAULTS = {
         "merge": {
-            "maximum_build_tasks_to_retrigger": 15,
             "retriggerable-backfillable-task-names": [],
             "autoclassification": {
                 "enabled": False,

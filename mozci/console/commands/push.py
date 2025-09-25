@@ -315,6 +315,12 @@ class ClassifyCommand(BasePushCommand):
             description="If set, skip the analysis of build tasks regressions.",
             flag=True,
         ),
+        option(
+            "maximum_build_tasks_to_retrigger",
+            description="The maximum number of build task failures to retrigger for a single push",
+            flag=False,
+            default=15,
+        ),
     ]
 
     def handle(self) -> None:
@@ -350,7 +356,7 @@ class ClassifyCommand(BasePushCommand):
                     if not tasks_to_retrigger:
                         self.line("No build task detected as potential regression")
                     else:
-                        max_retrigger = config["maximum_build_tasks_to_retrigger"]
+                        max_retrigger = self.option("maximum_build_tasks_to_retrigger")
                         if len(tasks_to_retrigger) > max_retrigger:
                             # In case many build failures are observed, the issue is likely not
                             # general intermittentness of the tasks if the tree/repository/project

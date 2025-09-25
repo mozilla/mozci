@@ -350,6 +350,17 @@ class ClassifyCommand(BasePushCommand):
                     if not tasks_to_retrigger:
                         self.line("No build task detected as potential regression")
                     else:
+                        max_retrigger = config["maximum_build_tasks_to_retrigger"]
+                        if len(tasks_to_retrigger) > max_retrigger:
+                            # In case many build failures are observed, the issue is likely not
+                            # general intermittentness of the tasks if the tree/repository/project
+                            # is mozilla-central but either a permanent failure of the executed
+                            # task payload or an infrastructure, e.g. to access required resources
+                            self.line(
+                                f"<error> More than {max_retrigger} build tasks were detected as potential regressions. "
+                                "Only the first {max_retrigger} will be retriggered."
+                            )
+                        tasks_to_retrigger = tasks_to_retrigger[:max_retrigger]
                         self.line(
                             f"Retriggering {len(tasks_to_retrigger)} build regression that may introduce a build bustage"
                         )

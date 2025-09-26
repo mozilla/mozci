@@ -312,13 +312,27 @@ class Task:
         sig = signature(self.__init__)
         return {k: v for k, v in self.__dict__.items() if k in sig.parameters}
 
+    def _ensure_context(self, action):
+        # An empty context means the action is relevant to the task-group.
+        if len(action["context"]) == 0:
+            return True
+
+        for potential_matcher in action["context"]:
+            if all(
+                self.tags.get(key) == value for key, value in potential_matcher.items()
+            ):
+                return True
+
+        return False
+
     def _get_action(self, decision_task, action_name):
         actions = decision_task.get_artifact("public/actions.json")
-        action = next(
-            action for action in actions["actions"] if action["name"] == action_name
-        )
-        assert action["kind"] == "hook"
-        return action
+        for action in actions["actions"]:
+            if action["name"] == action_name and self._ensure_context(action):
+                assert action["kind"] == "hook"
+                return action
+
+        return None
 
     def _trigger_action(self, action, payload):
         tc_firefox_ci_credentials = config.get("taskcluster_firefox_ci", {})
@@ -339,28 +353,24 @@ class Task:
         result = hooks.triggerHook(action["hookGroupId"], action["hookId"], payload)
         return result["status"]["taskId"]
 
-    def retrigger(self, push, times=3, force_retrigger=False):
-        """This function implements ability to perform retriggers on tasks.
-        The `retrigger` tag should be set to true in the task's payload, unless
-        force_retrigger parameter is set to True.
-        """
-        if not force_retrigger and self._should_retrigger() == "false":
+    def retrigger(self, push, times=3):
+        """This function implements ability to perform retriggers on tasks."""
+        decision_task = push.decision_task
+        retrigger_action = self._get_action(decision_task, "retrigger-multiple")
+        if not retrigger_action:
             logger.info(
                 "Not retriggering task '{}', task should not be retriggered".format(
-                    self.tags.get("label")
+                    self.label
                 )
             )
             return None
 
-        decision_task = push.decision_task
-        retrigger_action = self._get_action(decision_task, "retrigger")
-
         hook_payload = jsone.render(
             retrigger_action["hookPayload"],
             context={
-                "taskId": self.id,
+                "taskId": None,
                 "taskGroupId": decision_task.id,
-                "input": {"times": times},
+                "input": {"requests": [{"tasks": [self.label], "times": times}]},
             },
         )
 
@@ -368,17 +378,16 @@ class Task:
         return self._trigger_action(retrigger_action, hook_payload)
 
     def confirm(self, push):
-        """This function implements ability to perform retriggers on tasks"""
-        if self._should_retrigger() == "false":
+        """This function implements ability to trigger failure confirmation on tasks"""
+        decision_task = push.decision_task
+        retrigger_action = self._get_action(decision_task, "confirm-failures")
+        if not retrigger_action:
             logger.info(
-                "Not confirming task '{}' failures, task should not be confirmed".format(
-                    self.tags.get("label")
+                "Not confirming task '{}', task should not be confirmed".format(
+                    self.label
                 )
             )
             return None
-
-        decision_task = push.decision_task
-        retrigger_action = self._get_action(decision_task, "confirm-failures")
 
         hook_payload = jsone.render(
             retrigger_action["hookPayload"],
@@ -393,10 +402,6 @@ class Task:
             "confirming failures for task '{}'".format(self.tags.get("label", ""))
         )
         return self._trigger_action(retrigger_action, hook_payload)
-
-    def _should_retrigger(self):
-        """Return whether this task should be retriggered."""
-        return self.tags.get("retrigger", "false")
 
     def backfill(self, push):
         """This function implements ability to perform backfills on tasks"""

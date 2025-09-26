@@ -21,7 +21,7 @@ except ImportError:
 
 class BaseTreeherderSource(DataSource, ABC):
     lock = threading.Lock()
-    groups_cache: Dict[str, List[str]] = LRU(5000)
+    groups_cache: Dict[str, List[str]] = LRU(7000)
 
     @abstractmethod
     def get_push_test_groups(self, branch: str, rev: str) -> Dict[str, List[str]]:
@@ -58,7 +58,7 @@ class TreeherderClientSource(BaseTreeherderSource):
         session.headers = {"User-Agent": "mozci"}
         return session
 
-    @lru_cache(maxsize=50)
+    @lru_cache(maxsize=700)
     def _run_query(self, query, params=None):
         query = query.lstrip("/")
         url = f"{self.base_url}/{query}"

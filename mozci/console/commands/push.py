@@ -354,7 +354,7 @@ class ClassifyCommand(BasePushCommand):
                             f"Retriggering {len(tasks_to_retrigger)} build regression that may introduce a build bustage"
                         )
                         for task in tasks_to_retrigger:
-                            task.retrigger(push, force_retrigger=True)
+                            task.retrigger(push)
                 except Exception as e:
                     self.line(
                         f"<error> Couldn't run build regressions analysis on push {push.push_uuid}: {e}.</error>"

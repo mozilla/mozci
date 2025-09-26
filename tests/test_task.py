@@ -73,17 +73,17 @@ ACTIONS_ARTIFACT_EXTRACT = {
 RETRIGGER_ACTIONS_ARTIFACT_EXTRACT = {
     "actions": [
         {
-            "context": [{}],
-            "description": "Create a clone of the task (retriggering decision, action, and cron tasks requires\nspecial scopes).",
+            "context": [],
+            "description": "Create a clone of the task.",
             "extra": {"actionPerm": "generic"},
             "hookGroupId": "project-gecko",
             "hookId": "in-tree-action-3-generic/9ffde487f6",
             "hookPayload": {
                 "decision": {
                     "action": {
-                        "cb_name": "retrigger-decision",
-                        "description": "Create a clone of the task (retriggering decision, action, and cron tasks requires\nspecial scopes).",
-                        "name": "retrigger",
+                        "cb_name": "retrigger-multiple",
+                        "description": "Create a clone of the task.",
+                        "name": "retrigger-multiple",
                         "symbol": "rt",
                         "taskGroupId": "cIysKHAiSBOhhHrvgKMo1w",
                         "title": "Retrigger",
@@ -106,8 +106,45 @@ RETRIGGER_ACTIONS_ARTIFACT_EXTRACT = {
                 },
             },
             "kind": "hook",
-            "name": "retrigger",
+            "name": "retrigger-multiple",
             "title": "Retrigger",
+        },
+        {
+            "context": [{"kind": "test"}],
+            "description": "Re-run Tests for original manifest, directories or tests for failing tests.",
+            "extra": {"actionPerm": "generic"},
+            "hookGroupId": "project-gecko",
+            "hookId": "in-tree-action-3-generic/9ffde487f6",
+            "hookPayload": {
+                "decision": {
+                    "action": {
+                        "cb_name": "confirm-failures",
+                        "description": "Create a clone of the task.",
+                        "name": "confirm-failures",
+                        "symbol": "rt",
+                        "taskGroupId": "cIysKHAiSBOhhHrvgKMo1w",
+                        "title": "Confirm failures in job",
+                    },
+                    "push": {
+                        "owner": "mozilla-taskcluster-maintenance@mozilla.com",
+                        "pushlog_id": "163357",
+                        "revision": "5f90901a36bb9735cef6dc7d746d06880a61226d",
+                    },
+                    "repository": {
+                        "level": "3",
+                        "project": "autoland",
+                        "url": "https://hg.mozilla.org/integration/autoland",
+                    },
+                },
+                "user": {
+                    "input": {"$eval": "input"},
+                    "taskGroupId": {"$eval": "taskGroupId"},
+                    "taskId": {"$eval": "taskId"},
+                },
+            },
+            "kind": "hook",
+            "name": "confirm-failures",
+            "title": "Confirm failures in job",
         },
     ]
 }
@@ -194,7 +231,9 @@ def test_retrigger_should_retrigger(responses, create_task):
         "access_token": "an access token",
     }
 
-    task = create_task(label="foobar", tags={"retrigger": "true"})
+    task = create_task(
+        label="build-foobar", tags={"kind": "build", "retrigger": "false"}
+    )
 
     hookGroupId = RETRIGGER_ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookGroupId"]
     hookId = RETRIGGER_ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookId"].replace(
@@ -204,9 +243,9 @@ def test_retrigger_should_retrigger(responses, create_task):
         RETRIGGER_ACTIONS_ARTIFACT_EXTRACT["actions"][0]["hookPayload"]
     )
     hookPayload["user"] = {
-        "input": {"times": 3},
+        "input": {"requests": [{"tasks": ["build-foobar"], "times": 3}]},
         "taskGroupId": push.decision_task.id,
-        "taskId": task.id,
+        "taskId": None,
     }
     responses.add(
         responses.POST,
@@ -224,8 +263,21 @@ def test_retrigger_should_not_retrigger(responses, create_task):
     branch = "autoland"
     push = Push(rev, branch)
 
-    task = create_task(label="foobar")
-    task.retrigger(push)
+    decision_task_url = f"{PRODUCTION_TASKCLUSTER_ROOT_URL}/api/index/v1/task/gecko.v2.{branch}.revision.{rev}.taskgraph.decision"
+    responses.add(
+        responses.GET, decision_task_url, status=200, json={"taskId": "a" * 10}
+    )
+
+    responses.add(
+        responses.GET,
+        get_artifact_url(push.decision_task.id, "public/actions.json"),
+        status=200,
+        json=RETRIGGER_ACTIONS_ARTIFACT_EXTRACT,
+    )
+
+    # Task doesn't match context for action.
+    task = create_task(label="test-foobar", tags={"kind": "build"})
+    assert task.confirm(push) is None
 
 
 def test_backfill_missing_actions_artifact(responses, create_task):

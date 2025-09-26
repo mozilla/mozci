@@ -92,6 +92,8 @@ def run_combinations_for_push(push):
         start = time.time()
         try:
             classification, regressions = push.classify(**parameters)
+            # Rettriger test failures to detect permanent ones, only on Linux cloud worker pool for now
+            push.identify__permanent_failures(queue_prefix="gecko-t/t-linux-")
             end = time.time()
 
             # Only save results to a JSON file if the execution was successful

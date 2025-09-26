@@ -841,7 +841,7 @@ def test_generate_all_shadow_scheduler_config_groups(responses):
         s_id = next(id)
         responses.add(
             responses.GET,
-            "https://hg.mozilla.org/mozilla-central/raw-file/tip/taskcluster/kinds/test/variants.yml",
+            "https://hg.mozilla.org/mozilla-central/raw-file/default/taskcluster/test_configs/variants.yml",
             json={
                 "socketprocess_networking": {"suffix": "spi-nw"},
                 "no-fission": {"suffix": "nofis"},

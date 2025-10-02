@@ -445,6 +445,8 @@ class Task:
             return False
         if self.classification != "not classified":
             return False
+        if self.is_retrigger:
+            return False
         if not any("errorsummary" in artifact for artifact in self.artifacts):
             logger.warning(
                 f"Skipping retriggers for task {self}: task has no errorsummary artifact."

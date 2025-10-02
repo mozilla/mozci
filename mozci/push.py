@@ -1440,9 +1440,9 @@ class Push:
             backfill=_map_failing_tasks(failures_to_be_backfilled),
         )
 
-    def identify_permanent_failures(self, queue_prefix="") -> None:
+    def identify_permanent_failures(self, retriggers_count=5, queue_prefix="") -> None:
         """
-        Retrigger failed test tasks 5 times to identify permanent failures.
+        Retrigger failed test tasks `retriggers_count` times to identify the permanent failures.
         Only tasks with a Task Queue ID starting by the given prefix will be retriggered and classified.
         """
         failures_to_retrigger = [
@@ -1454,18 +1454,19 @@ class Push:
                 and task.can_retrigger_test_failure()
             )
         ]
-        logger.info(
-            f"Detected {len(failures_to_retrigger)} test failures that can be retriggered to identify permanent failures"
-        )
         for failure in failures_to_retrigger:
-            """
-            Steps to be implemented:
-              1. Detect the number of similar tasks in the push to get the actual number of retriggers.
-              2. If there are less than 6 tasks, plan the remaining retriggers.
-              3. If all of the retriggers failed, mark as permanent.
-              4. If 2 retriggers are observed the same test failures as the initial task, mark as regression.
-              5. Else do nothing
-            """
+            # Detect the actual number of retriggers to plan new ones
+            retriggers = [
+                task
+                for task in self.tasks
+                if task.is_retrigger and task.label == failure.label
+            ]
+            to_retrigger = retriggers_count - len(retriggers)
+            if to_retrigger <= 0:
+                # TODO: Analyze the result of the retriggers to classify between backfills and permanent failures
+                continue
+            logger.info(f"Starting {to_retrigger} retriggers for task {failure.label}")
+            failure.retrigger(self, times=to_retrigger)
 
     def classify(
         self,

@@ -1440,6 +1440,34 @@ class Push:
             backfill=_map_failing_tasks(failures_to_be_backfilled),
         )
 
+    def identify_permanent_failures(self, retriggers_count=5, queue_prefix="") -> None:
+        """
+        Retrigger failed test tasks `retriggers_count` times to identify the permanent failures.
+        Only tasks with a Task Queue ID starting by the given prefix will be retriggered and classified.
+        """
+        failures_to_retrigger = [
+            task
+            for task in self.tasks
+            if (
+                task.queue_id
+                and task.queue_id.startswith(queue_prefix)
+                and task.can_retrigger_test_failure()
+            )
+        ]
+        for failure in failures_to_retrigger:
+            # Detect the actual number of retriggers to plan new ones
+            retriggers = [
+                task
+                for task in self.tasks
+                if task.is_retrigger and task.label == failure.label
+            ]
+            to_retrigger = retriggers_count - len(retriggers)
+            if to_retrigger <= 0:
+                # TODO: Analyze the result of the retriggers to classify between backfills and permanent failures
+                continue
+            logger.info(f"Starting {to_retrigger} retriggers for task {failure.label}")
+            failure.retrigger(self, times=to_retrigger)
+
     def classify(
         self,
         intermittent_confidence_threshold: float = 0.8,

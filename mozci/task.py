@@ -209,6 +209,7 @@ class Task:
     duration: Optional[int] = field(default=None)
     result: Optional[str] = field(default=None)
     state: Optional[str] = field(default=None)
+    queue_id: Optional[str] = field(default=None)
     classification: Optional[str] = field(default="not classified")
     classification_note: Optional[str] = field(default=None)
     tags: Dict = field(default_factory=dict)
@@ -429,6 +430,31 @@ class Task:
     def is_build_failure(self) -> bool:
         """Returns whether a build task has failed."""
         return self.job_kind == "build" and self.failed
+
+    def is_test_failure(self) -> bool:
+        return self.job_kind == "test" and self.failed
+
+    def can_retrigger_test_failure(self) -> bool:
+        """Only allow to retrigger test tasks in failure state, with tier 1 or 2.
+        Already classified tasks should not be retrigerred.
+        If there is no task artifact which contains errorsummary in its name or is incomplete, then the task
+        either hit an infrastructure issue or the test suite does not support failure summaries by errorsummary.
+        """
+        # TODO Use Task.is_confirmed_failure when it is ready
+        if not self.is_test_failure():
+            return False
+        if self.tier not in (1, 2):
+            return False
+        if self.classification != "not classified":
+            return False
+        if self.is_retrigger:
+            return False
+        if not any("errorsummary" in artifact for artifact in self.artifacts):
+            logger.warning(
+                f"Skipping retriggers for task {self}: task has no errorsummary artifact."
+            )
+            return False
+        return True
 
 
 @dataclass

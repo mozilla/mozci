@@ -408,7 +408,7 @@ class ClassifyCommand(BasePushCommand):
                 continue
 
             # Rettriger test failures to detect permanent ones, only on Linux cloud worker pool for now
-            push.identify__permanent_failures(queue_prefix="gecko-t/t-linux-")
+            push.identify_permanent_failures(queue_prefix="gecko-t/t-linux-")
 
             if self.option("show-intermittents"):
                 self.line("-" * 50)

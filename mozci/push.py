@@ -13,6 +13,7 @@ from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 from loguru import logger
 
 from mozci import config, data
+from mozci.data.sources.treeherder import JobUnavailable, TreeherderClientSource
 from mozci.errors import (
     ChildPushNotFound,
     MissingDataError,
@@ -1443,7 +1444,8 @@ class Push:
     def identify_permanent_failures(self, retriggers_count=5, queue_prefix="") -> None:
         """
         Retrigger failed test tasks `retriggers_count` times to identify the permanent failures.
-        Only tasks with a Task Queue ID starting by the given prefix will be retriggered and classified.
+        Only tasks with a Task Queue ID starting by the given prefix will be retriggered.
+        Failures that are not considered permanent are backfilled to identify the push which caused the regression.
         """
         failures_to_retrigger = [
             task
@@ -1487,11 +1489,74 @@ class Push:
                 )
 
             to_retrigger = retriggers_count - len(retriggers) - scheduled_retriggers
-            if to_retrigger <= 0:
-                # TODO: Analyze the result of the retriggers to classify between backfills and permanent failures
+            if to_retrigger <= 1:
+                if not scheduled_retriggers:
+                    # All tasks have been retriggered, check the results
+                    self.backfill_new_test_failure(failure, retriggers)
                 continue
             logger.info(f"Starting {to_retrigger} retriggers for task {failure.label}")
             failure.retrigger(self, times=to_retrigger)
+
+    def backfill_new_test_failure(self, failure: Task, retriggers: list[Task]) -> None:
+        """Analyze the result of the test retriggers to classify between backfills and permanent failures."""
+        if any(
+            retrigger.state in ("unscheduled", "pending", "running")
+            for retrigger in retriggers
+        ):
+            logger.warning(
+                f"Some retrigger did not finished for task {failure.label}, skipping."
+            )
+            return
+
+        # Ensure logs have been parsed in Treeherder for the original failure and all of its retriggers
+        treeherder_client = TreeherderClientSource()
+        try:
+            failure_job = treeherder_client.get_job_from_task(failure)
+            treeherder_client.check_logs_parsed(failure_job["id"], branch=self.branch)
+        except JobUnavailable:
+            return
+
+        # Rely on the bug_suggestions data from Treeherder to determine the number of similar failures among retriggers
+        bug_suggestions = treeherder_client.get_bug_suggestions(failure_job["id"])
+        terms = [
+            suggestions["search"]
+            for suggestions in bug_suggestions
+            if suggestions["search"].startswith("TEST-UNEXPECTED-")
+        ]
+        if not terms:
+            logger.warning(
+                f"No bug suggestion related to the failure {failure.label} could be fetched from Treeherder, skipping."
+            )
+            return
+
+        matching_retriggers = [
+            retrigger
+            for retrigger in retriggers
+            if (
+                retrigger.state == failure.state
+                and all(
+                    term
+                    in retrigger.get_artifact("public/logs/live.log").content.decode()
+                    for term in terms
+                )
+            )
+        ]
+        if not matching_retriggers:
+            logger.info(
+                f"No retrigger match the initial failure for {failure.label}, nothing to do."
+            )
+            return
+
+        if len(matching_retriggers) >= 2:
+            # >=50% of runs (initial + 2 out of 5 retriggers) is a frequent test failure and should be backfilled
+            logger.info(
+                f"Backfilling task {failure.label} as >= 50% of the runs caused the same failure."
+            )
+            failure.backfill(self)
+        else:
+            logger.warning(
+                f"Found {len(matching_retriggers)} retriggers that caused the same test failure than the original task."
+            )
 
     def classify(
         self,

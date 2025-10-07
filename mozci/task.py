@@ -443,6 +443,8 @@ class Task:
         # TODO Use Task.is_confirmed_failure when it is ready
         if not self.is_test_failure():
             return False
+        if self.tier not in (1, 2):
+            return False
         if self.classification != "not classified":
             return False
         if self.is_retrigger:

@@ -65,6 +65,16 @@ class TaskclusterSource(DataSource):
                 .get("test-setting", {})
                 .get("runtime", {}),
                 "queue_id": result["task"].get("taskQueueId"),
+                "action": {
+                    "name": result["task"].get("action", {}).get("name"),
+                    "requests": result["task"]
+                    .get("action", {})
+                    .get("context", {})
+                    .get("input", {})
+                    .get("requests"),
+                }
+                if result["task"].get("action")
+                else None,
             }
 
             treeherder = result["task"]["extra"].get("treeherder", {})

@@ -36,6 +36,19 @@ _contracts: Tuple[Contract, ...] = (
                     "platform": v.Str(nullable=True),
                     "variant": v.Dict(extra=(v.Str(), v.Bool())),
                     "queue_id": v.Str(nullable=True),
+                    "action": v.Dict(
+                        {
+                            "name": v.Str(),
+                            "requests": v.Dict(
+                                {
+                                    "tasks": v.List(v.Str()),
+                                    "times": v.Int(),
+                                },
+                                nullable=True,
+                            ),
+                        },
+                        nullable=True,
+                    ),
                     "state": v.Str(
                         options=[
                             "completed",

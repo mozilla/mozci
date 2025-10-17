@@ -1478,6 +1478,10 @@ class Push:
             scheduled_retriggers = sum(
                 t.action["requests"].get("times", 0) for t in retrigger_actions
             )
+            if scheduled_retriggers:
+                logger.info(
+                    f"{len(scheduled_retriggers)} retrigger actions have been detected for failure {failure.label}"
+                )
 
             to_retrigger = retriggers_count - len(retriggers) - scheduled_retriggers
             if to_retrigger <= 0:

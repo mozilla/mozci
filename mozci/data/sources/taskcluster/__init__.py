@@ -75,6 +75,7 @@ class TaskclusterSource(DataSource):
                 }
                 if result["task"].get("action")
                 else None,
+                "parent": result["task"].get("parent"),
             }
 
             treeherder = result["task"]["extra"].get("treeherder", {})

@@ -49,6 +49,7 @@ _contracts: Tuple[Contract, ...] = (
                         },
                         nullable=True,
                     ),
+                    "parent": v.Str(nullable=True),
                     "state": v.Str(
                         options=[
                             "completed",

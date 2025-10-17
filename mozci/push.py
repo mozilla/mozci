@@ -1463,12 +1463,15 @@ class Push:
             ]
             # Look for existing retrigger action among tasks for this failure
             retrigger_actions = [
-                t
-                for t in self.tasks
+                retrigger
+                for retrigger in self.tasks
                 if (
-                    t.action
-                    and t.action.get("name") == "retrigger-multiple"
-                    and failure.label in t.action.get("requests", {}).get("tasks", [])
+                    retrigger.action
+                    and retrigger.action.get("name") == "retrigger-multiple"
+                    and failure.label
+                    in retrigger.action.get("requests", {}).get("tasks", [])
+                    # Only count actions that did not really triggered a task yet
+                    and not any(task.parent == retrigger.id for task in self.tasks)
                 )
             ]
             # Count actions for which no task has been created yet

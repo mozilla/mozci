@@ -210,6 +210,8 @@ class Task:
     result: Optional[str] = field(default=None)
     state: Optional[str] = field(default=None)
     queue_id: Optional[str] = field(default=None)
+    action: Optional[Dict] = field(default=None)
+    parent: Optional[str] = field(default=None)
     classification: Optional[str] = field(default="not classified")
     classification_note: Optional[str] = field(default=None)
     tags: Dict = field(default_factory=dict)

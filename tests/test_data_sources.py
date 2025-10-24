@@ -46,6 +46,7 @@ class Responses:
                             "extra": {
                                 "treeherder": {"tier": 3, "jobKind": "test"},
                                 "suite": None,
+                                "parent": "root-task",
                             },
                         },
                         "status": {
@@ -54,7 +55,10 @@ class Responses:
                     },
                     {
                         "task": {
-                            "extra": {"treeherder": {}},
+                            "extra": {
+                                "treeherder": {},
+                                "parent": "root-task",
+                            },
                             "suite": None,
                         },
                         "status": {
@@ -63,7 +67,11 @@ class Responses:
                     },
                     {
                         "task": {
-                            "extra": {"treeherder": {}, "suite": None},
+                            "extra": {
+                                "treeherder": {},
+                                "suite": None,
+                                "parent": "root-task",
+                            },
                             "metadata": {
                                 "name": "ActionTask",
                             },
@@ -78,6 +86,7 @@ class Responses:
                             "extra": {
                                 "treeherder": {"tier": 3, "jobKind": "build"},
                                 "suite": "task",
+                                "parent": "root-task",
                             },
                             "metadata": {
                                 "name": "task-A",
@@ -94,6 +103,7 @@ class Responses:
                             "extra": {
                                 "treeherder": {"tier": 3},
                                 "suite": "task",
+                                "parent": "root-task",
                             },
                             "metadata": {
                                 "name": "task-B",
@@ -111,6 +121,7 @@ class Responses:
                             "extra": {
                                 "treeherder": {"tier": 3},
                                 "suite": "task",
+                                "parent": "root-task",
                             },
                             "metadata": {
                                 "name": "task-B-2",
@@ -128,6 +139,7 @@ class Responses:
                             "extra": {
                                 "treeherder": {"tier": 3},
                                 "suite": "task",
+                                "parent": "root-task",
                             },
                             "metadata": {
                                 "name": "task-C",
@@ -150,6 +162,7 @@ class Responses:
                             "extra": {
                                 "treeherder": {"tier": 3},
                                 "suite": "task",
+                                "parent": "root-task",
                             },
                             "metadata": {
                                 "name": "task-D",
@@ -171,6 +184,7 @@ class Responses:
                             "extra": {
                                 "treeherder": {"tier": 3, "jobKind": "build"},
                                 "suite": "task",
+                                "parent": "root-task",
                             },
                             "metadata": {
                                 "name": "task-E",
@@ -194,6 +208,7 @@ class Responses:
                             "extra": {
                                 "treeherder": {"tier": 3, "jobKind": "test"},
                                 "suite": "task",
+                                "parent": "root-task",
                             },
                             "metadata": {
                                 "name": "task-F",
@@ -352,6 +367,8 @@ class Responses:
                     "tags": {"name": "tag-A"},
                     "tier": 3,
                     "job_kind": "build",
+                    "action": None,
+                    "parent": "root-task",
                 },
                 {
                     "id": "task-id-B",
@@ -363,6 +380,8 @@ class Responses:
                     "state": "pending",
                     "tags": {},
                     "tier": 3,
+                    "action": None,
+                    "parent": "root-task",
                 },
                 {
                     "id": "task-id-B-2",
@@ -374,6 +393,8 @@ class Responses:
                     "state": "exception",
                     "tags": {},
                     "tier": 3,
+                    "action": None,
+                    "parent": "root-task",
                 },
                 {
                     "id": "task-id-C",
@@ -386,6 +407,8 @@ class Responses:
                     "state": "pending",
                     "tags": {"name": "tag-C"},
                     "tier": 3,
+                    "action": None,
+                    "parent": "root-task",
                 },
                 {
                     "id": "task-id-D",
@@ -397,6 +420,8 @@ class Responses:
                     "state": "running",
                     "tags": {},
                     "tier": 3,
+                    "action": None,
+                    "parent": "root-task",
                 },
                 {
                     "duration": 60000,
@@ -411,6 +436,8 @@ class Responses:
                     "tags": {},
                     "tier": 3,
                     "job_kind": "build",
+                    "action": None,
+                    "parent": "root-task",
                 },
                 {
                     "duration": 60000,
@@ -425,6 +452,8 @@ class Responses:
                     "tags": {},
                     "tier": 3,
                     "job_kind": "test",
+                    "action": None,
+                    "parent": "root-task",
                 },
             ],
             id="taskcluster.push_tasks",

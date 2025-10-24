@@ -1461,7 +1461,32 @@ class Push:
                 for task in self.tasks
                 if task.is_retrigger and task.label == failure.label
             ]
-            to_retrigger = retriggers_count - len(retriggers)
+            # Look for existing retrigger action among tasks for this failure
+            retrigger_actions = [
+                retrigger
+                for retrigger in self.tasks
+                if (
+                    retrigger.action
+                    and retrigger.action.get("name") == "retrigger-multiple"
+                    and failure.label
+                    in itertools.chain(
+                        request.get("tasks")
+                        for request in retrigger.action.get("requests", [])
+                    )
+                    # Only count actions that did not really triggered a task yet
+                    and not any(task.parent == retrigger.id for task in self.tasks)
+                )
+            ]
+            # Count actions for which no task has been created yet
+            scheduled_retriggers = sum(
+                t.action["requests"].get("times", 0) for t in retrigger_actions
+            )
+            if scheduled_retriggers:
+                logger.info(
+                    f"{len(scheduled_retriggers)} retrigger actions have been detected for failure {failure.label}"
+                )
+
+            to_retrigger = retriggers_count - len(retriggers) - scheduled_retriggers
             if to_retrigger <= 0:
                 # TODO: Analyze the result of the retriggers to classify between backfills and permanent failures
                 continue

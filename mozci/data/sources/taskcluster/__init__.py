@@ -50,10 +50,6 @@ class TaskclusterSource(DataSource):
             if result["status"]["taskId"] == decision_task_id:
                 continue
 
-            # Skip "Action" tasks.
-            if result["task"]["metadata"]["name"].startswith("Action"):
-                continue
-
             task = {
                 "id": result["status"]["taskId"],
                 "label": result["task"]["metadata"]["name"],
@@ -65,6 +61,17 @@ class TaskclusterSource(DataSource):
                 .get("test-setting", {})
                 .get("runtime", {}),
                 "queue_id": result["task"].get("taskQueueId"),
+                "action": {
+                    "name": result["task"]["extra"].get("action", {}).get("name"),
+                    "requests": result["task"]["extra"]
+                    .get("action", {})
+                    .get("context", {})
+                    .get("input", {})
+                    .get("requests"),
+                }
+                if result["task"]["extra"].get("action")
+                else None,
+                "parent": result["task"]["extra"].get("parent"),
             }
 
             treeherder = result["task"]["extra"].get("treeherder", {})

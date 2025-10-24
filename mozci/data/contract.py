@@ -39,11 +39,13 @@ _contracts: Tuple[Contract, ...] = (
                     "action": v.Dict(
                         {
                             "name": v.Str(),
-                            "requests": v.Dict(
-                                {
-                                    "tasks": v.List(v.Str()),
-                                    "times": v.Int(),
-                                },
+                            "requests": v.List(
+                                v.Dict(
+                                    {
+                                        "tasks": v.List(v.Str()),
+                                        "times": v.Int(),
+                                    },
+                                ),
                                 nullable=True,
                             ),
                         },
@@ -75,6 +77,7 @@ _contracts: Tuple[Contract, ...] = (
                     "job_kind": v.Str(),
                 },
                 optional=[
+                    "action",
                     "duration",
                     "result",
                     "tier",

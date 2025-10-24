@@ -1469,7 +1469,10 @@ class Push:
                     retrigger.action
                     and retrigger.action.get("name") == "retrigger-multiple"
                     and failure.label
-                    in retrigger.action.get("requests", {}).get("tasks", [])
+                    in itertools.chain(
+                        request.get("tasks")
+                        for request in retrigger.action.get("requests", [])
+                    )
                     # Only count actions that did not really triggered a task yet
                     and not any(task.parent == retrigger.id for task in self.tasks)
                 )

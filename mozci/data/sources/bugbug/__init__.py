@@ -8,7 +8,7 @@ from mozci.data.base import DataSource
 from mozci.errors import ContractNotFilled
 from mozci.util.req import get_session
 
-BUGBUG_BASE_URL = "https://bugbug.herokuapp.com"
+BUGBUG_BASE_URL = "https://bugbug.moz.tools/"
 DEFAULT_API_KEY = "mozci"
 DEFAULT_RETRY_TIMEOUT = 9 * 60  # seconds
 DEFAULT_RETRY_INTERVAL = 10  # seconds
@@ -47,7 +47,7 @@ def get_schedules(branch, rev):
 
 
 class BugbugSource(DataSource):
-    """Queries bugbug.herokuapp.com for schedules data about pushes."""
+    """Queries bugbug.moz.tools for schedules data about pushes."""
 
     name = "bugbug"
     supported_contracts = ("push_test_selection_data",)

@@ -1529,8 +1529,8 @@ class Push:
             )
             return
 
-        matching_retriggers = [
-            retrigger
+        matching_retriggers = sum(
+            1
             for retrigger in retriggers
             if (
                 retrigger.state == failure.state
@@ -1540,22 +1540,26 @@ class Push:
                     for term in terms
                 )
             )
-        ]
+        )
         if not matching_retriggers:
             logger.info(
-                f"No retrigger match the initial failure for {failure.label}, nothing to do."
+                f"Test failure {failure.label}: "
+                f"No retrigger match the initial failure, nothing to do."
             )
             return
 
-        if len(matching_retriggers) >= 2:
+        if matching_retriggers >= 2:
             # >=50% of runs (initial + 2 out of 5 retriggers) is a frequent test failure and should be backfilled
             logger.info(
-                f"Backfilling task {failure.label} as >= 50% of the runs caused the same failure."
+                f"Test failure {failure.label}: "
+                "Backfilling initial task as >= 50% of the runs caused the same failure "
+                f"({matching_retriggers + 1} out of {len(retriggers) + 1})."
             )
             failure.backfill(self)
         else:
             logger.warning(
-                f"Found {len(matching_retriggers)} retriggers that caused the same test failure than the original task."
+                f"Failure {failure.label}: "
+                f"found {matching_retriggers} retriggers that caused the same test failure than the original task."
             )
 
     def classify(

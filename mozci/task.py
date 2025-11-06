@@ -453,7 +453,7 @@ class Task:
             return False
         if not any("errorsummary" in artifact for artifact in self.artifacts):
             logger.warning(
-                f"Skipping retriggers for task {self}: task has no errorsummary artifact."
+                f"Skipping retriggers for task {self.label}: task has no errorsummary artifact."
             )
             return False
         return True

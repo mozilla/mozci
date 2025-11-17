@@ -1441,6 +1441,25 @@ class Push:
             backfill=_map_failing_tasks(failures_to_be_backfilled),
         )
 
+    def has_intermittent_bug(self, term: str, bugs: list[dict]) -> bool:
+        """
+        Identify whether an intermittent bug has be opened already based on a failure term, structured as below:
+        TEST-UNEXPECTED-FAIL | path/name.ext | subtest name and/or further information
+        """
+        values = term.split("|")
+        if len(values) != 3:
+            logger.warning(
+                f"Invalid failure term '{term}': considering the failure as new."
+            )
+            return False
+        _, full_path, info = values
+        # Consider that an intermittent bug exist for this issue based on its name + status
+        return any(
+            bug["status"] in ("NEW", "REOPENED")
+            and bug["summary"] == f"Intermittent {full_path} | single tracking bug"
+            for bug in bugs
+        )
+
     def identify_permanent_failures(self, retriggers_count=5, queue_prefix="") -> None:
         """
         Retrigger failed test tasks `retriggers_count` times to identify the permanent failures.
@@ -1518,15 +1537,24 @@ class Push:
 
         # Rely on the bug_suggestions data from Treeherder to determine the number of similar failures among retriggers
         bug_suggestions = treeherder_client.get_bug_suggestions(failure_job["id"])
-        terms = [
-            suggestions["search"]
+        terms = {
+            suggestions["search"]: suggestions["bugs"]["open_recent"]
             for suggestions in bug_suggestions
             if suggestions["search"].startswith("TEST-UNEXPECTED-")
-        ]
+        }
         if not terms:
             logger.warning(
                 f"No bug suggestion related to the failure {failure.label} could be fetched from Treeherder, skipping."
             )
+            return
+        # Filter out failures that already have an intermittent bug opened
+        terms = {
+            term: open_recent
+            for term, open_recent in terms.items()
+            if not self.has_intermittent_bug(term, open_recent)
+        }
+        if not terms:
+            logger.warning("All the failures already have a bug opened, skipping.")
             return
 
         matching_retriggers = sum(
@@ -1537,7 +1565,7 @@ class Push:
                 and all(
                     term
                     in retrigger.get_artifact("public/logs/live.log").content.decode()
-                    for term in terms
+                    for term in terms.keys()
                 )
             )
         )

@@ -1562,18 +1562,18 @@ class Push:
             logger.warning("All the failures already have a bug opened, skipping.")
             return
 
-        matching_retriggers = sum(
-            1
-            for retrigger in retriggers
-            if (
-                retrigger.state == failure.state
-                and all(
-                    term
-                    in retrigger.get_artifact("public/logs/live.log").content.decode()
-                    for term in terms.keys()
-                )
+        # Count the number of retriggers that have similar failure lines than the original failure
+        # We consider the retrigger a similar failure if we find at least min(3, failure_lines_count) lines in its logs
+        matching_retriggers = 0
+        for retrigger in retriggers:
+            lines_matches = sum(
+                1
+                for term in terms.keys()
+                if retrigger.get_artifact("public/logs/live.log").content.decode()
             )
-        )
+            if lines_matches >= min(3, len(terms)):
+                matching_retriggers += 1
+
         if not matching_retriggers:
             logger.info(
                 f"Test failure {failure.label}: "

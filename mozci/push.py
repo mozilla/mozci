@@ -1598,10 +1598,15 @@ class Push:
                 f"to have caused the same failure ({counter} out of {len(retriggers) + 1})."
             )
             failure.backfill(self, times=6)
-        else:
+        elif counter >= 2:
             logger.warning(
                 f"Failure {failure.label} ({failure.id}): "
                 f"found {counter} similar failure lines that seem to have caused the same failure."
+            )
+        else:
+            logger.info(
+                f"Failure {failure.label} ({failure.id}): "
+                "No similar failure lines were found among the retriggers, there is nothing to do."
             )
 
     def classify(

@@ -4,7 +4,7 @@ import copy
 import itertools
 import json
 import math
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
@@ -1530,76 +1530,78 @@ class Push:
             )
             return
 
-        # Ensure logs have been parsed in Treeherder for the original failure and all of its retriggers
+        # Aggregate all failure lines from the initial task and its retriggers, based on Treeherder logs parsing
         treeherder_client = TreeherderClientSource()
-        try:
-            failure_job = treeherder_client.get_job_from_task(failure)
-            treeherder_client.check_job_ready(failure_job["id"], branch=self.branch)
-        except JobUnavailable:
-            return
+        overall_failure_lines: list[str] = []
+        for task in [failure, *retriggers]:
+            try:
+                job = treeherder_client.get_job_from_task(task)
+                treeherder_client.check_job_ready(job["id"], branch=self.branch)
+            except JobUnavailable:
+                # Ensure all the logs have been parsed in Treeherder before continuing
+                return
 
-        # Rely on the bug_suggestions data from Treeherder to determine the number of similar failures among retriggers
-        bug_suggestions = treeherder_client.get_bug_suggestions(failure_job["id"])
-        terms = {
-            suggestions["search"]: suggestions["bugs"]["open_recent"]
-            for suggestions in bug_suggestions
-            if suggestions["search"].startswith("TEST-UNEXPECTED-")
-        }
-        if not terms:
-            logger.warning(
-                "No bug suggestion could be fetched from Treeherder for failed task "
-                f"{failure.label} ({failure.id}), skipping."
-            )
-            return
-        # Filter out failures that already have an intermittent bug opened
-        # to avoid backfills of known frequent intermittent failures.
-        terms = {
-            term: open_recent
-            for term, open_recent in terms.items()
-            if not self.has_intermittent_bug(term, open_recent)
-        }
-        if not terms:
-            logger.warning("All the failures already have a bug opened, skipping.")
-            return
+            # Rely on the bug_suggestions data from Treeherder to determine the number of similar failures among retriggers
+            bug_suggestions = treeherder_client.get_bug_suggestions(job["id"])
+            if not bug_suggestions:
+                continue
+            terms = {
+                suggestions["search"]: suggestions["bugs"]["open_recent"]
+                for suggestions in bug_suggestions
+                if suggestions["search"].startswith("TEST-UNEXPECTED-")
+            }
+            if not terms:
+                logger.debug(
+                    f"No bug suggestion could be fetched from Treeherder for job {job['id']})."
+                )
+                continue
 
-        # Count the number of retriggers that have similar failure lines than the original failure
-        # We consider the retrigger a similar failure if we find at least min(3, failure_lines_count) lines in its logs
-        matching_retriggers = 0
-        for retrigger in retriggers:
-            lines_matches = sum(
-                1
-                for term in terms.keys()
-                if retrigger.get_artifact("public/logs/live.log").content.decode()
-            )
-            if lines_matches >= min(3, len(terms)):
-                matching_retriggers += 1
+            # Filter out failures that already have an intermittent bug opened
+            # to avoid backfills of known frequent intermittent failures.
+            terms = {
+                term: open_recent
+                for term, open_recent in terms.items()
+                if not self.has_intermittent_bug(term, open_recent)
+            }
+            if not terms:
+                logger.debug("All the failures already have a bug opened, skipping.")
+                continue
+            overall_failure_lines.extend(set(terms))
 
-        if not matching_retriggers:
+        # Analyze the most common failure lines across the initial task and the retriggers
+        most_common_failure = Counter(overall_failure_lines).most_common(1)
+        if not most_common_failure:
             logger.info(
                 f"Test failure {failure.label}: "
                 f"No retrigger match the initial failure, nothing to do."
             )
             return
 
-        if matching_retriggers == len(retriggers):
+        value, counter = most_common_failure[0]
+        logger.info(
+            f"The most common failure line '{value}' has been observed {counter} "
+            "times among initial task and its retriggers"
+        )
+        if counter >= 6:
             # All of the tasks failed with similar failure lines, backfill with one task per push
             logger.info(
                 f"Test failure {failure.label} ({failure.id}): "
-                "Backfilling as permanent because all of retriggers caused the same failure."
+                "Backfilling the initial task as permanent, because all of retriggers seem "
+                "to have caused the same failure."
             )
             failure.backfill(self, times=1)
-        if matching_retriggers >= 2:
+        elif counter >= 3:
             # >=50% tasks failed (initial + 2 out of 5 retriggers), backfill with 6 tasks per push
             logger.info(
                 f"Test failure {failure.label} ({failure.id}): "
-                "Backfilling initial task as >= 50% of the runs caused the same failure "
-                f"({matching_retriggers + 1} out of {len(retriggers) + 1})."
+                "Backfilling the initial task as intermittent, because >= 50% of the tasks seem "
+                f"to have caused the same failure ({counter} out of {len(retriggers) + 1})."
             )
             failure.backfill(self, times=6)
         else:
             logger.warning(
                 f"Failure {failure.label} ({failure.id}): "
-                f"found {matching_retriggers} retriggers that caused the same test failure than the original task."
+                f"found {counter} similar failure lines that seem to have caused the same failure."
             )
 
     def classify(

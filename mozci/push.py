@@ -1581,17 +1581,24 @@ class Push:
             )
             return
 
-        if matching_retriggers >= 2:
-            # >=50% of runs (initial + 2 out of 5 retriggers) is a frequent test failure and should be backfilled
+        if matching_retriggers == len(retriggers):
+            # All of the tasks failed with similar failure lines, backfill with one task per push
             logger.info(
-                f"Test failure {failure.label}: "
+                f"Test failure {failure.label} ({failure.id}): "
+                "Backfilling as permanent because all of retriggers caused the same failure."
+            )
+            failure.backfill(self, times=1)
+        if matching_retriggers >= 2:
+            # >=50% tasks failed (initial + 2 out of 5 retriggers), backfill with 6 tasks per push
+            logger.info(
+                f"Test failure {failure.label} ({failure.id}): "
                 "Backfilling initial task as >= 50% of the runs caused the same failure "
                 f"({matching_retriggers + 1} out of {len(retriggers) + 1})."
             )
-            failure.backfill(self)
+            failure.backfill(self, times=6)
         else:
             logger.warning(
-                f"Failure {failure.label}: "
+                f"Failure {failure.label} ({failure.id}): "
                 f"found {matching_retriggers} retriggers that caused the same test failure than the original task."
             )
 

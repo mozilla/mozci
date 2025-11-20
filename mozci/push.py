@@ -1453,10 +1453,10 @@ class Push:
             )
             return False
         _, full_path, info = values
-        # Consider that an intermittent bug exist for this issue based on its name + status
+        # Consider that an intermittent bug exist for this issue based on its path + status
         return any(
             bug["status"] in ("NEW", "REOPENED")
-            and bug["summary"] == f"Intermittent {full_path} | single tracking bug"
+            and bug["summary"].endswith(f"{full_path} | single tracking bug")
             for bug in bugs
         )
 
@@ -1504,16 +1504,19 @@ class Push:
             )
             if scheduled_retriggers:
                 logger.info(
-                    f"{len(scheduled_retriggers)} retrigger actions have been detected for failure {failure.label}"
+                    f"{len(scheduled_retriggers)} retrigger actions have been detected "
+                    f"for failure {failure.label} ({failure.id})"
                 )
 
             to_retrigger = retriggers_count - len(retriggers) - scheduled_retriggers
-            if to_retrigger <= 1:
+            if to_retrigger <= 0:
                 if not scheduled_retriggers:
                     # All tasks have been retriggered, check the results
                     self.backfill_new_test_failure(failure, retriggers)
                 continue
-            logger.info(f"Starting {to_retrigger} retriggers for task {failure.label}")
+            logger.info(
+                f"Starting {to_retrigger} retriggers for task {failure.label} ({failure.id})"
+            )
             failure.retrigger(self, times=to_retrigger)
 
     def backfill_new_test_failure(self, failure: Task, retriggers: list[Task]) -> None:
@@ -1523,7 +1526,7 @@ class Push:
             for retrigger in retriggers
         ):
             logger.warning(
-                f"Some retrigger did not finished for task {failure.label}, skipping."
+                f"Some retrigger did not finished for task {failure.label} ({failure.id}), skipping."
             )
             return
 
@@ -1544,10 +1547,12 @@ class Push:
         }
         if not terms:
             logger.warning(
-                f"No bug suggestion related to the failure {failure.label} could be fetched from Treeherder, skipping."
+                "No bug suggestion could be fetched from Treeherder for failed task "
+                f"{failure.label} ({failure.id}), skipping."
             )
             return
         # Filter out failures that already have an intermittent bug opened
+        # to avoid backfills of known frequent intermittent failures.
         terms = {
             term: open_recent
             for term, open_recent in terms.items()

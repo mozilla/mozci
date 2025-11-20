@@ -19,7 +19,6 @@ from loguru import logger
 
 from mozci import config, data
 from mozci.errors import ArtifactNotFound, TaskNotFound
-from mozci.push import Push
 from mozci.util.defs import INTERMITTENT_CLASSES
 from mozci.util.memoize import memoize, memoized_property
 from mozci.util.taskcluster import (
@@ -407,7 +406,7 @@ class Task:
         )
         return self._trigger_action(retrigger_action, hook_payload)
 
-    def backfill(self, push: Push, times: int | None = None):
+    def backfill(self, push, times: int | None = None):
         """
         This function implements ability to perform backfills on tasks.
         The number of task per push for the backfill can be set with the `times` argument.

@@ -117,13 +117,19 @@ class TreeherderClientSource(BaseTreeherderSource):
             )
         return {key: value for key, value in zip(data["job_property_names"], job)}
 
-    def check_logs_parsed(self, job_id: int, branch: str = "autoland") -> None:
-        """Check if the logs of a specific job have been parsed already.
-        Raises JobUnavailable in case no job log are found or are in state "pending", "failed" or "skipped_size".
+    def check_job_ready(self, job_id: int, branch: str = "autoland") -> None:
+        """Check if a specific job has been processed in Treeherder already.
+        Raises JobUnavailable in case no job log are found or some are still in a pending state.
         """
         data = self._run_query(f"/project/{branch}/job-log-url/?job_id={job_id}")
-        if not data or any(
-            job_log_url.get("parse_status") != "parsed" for job_log_url in data
+        if (
+            not data
+            or any(job_log_url.get("parse_status") == "pending" for job_log_url in data)
+            or not all(
+                # Job logs can have final state "parsed", "failed" or "skipped_size"
+                job_log_url.get("parse_status") != "pending"
+                for job_log_url in data
+            )
         ):
             raise JobUnavailable
 

@@ -1534,7 +1534,7 @@ class Push:
         treeherder_client = TreeherderClientSource()
         try:
             failure_job = treeherder_client.get_job_from_task(failure)
-            treeherder_client.check_job_ready(failure_job["id"], branch=self.branch)
+            treeherder_client.check_logs_parsed(failure_job["id"], branch=self.branch)
         except JobUnavailable:
             return
 

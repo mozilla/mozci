@@ -1552,7 +1552,7 @@ class Push:
             }
             if not terms:
                 logger.debug(
-                    f"No bug suggestion could be fetched from Treeherder for job {job['id']})."
+                    f"No failure line in standard format with TEST-UNEXPECTED- found for job {job['id']}"
                 )
                 continue
 

@@ -124,12 +124,8 @@ class TreeherderClientSource(BaseTreeherderSource):
         data = self._run_query(f"/project/{branch}/job-log-url/?job_id={job_id}")
         if (
             not data
+            # Job logs can have final state "parsed", "failed" or "skipped_size"
             or any(job_log_url.get("parse_status") == "pending" for job_log_url in data)
-            or not all(
-                # Job logs can have final state "parsed", "failed" or "skipped_size"
-                job_log_url.get("parse_status") != "pending"
-                for job_log_url in data
-            )
         ):
             raise JobUnavailable
 

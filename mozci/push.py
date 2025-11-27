@@ -1550,7 +1550,14 @@ class Push:
                 for suggestions in bug_suggestions
                 if suggestions["search"].startswith("TEST-UNEXPECTED-")
             }
-            if not terms:
+            if not terms and task == failure:
+                # The initial failure should return at least 1 valid error line to continue with the analysis
+                logger.warning(
+                    "No failure line in standard format with TEST-UNEXPECTED- found for initial task "
+                    f"{failure.label} ({failure.id}) in the corresponding Treeherder job {job['id']}, skipping."
+                )
+                return
+            elif not terms:
                 logger.debug(
                     f"No failure line in standard format with TEST-UNEXPECTED- found for job {job['id']}"
                 )
@@ -1570,12 +1577,6 @@ class Push:
 
         # Analyze the most common failure lines across the initial task and the retriggers
         most_common_failure = Counter(overall_failure_lines).most_common(1)
-        if not most_common_failure:
-            logger.info(
-                f"Test failure {failure.label}: "
-                f"No retrigger match the initial failure, nothing to do."
-            )
-            return
 
         value, counter = most_common_failure[0]
         logger.info(

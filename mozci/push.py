@@ -4,7 +4,7 @@ import copy
 import itertools
 import json
 import math
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
@@ -13,6 +13,7 @@ from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 from loguru import logger
 
 from mozci import config, data
+from mozci.data.sources.treeherder import JobUnavailable, TreeherderClientSource
 from mozci.errors import (
     ChildPushNotFound,
     MissingDataError,
@@ -1440,10 +1441,30 @@ class Push:
             backfill=_map_failing_tasks(failures_to_be_backfilled),
         )
 
+    def has_intermittent_bug(self, term: str, bugs: list[dict]) -> bool:
+        """
+        Identify whether an intermittent bug has be opened already based on a failure term, structured as below:
+        TEST-UNEXPECTED-FAIL | path/name.ext | subtest name and/or further information
+        """
+        values = term.split("|")
+        if len(values) != 3:
+            logger.warning(
+                f"Invalid failure term '{term}': considering the failure as new."
+            )
+            return False
+        _, full_path, info = values
+        # Consider that an intermittent bug exist for this issue based on its path + status
+        return any(
+            bug["status"] in ("NEW", "REOPENED")
+            and bug["summary"].endswith(f"{full_path} | single tracking bug")
+            for bug in bugs
+        )
+
     def identify_permanent_failures(self, retriggers_count=5, queue_prefix="") -> None:
         """
         Retrigger failed test tasks `retriggers_count` times to identify the permanent failures.
-        Only tasks with a Task Queue ID starting by the given prefix will be retriggered and classified.
+        Only tasks with a Task Queue ID starting by the given prefix will be retriggered.
+        Failures that are not considered permanent are backfilled to identify the push which caused the regression.
         """
         failures_to_retrigger = [
             task
@@ -1483,15 +1504,111 @@ class Push:
             )
             if scheduled_retriggers:
                 logger.info(
-                    f"{len(scheduled_retriggers)} retrigger actions have been detected for failure {failure.label}"
+                    f"{len(scheduled_retriggers)} retrigger actions have been detected "
+                    f"for failure {failure.label} ({failure.id})"
                 )
 
             to_retrigger = retriggers_count - len(retriggers) - scheduled_retriggers
             if to_retrigger <= 0:
-                # TODO: Analyze the result of the retriggers to classify between backfills and permanent failures
+                if not scheduled_retriggers:
+                    # All tasks have been retriggered, check the results
+                    self.backfill_new_test_failure(failure, retriggers)
                 continue
-            logger.info(f"Starting {to_retrigger} retriggers for task {failure.label}")
+            logger.info(
+                f"Starting {to_retrigger} retriggers for task {failure.label} ({failure.id})"
+            )
             failure.retrigger(self, times=to_retrigger)
+
+    def backfill_new_test_failure(self, failure: Task, retriggers: list[Task]) -> None:
+        """Analyze the result of the test retriggers to classify between backfills and permanent failures."""
+        if any(
+            retrigger.state in ("unscheduled", "pending", "running")
+            for retrigger in retriggers
+        ):
+            logger.warning(
+                f"Some retrigger did not finished for task {failure.label} ({failure.id}), skipping."
+            )
+            return
+
+        # Aggregate all failure lines from the initial task and its retriggers, based on Treeherder logs parsing
+        treeherder_client = TreeherderClientSource()
+        overall_failure_lines: list[str] = []
+        for task in [failure, *retriggers]:
+            try:
+                job = treeherder_client.get_job_from_task(task)
+                treeherder_client.check_job_ready(job["id"], branch=self.branch)
+            except JobUnavailable:
+                # Ensure all the logs have been parsed in Treeherder before continuing
+                return
+
+            # Rely on the bug_suggestions data from Treeherder to determine the number of similar failures among retriggers
+            bug_suggestions = treeherder_client.get_bug_suggestions(job["id"])
+            if not bug_suggestions:
+                continue
+            terms = {
+                suggestions["search"]: suggestions["bugs"]["open_recent"]
+                for suggestions in bug_suggestions
+                if suggestions["search"].startswith("TEST-UNEXPECTED-")
+            }
+            if not terms and task == failure:
+                # The initial failure should return at least 1 valid error line to continue with the analysis
+                logger.warning(
+                    "No failure line in standard format with TEST-UNEXPECTED- found for initial task "
+                    f"{failure.label} ({failure.id}) in the corresponding Treeherder job {job['id']}, skipping."
+                )
+                return
+            elif not terms:
+                logger.debug(
+                    f"No failure line in standard format with TEST-UNEXPECTED- found for job {job['id']}"
+                )
+                continue
+
+            # Filter out failures that already have an intermittent bug opened
+            # to avoid backfills of known frequent intermittent failures.
+            terms = {
+                term: open_recent
+                for term, open_recent in terms.items()
+                if not self.has_intermittent_bug(term, open_recent)
+            }
+            if not terms:
+                logger.debug("All the failures already have a bug opened, skipping.")
+                continue
+            overall_failure_lines.extend(set(terms))
+
+        # Analyze the most common failure lines across the initial task and the retriggers
+        most_common_failure = Counter(overall_failure_lines).most_common(1)
+
+        value, counter = most_common_failure[0]
+        logger.info(
+            f"The most common failure line '{value}' has been observed {counter} "
+            "times among initial task and its retriggers"
+        )
+        if counter >= 6:
+            # All of the tasks failed with similar failure lines, backfill with one task per push
+            logger.info(
+                f"Test failure {failure.label} ({failure.id}): "
+                "Backfilling the initial task as permanent, because all of retriggers seem "
+                "to have caused the same failure."
+            )
+            failure.backfill(self, times=1)
+        elif counter >= 3:
+            # >=50% tasks failed (initial + 2 out of 5 retriggers), backfill with 6 tasks per push
+            logger.info(
+                f"Test failure {failure.label} ({failure.id}): "
+                "Backfilling the initial task as intermittent, because >= 50% of the tasks seem "
+                f"to have caused the same failure ({counter} out of {len(retriggers) + 1})."
+            )
+            failure.backfill(self, times=6)
+        elif counter >= 2:
+            logger.warning(
+                f"Failure {failure.label} ({failure.id}): "
+                f"found {counter} similar failure lines that seem to have caused the same failure."
+            )
+        else:
+            logger.info(
+                f"Failure {failure.label} ({failure.id}): "
+                "No similar failure lines were found among the retriggers, there is nothing to do."
+            )
 
     def classify(
         self,

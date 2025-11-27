@@ -406,18 +406,30 @@ class Task:
         )
         return self._trigger_action(retrigger_action, hook_payload)
 
-    def backfill(self, push):
-        """This function implements ability to perform backfills on tasks"""
+    def backfill(self, push, times: int | None = None):
+        """
+        This function implements ability to perform backfills on tasks.
+        The number of task per push for the backfill can be set with the `times` argument.
+        If unset, it is automatically detected depending on the classification of the task.
+        """
         decision_task = push.decision_task
         backfill_action = self._get_action(decision_task, "backfill")
 
+        if times is None:
+            if (
+                self.classification in ("not classified", "new failure not classified")
+                or self.classification in INTERMITTENT_CLASSES
+            ):
+                times = 5
+            else:
+                times = 1
         hook_payload = jsone.render(
             backfill_action["hookPayload"],
             context={
                 "taskId": self.id,
                 "taskGroupId": decision_task.id,
                 "input": {
-                    "times": 5
+                    "times": times
                     if self.classification
                     in ("not classified", "new failure not classified")
                     or self.classification in INTERMITTENT_CLASSES
@@ -453,7 +465,7 @@ class Task:
             return False
         if not any("errorsummary" in artifact for artifact in self.artifacts):
             logger.warning(
-                f"Skipping retriggers for task {self}: task has no errorsummary artifact."
+                f"Skipping retriggers for task {self.label}: task has no errorsummary artifact."
             )
             return False
         return True

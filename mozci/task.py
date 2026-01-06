@@ -461,6 +461,9 @@ class Task:
             return False
         if self.classification != "not classified":
             return False
+        # Ignore backfills and retriggers, as only the initial failure should be triggered to avoid a loop.
+        if self.is_backfill:
+            return False
         if self.is_retrigger:
             return False
         if not any("errorsummary" in artifact for artifact in self.artifacts):

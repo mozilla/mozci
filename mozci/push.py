@@ -1509,12 +1509,11 @@ class Push:
                 )
 
             to_retrigger = retriggers_count - len(retriggers) - scheduled_retriggers
-            # Temporarily disabled for two many backfills.
-            # if to_retrigger <= 0:
-            #     if not scheduled_retriggers:
-            #         # All tasks have been retriggered, check the results
-            #         self.backfill_new_test_failure(failure, retriggers)
-            #     continue
+            if to_retrigger <= 0:
+                if not scheduled_retriggers:
+                    # All tasks have been retriggered, check the results
+                    self.backfill_new_test_failure(failure, retriggers)
+                continue
             logger.info(
                 f"Starting {to_retrigger} retriggers for task {failure.label} ({failure.id})"
             )

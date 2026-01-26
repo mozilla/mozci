@@ -809,14 +809,14 @@ files = [
 
 [[package]]
 name = "json-e"
-version = "4.8.0"
+version = "4.8.1"
 description = "A data-structure parameterization system written for embedding context in JSON objects"
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "json-e-4.8.0.tar.gz", hash = "sha256:91a50ba4e1a9e6d40c36c0601d68acda9ae44ca2817525e09938b2c82ce23572"},
-    {file = "json_e-4.8.0-py3-none-any.whl", hash = "sha256:51ead93962912d701c6f1a6a0b27cc34bb2cb8397a82affd8adb2401898e27ea"},
+    {file = "json_e-4.8.1-py3-none-any.whl", hash = "sha256:0a642ea7c80ac8689d795054b65e9140c85e8ba57952b383b6c5fdda7e3056d7"},
+    {file = "json_e-4.8.1.tar.gz", hash = "sha256:b734766ff00f8aa0ab1f2ea6d70893564b7caa44d7fb3e53a955fede0f6c7c32"},
 ]
 
 [package.extras]
@@ -2208,4 +2208,4 @@ cache-seeded-file = ["zstandard"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.7,<4"
-content-hash = "ea824445a22dee7deb084e89674b2b8d215dc014227580da75fe7e02ba58ea7c"
+content-hash = "474def1a278e0f9f4bc9d99eb2b6fb1203b7ac04e261e8c5ea801a48f52bfaf4"

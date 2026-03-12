@@ -1844,15 +1844,14 @@ test = ["aiofiles", "coverage", "flake8", "httmock", "httptest", "hypothesis", "
 
 [[package]]
 name = "taskcluster-urls"
-version = "13.0.1"
+version = "13.0.2"
 description = "Standardized url generator for taskcluster resources."
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "taskcluster-urls-13.0.1.tar.gz", hash = "sha256:b25e122ecec249c4299ac7b20b08db76e3e2025bdaeb699a9d444556de5fd367"},
-    {file = "taskcluster_urls-13.0.1-py2-none-any.whl", hash = "sha256:5e25e7e6818e8877178b175ff43d2e6548afad72694aa125f404a7329ece0973"},
-    {file = "taskcluster_urls-13.0.1-py3-none-any.whl", hash = "sha256:f66dcbd6572a6216ab65949f0fa0b91f2df647918028436c384e6af5cd12ae2b"},
+    {file = "taskcluster_urls-13.0.2-py3-none-any.whl", hash = "sha256:667218846d03dff7b307ad9f1e95eec19b09edb6c509cd844096ac3aac1744b2"},
+    {file = "taskcluster_urls-13.0.2.tar.gz", hash = "sha256:e20581c67199360b89cf86015423f6dad2051464be0d4b2c3f7df32dc3a2fa6e"},
 ]
 
 [[package]]

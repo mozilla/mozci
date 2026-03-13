@@ -1426,8 +1426,10 @@ class Push:
 
         # Sorting groups to be backfilled, first ones will be groups present in groups_consistent_failure with a high confidence
         failures_to_be_backfilled.sort(
-            key=lambda group: int(group in groups_consistent_failure)
-            + bugbug_selection["groups"].get(group, 0)
+            key=lambda group: (
+                int(group in groups_consistent_failure)
+                + bugbug_selection["groups"].get(group, 0)
+            )
         )
         failures_to_be_backfilled.reverse()
 
@@ -1833,7 +1835,7 @@ def make_summary_objects(from_date, to_date, branch, type):
     summaries = globals()[func](tasks)
 
     # Sort by either the label (LabelSummary) or name (GroupSummary).
-    summaries.sort(key=lambda x: (getattr(x, "label", "name")))
+    summaries.sort(key=lambda x: getattr(x, "label", "name"))
     return summaries
 
 

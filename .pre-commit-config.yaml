@@ -47,6 +47,12 @@ repos:
           - types-PyYAML==5.4.0
           - types-requests==0.1.11
           - types-tabulate==0.8.3
+  - repo: https://github.com/python-poetry/poetry
+    rev: "2.3.2"
+    hooks:
+      - id: poetry-check
+      - id: poetry-lock
+      - id: poetry-install
   - repo: meta
     hooks:
       - id: check-useless-excludes

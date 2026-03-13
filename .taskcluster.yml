@@ -44,8 +44,10 @@ tasks:
           - "git clone --quiet ${repository} &&
             cd mozci &&
             git -c advice.detachedHead=false checkout ${head_rev} &&
-            pip install --quiet tox==4.24.2 &&
-            tox"
+            pip install --quiet poetry==2.3.2 &&
+            poetry install -vv --no-ansi -E cache &&
+            poetry run pytest -vv tests/ &&
+            poetry run pre-commit run --all-files --show-diff-on-failure"
       metadata:
         name: mozci linting and tests
         description: mozci linting and tests

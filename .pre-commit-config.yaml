@@ -51,7 +51,6 @@ repos:
     rev: "2.3.2"
     hooks:
       - id: poetry-check
-      - id: poetry-lock
       - id: poetry-install
   - repo: meta
     hooks:

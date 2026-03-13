@@ -11,7 +11,7 @@ authors = [
 mozci = 'mozci.console.application:cli'
 
 [tool.poetry.dependencies]
-python = ">=3.7,<4"
+python = ">=3.10,<4"
 taskcluster_urls = "~13"
 appdirs = "~1"
 loguru = "~0"
@@ -35,7 +35,7 @@ markdown2 = "^2.4.2"
 json-e = "^4.8.2"
 
 [tool.poetry.dev-dependencies]
-pre-commit = "^2.20"
+pre-commit = "^4.5"
 pytest = "^7.4"
 responses = "^0.20"
 sphinx = "^5.3.0"

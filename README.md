@@ -41,23 +41,7 @@ $ poetry install
 This will create a virtualenv and install both project and dev dependencies in it. See the [poetry
 documentation](https://python-poetry.org/docs/) to learn how to work within the project.
 
-To execute tests and linters, run:
-
-```bash
-$ tox
-```
-
-This should run successfully prior to submitting PRs (unless you need help figuring out the
-problem).
-
-There are also some integration tests that will hit live data sources. These are run in a cron task
-and are excluded from the default test run. But if needed, you can run them locally via:
-
-```bash
-$ tox -e integration
-```
-
-Since `tox` installs packages on every invocation, it's much faster to run tests directly with `pytest`:
+To execute tests, run:
 
 ```bash
 $ poetry run pytest tests
@@ -68,6 +52,13 @@ or
 ```bash
 $ poetry shell
 $ pytest tests
+```
+
+There are also some integration tests that hit live data sources. They are excluded from the
+default test run. If needed, you can run them locally via:
+
+```bash
+$ poetry run pytest -vv tests/test_integration.py
 ```
 
 Additionally, you can install the `pre-commit` hooks by running:

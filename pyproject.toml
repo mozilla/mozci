@@ -31,7 +31,7 @@ ValidX = "^0.8"
 cleo = "^2.0.1"
 tabulate = "^0.10.0"
 arrow = "^1.4.0"
-markdown2 = "^2.4.2"
+markdown2 = "^2.5.5"
 json-e = "^4.8.2"
 
 [tool.poetry.dev-dependencies]

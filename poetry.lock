@@ -1597,27 +1597,24 @@ widechars = ["wcwidth"]
 
 [[package]]
 name = "taskcluster"
-version = "91.0.1"
+version = "97.1.0"
 description = "Python client for Taskcluster"
 optional = false
-python-versions = "*"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "taskcluster-91.0.1-py3-none-any.whl", hash = "sha256:5c374e03e3c4e80e45dec2583b51f08834c31fceba4c888b4d3f93d8a1988c60"},
-    {file = "taskcluster-91.0.1.tar.gz", hash = "sha256:212b3e1492620a0d81aa11696d1033f36c713e45cba3603a0244a2a2f983f654"},
+    {file = "taskcluster-97.1.0-py3-none-any.whl", hash = "sha256:68de91150c492b22ac53cd2b27ebc2b6164a0dfb91f3e8e39bf564dcd6c1da69"},
+    {file = "taskcluster-97.1.0.tar.gz", hash = "sha256:2b8b6ccb50201a96c63e3f8e05187e0d574df282793102ad094f3e5891ffdd27"},
 ]
 
 [package.dependencies]
 aiohttp = ">=3.7.4"
-async_timeout = ">=2.0.0"
+async-timeout = ">=2.0.0"
 mohawk = ">=0.3.4"
 python-dateutil = ">=2.8.2"
 requests = ">=2.4.3"
 slugid = ">=2"
 taskcluster-urls = ">=12.1.0"
-
-[package.extras]
-test = ["aiofiles", "coverage", "flake8", "httmock", "httptest", "hypothesis", "mock", "psutil", "pytest", "pytest-asyncio", "pytest-cov", "pytest-mock", "setuptools-lint", "tox"]
 
 [[package]]
 name = "taskcluster-urls"

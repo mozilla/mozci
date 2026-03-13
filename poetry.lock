@@ -1711,14 +1711,14 @@ files = [
 
 [[package]]
 name = "tomlkit"
-version = "0.12.5"
+version = "0.14.0"
 description = "Style preserving TOML library"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "tomlkit-0.12.5-py3-none-any.whl", hash = "sha256:af914f5a9c59ed9d0762c7b64d3b5d5df007448eb9cd2edc8a46b1eafead172f"},
-    {file = "tomlkit-0.12.5.tar.gz", hash = "sha256:eef34fba39834d4d6b73c9ba7f3e4d1c417a4e56f89a7e96e090dd0d24b8fb3c"},
+    {file = "tomlkit-0.14.0-py3-none-any.whl", hash = "sha256:592064ed85b40fa213469f81ac584f67a4f2992509a7c3ea2d632208623a3680"},
+    {file = "tomlkit-0.14.0.tar.gz", hash = "sha256:cf00efca415dbd57575befb1f6634c4f42d2d87dbba376128adb42c121b87064"},
 ]
 
 [[package]]

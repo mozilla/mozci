@@ -24,7 +24,7 @@ redis = {version = ">=3,<8", optional = true}
 requests = "~2"
 pyyaml = ">=5,<7"
 taskcluster = ">=38"
-lru-dict = "^1.1.7"
+lru-dict = "^1.4.1"
 
 # Optional dependencies
 ValidX = "^0.8"

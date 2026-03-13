@@ -119,18 +119,18 @@ class CheckBackfillsCommand(Command):
                     )
                     status = child_task.get("status", {})
                     if task_action == "backfill-task" and th_symbol.endswith("-bk"):
-                        assert status.get(
-                            "taskId"
-                        ), "Missing taskId attribute in backfill task status"
+                        assert status.get("taskId"), (
+                            "Missing taskId attribute in backfill task status"
+                        )
                         label = task_section.get("tags", {}).get(
                             "label"
                         ) or task_section.get("metadata", {}).get("name")
-                        assert (
-                            label
-                        ), "Missing label attribute in backfill task tags or name attribute in backfill task metadata"
-                        assert status.get(
-                            "state"
-                        ), "Missing state attribute in backfill task status"
+                        assert label, (
+                            "Missing label attribute in backfill task tags or name attribute in backfill task metadata"
+                        )
+                        assert status.get("state"), (
+                            "Missing state attribute in backfill task status"
+                        )
                         backfill_tasks.append(
                             BackfillTask(
                                 status["taskId"], label, th_symbol, status["state"]

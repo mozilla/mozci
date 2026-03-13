@@ -914,11 +914,10 @@ def test_iterate_children(responses):
 
     responses.add(
         responses.GET,
-        f"https://hg.mozilla.org/{branch}/json-pushes?version=2&full=1&startID={push_id}&endID={push_id+depth+1}",
+        f"https://hg.mozilla.org/{branch}/json-pushes?version=2&full=1&startID={push_id}&endID={push_id + depth + 1}",
         json={
             "pushes": {
-                push_id
-                + i: {
+                push_id + i: {
                     "changesets": [
                         {
                             "node": chr(ord("a") + i) * 40,
@@ -959,11 +958,10 @@ def test_iterate_parents(responses):
 
     responses.add(
         responses.GET,
-        f"https://hg.mozilla.org/{branch}/json-pushes?version=2&full=1&startID={push_id-2-depth}&endID={push_id-1}",
+        f"https://hg.mozilla.org/{branch}/json-pushes?version=2&full=1&startID={push_id - 2 - depth}&endID={push_id - 1}",
         json={
             "pushes": {
-                push_id
-                - i: {
+                push_id - i: {
                     "changesets": [
                         {
                             "node": chr(ord("a") + i) * 40,

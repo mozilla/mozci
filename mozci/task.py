@@ -128,9 +128,9 @@ def wpt_workaround(group: str) -> str:
         return group
 
     if group.startswith(":"):
-        assert group.startswith(
-            ":/"
-        ), f"Group {group} starts with : but doesn't start with :/"
+        assert group.startswith(":/"), (
+            f"Group {group} starts with : but doesn't start with :/"
+        )
         group = group[1:]
     assert group.startswith("/"), f"Group {group} doesn't start with /"
     if group.startswith("/_mozilla/"):
@@ -341,9 +341,9 @@ class Task:
         tc_firefox_ci_credentials = config.get("taskcluster_firefox_ci", {})
         client_id = tc_firefox_ci_credentials.get("client_id")
         access_token = tc_firefox_ci_credentials.get("access_token")
-        assert (
-            client_id and access_token
-        ), "Missing Taskcluster Firefox CI credentials in mozci config secret"
+        assert client_id and access_token, (
+            "Missing Taskcluster Firefox CI credentials in mozci config secret"
+        )
 
         options = taskcluster.optionsFromEnvironment()
         options["rootUrl"] = PRODUCTION_TASKCLUSTER_ROOT_URL
@@ -500,9 +500,9 @@ class TestTask(Task):
 
     _results: Optional[List[GroupResult]] = field(default=None)
     _errors: Optional[List] = field(default=None)
-    _failure_types: Optional[
-        Dict[GroupName, List[Tuple[TestName, FailureType]]]
-    ] = field(default=None)
+    _failure_types: Optional[Dict[GroupName, List[Tuple[TestName, FailureType]]]] = (
+        field(default=None)
+    )
 
     @property
     def is_wpt(self):
@@ -515,14 +515,14 @@ class TestTask(Task):
         global slash_group_warned
 
         if is_no_groups_suite(self.label):
-            assert (
-                self._errors is None
-            ), f"{self.id} : {self.label} should have no errors"
+            assert self._errors is None, (
+                f"{self.id} : {self.label} should have no errors"
+            )
             self._errors = []
 
-            assert (
-                self._results is None
-            ), f"{self.id} : {self.label} should have no results"
+            assert self._results is None, (
+                f"{self.id} : {self.label} should have no results"
+            )
             self._results = []
 
             return
@@ -605,28 +605,23 @@ class RunnableSummary(ABC):
 
     @property
     @abstractmethod
-    def classifications(self):
-        ...
+    def classifications(self): ...
 
     @property
     @abstractmethod
-    def status(self):
-        ...
+    def status(self): ...
 
     @property
     @abstractmethod
-    def durations(self):
-        ...
+    def durations(self): ...
 
     @property
     @abstractmethod
-    def total_duration(self):
-        ...
+    def total_duration(self): ...
 
     @property
     @abstractmethod
-    def median_duration(self):
-        ...
+    def median_duration(self): ...
 
 
 @dataclass

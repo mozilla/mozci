@@ -93,7 +93,7 @@ class PushTasksCommand(Command):
 
 def check_type(parameter_type, hint, value):
     try:
-        if parameter_type == bool:
+        if parameter_type is bool:
             parameter = value not in [False, 0, "0", "False", "false", "f"]
         elif parameter_type == Optional[Tuple[int, int]]:
             match = re.match(TWO_INTS_TUPLE_REGEXP, value)
@@ -235,8 +235,7 @@ class BasePushCommand(Command):
         )
 
     @abstractmethod
-    def handle(self):
-        ...
+    def handle(self): ...
 
 
 class ClassifyCommand(BasePushCommand):
@@ -497,7 +496,9 @@ class ClassifyCommand(BasePushCommand):
                         for result in task.results
                     )
                     for task in filtered_failing_tasks
-                ), f"Some failing tasks on the group {name} (to be retriggered) didn't really fail"
+                ), (
+                    f"Some failing tasks on the group {name} (to be retriggered) didn't really fail"
+                )
                 groups_with_failures[name] = filtered_failing_tasks
 
         if not groups_with_failures:
@@ -1087,9 +1088,9 @@ class ClassifyEvalCommand(Command):
 
             # Warn when there are inconsistent classifications for a given group
             if push.backedout or push.bustage_fixed_by:
-                group_classifications: dict[
-                    str, dict[tuple[str, str], set[str]]
-                ] = collections.defaultdict(lambda: collections.defaultdict(set))
+                group_classifications: dict[str, dict[tuple[str, str], set[str]]] = (
+                    collections.defaultdict(lambda: collections.defaultdict(set))
+                )
                 for other in push._iterate_children():
                     if (
                         push.backedoutby in other.revs

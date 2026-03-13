@@ -563,9 +563,9 @@ class Push:
         group_types = set()
         for task in group.tasks:
             suite = task.suite
-            assert (
-                suite is not None
-            ), f"Couldn't parse suite for {task.label} ({task.id})"
+            assert suite is not None, (
+                f"Couldn't parse suite for {task.label} ({task.id})"
+            )
             group_types.add(suite)
 
         if all(task.is_tests_grouped for task in group.tasks):
@@ -872,7 +872,12 @@ class Push:
                 ):
                     del adjusted_candidate_regressions[name]
 
-            yield other, adjusted_candidate_regressions, candidate_regressions, classified_as_cause
+            yield (
+                other,
+                adjusted_candidate_regressions,
+                candidate_regressions,
+                classified_as_cause,
+            )
             count += 1
 
     def get_candidate_regressions(
@@ -1686,8 +1691,9 @@ class Push:
         """
         for name in sorted(self.shadow_scheduler_names):
             try:
-                yield name, set(
-                    t["label"] for t in self.get_shadow_scheduler_tasks(name)
+                yield (
+                    name,
+                    set(t["label"] for t in self.get_shadow_scheduler_tasks(name)),
                 )
             except Exception as e:
                 yield name, e

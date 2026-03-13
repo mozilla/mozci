@@ -29,8 +29,7 @@ class BaseTreeherderSource(DataSource, ABC):
     groups_cache: Dict[str, List[str]] = LRU(7000)
 
     @abstractmethod
-    def get_push_test_groups(self, branch: str, rev: str) -> Dict[str, List[str]]:
-        ...
+    def get_push_test_groups(self, branch: str, rev: str) -> Dict[str, List[str]]: ...
 
     def run_test_task_groups(self, branch, rev, task):
         # Use a lock since push.py invokes this across many threads (which is

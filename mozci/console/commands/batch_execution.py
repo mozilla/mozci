@@ -216,9 +216,9 @@ class BatchEvaluationCommand(Command):
 
     def handle(self) -> None:
         results_path = BASE_OUTPUT_DIR + "/all_executions.csv"
-        assert os.path.exists(results_path) and os.path.isfile(
-            results_path
-        ), "The CSV containing results from all classify executions doesn't exist"
+        assert os.path.exists(results_path) and os.path.isfile(results_path), (
+            "The CSV containing results from all classify executions doesn't exist"
+        )
 
         with open(results_path, newline="") as f:
             reader = csv.DictReader(f)

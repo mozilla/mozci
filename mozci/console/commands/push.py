@@ -350,7 +350,8 @@ class ClassifyCommand(BasePushCommand):
             raise Exception("Provided --backfill-limit should be an int.")
 
         for push in self.pushes:
-            if self.option("disable-build-regressions"):
+            # Temporarily disabled to reduce classification load for code sheriffs.
+            if True or self.option("disable-build-regressions"):
                 self.line("Skipping build regressions analysis")
             else:
                 try:

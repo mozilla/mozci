@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import json
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 from loguru import logger
@@ -19,11 +19,13 @@ class ErrorSummarySource(DataSource):
         "test_task_groups",
         "test_task_errors",
         "test_task_failure_types",
+        "test_task_crashes",
     )
 
     TASK_GROUPS: Dict[str, Any] = LRU(2000)
     TASK_ERRORS: Dict[str, Any] = LRU(2000)
     TASK_FAILURE_TYPES: Dict[str, Any] = LRU(2000)
+    TASK_CRASHES: Dict[str, Any] = LRU(2000)
 
     def _load_errorsummary(self, task_id) -> None:
         """Load the task's errorsummary.log.
@@ -44,6 +46,7 @@ class ErrorSummarySource(DataSource):
         groups = set()
         group_results = {}
         test_results: Dict[GroupName, List[Tuple[TestName, FailureType]]] = {}
+        crashes: Dict[GroupName, List[Tuple[TestName, Optional[str]]]] = {}
 
         lines = (
             line
@@ -88,6 +91,9 @@ class ErrorSummarySource(DataSource):
                     line.get("signature") is not None and line.get("action") == "crash"
                 ):
                     failure_type = FailureType.CRASH
+                    crashes.setdefault(line["group"], []).append(
+                        (line["test"], line["signature"])
+                    )
                 else:
                     failure_type = FailureType.GENERIC
 
@@ -108,6 +114,7 @@ class ErrorSummarySource(DataSource):
         }
 
         self.TASK_FAILURE_TYPES[task_id] = test_results
+        self.TASK_CRASHES[task_id] = crashes
 
     def run_test_task_groups(self, branch, rev, task):
         if branch == "try":
@@ -126,3 +133,8 @@ class ErrorSummarySource(DataSource):
         if task_id not in self.TASK_FAILURE_TYPES:
             self._load_errorsummary(task_id)
         return self.TASK_FAILURE_TYPES.pop(task_id, {})
+
+    def run_test_task_crashes(self, task_id):
+        if task_id not in self.TASK_CRASHES:
+            self._load_errorsummary(task_id)
+        return self.TASK_CRASHES.pop(task_id, {})

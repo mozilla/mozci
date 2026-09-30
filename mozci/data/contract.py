@@ -202,6 +202,21 @@ _contracts: Tuple[Contract, ...] = (
         ),
     ),
     Contract(
+        name="test_task_crashes",
+        description="A list of crashed tests with their crash signature grouped by test group for a given TestTask.",
+        validate_in=v.Dict(
+            {
+                "task_id": v.Str(),
+            }
+        ),
+        validate_out=v.Dict(
+            extra=(
+                v.Str(minlen=1),
+                v.List(v.Tuple(v.Str(minlen=1), v.Str(nullable=True))),
+            )
+        ),
+    ),
+    Contract(
         name="push_test_selection_data",
         description="Test and build CI Tasks that should be scheduled for a given push",
         validate_in=v.Dict(

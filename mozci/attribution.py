@@ -34,6 +34,7 @@ from mozci.task import (
 )
 from mozci.util import test_info
 from mozci.util.defs import MAX_DEPTH
+from mozci.util.hgmo import HgRev, parse_bugs
 from mozci.util.memoize import memoize, memoized_property
 
 if TYPE_CHECKING:
@@ -52,6 +53,15 @@ GENERIC_FAILURE_LINES = (
     "leakcheck",
     "Assertions.h",
 )
+
+# How far after its backout to look for the reland of a push (half of the relands
+# land within 120 pushes, more than 90% within 1000), and how many pushes to load
+# at once.
+RELAND_MAX_DISTANCE = 1000
+RELAND_BATCH_SIZE = 100
+
+# Descriptions of commits which back out others, or merge branches.
+BACKOUT_PREFIXES = ("Backed out", "Backout", "Revert", "Merge")
 
 
 def normalize_failure_line(line: str) -> str:
@@ -127,6 +137,11 @@ class AttributionAnalysis:
         mozci.util.test_info)."""
         return test_info.group_failure_stats(self.push.push_date)
 
+    @memoized_property
+    def test_manifests(self) -> Optional[Dict[str, List[str]]]:
+        """The groups of each test, as of the push (see mozci.util.test_info)."""
+        return test_info.manifests_of_tests(self.push.push_date)
+
     @memoize
     def failures_until_backout(self, runnable_type: str) -> Dict[Any, int]:
         """Number of failing tasks of each runnable on the push and its children, until
@@ -144,6 +159,94 @@ class AttributionAnalysis:
                 if summary.status != Status.PASS:
                     failures[name] += len(summary.classifications)
         return failures
+
+    @memoized_property
+    def backout_push_id(self) -> Optional[int]:
+        """The id of the push which backed out the push (or None)."""
+        push = self.push
+        if push.branch == "try" or not push.backedoutby:
+            return None
+        try:
+            return HgRev.create(push.backedoutby, branch=push.branch).pushid
+        except Exception as e:
+            logger.debug(f"Backout of {push.rev} unavailable: {e}")
+            return None
+
+    def _reland(self, backout_id: int) -> List[Dict[str, Any]]:
+        """The changesets for the bugs of the push in the first two pushes relanding
+        them after the backout (looking at up to RELAND_MAX_DISTANCE pushes)."""
+        push = self.push
+        bugs = set(map(int, push.bugs))
+        relands: List[List[Dict[str, Any]]] = []
+        for push_id in range(backout_id + 1, backout_id + 1 + RELAND_MAX_DISTANCE):
+            if push_id not in HgRev.JSON_PUSHES_CACHE:
+                HgRev.load_json_pushes_between_ids(
+                    push.branch, push_id - 1, push_id - 1 + RELAND_BATCH_SIZE
+                )
+            if push_id not in HgRev.JSON_PUSHES_CACHE:
+                break
+            changesets = [
+                c
+                for c in HgRev.JSON_PUSHES_CACHE[push_id]["changesets"]
+                if not c["desc"].startswith(BACKOUT_PREFIXES)
+                and set(parse_bugs(c["desc"])) & bugs
+            ]
+            if changesets:
+                relands.append(changesets)
+                if len(relands) == 2:
+                    break
+        return [c for changesets in relands for c in changesets]
+
+    @memoized_property
+    def reland_files(self) -> Optional[Tuple[Set[str], Set[str]]]:
+        """The files modified by the commits of the push, and by their reland after the
+        backout, or None if the push wasn't backed out and relanded (or the information
+        is unavailable)."""
+        push = self.push
+        if self.backout_push_id is None or not push.bugs:
+            return None
+        try:
+            original = [
+                c
+                for c in HgRev.load_json_push(push.branch, push.id)["changesets"]
+                if not c["desc"].startswith(BACKOUT_PREFIXES)
+            ]
+            reland = self._reland(self.backout_push_id)
+        except Exception as e:
+            logger.debug(f"Reland of {push.rev} unavailable: {e}")
+            return None
+        if not original or not reland:
+            return None
+        return (
+            {f for c in original for f in c["files"]},
+            {f for c in reland for f in c["files"]},
+        )
+
+    def _groups_of_files(self, files: Set[str]) -> Optional[Set[str]]:
+        manifests = self.test_manifests
+        if manifests is None:
+            return None
+        return set().union(*(test_info.groups_of_file(f, manifests) for f in files))
+
+    @property
+    def reland_changed_groups(self) -> Optional[Set[str]]:
+        """The groups with tests modified by either the commits of the push or their
+        reland after the backout, but not both, or None if the push wasn't backed out
+        and relanded (or the information is unavailable).
+
+        Tests modified on both sides might have changed too, but comparing their
+        changes would need the patches of the commits, which can be large (see
+        reland_touched_groups)."""
+        files = self.reland_files
+        return None if files is None else self._groups_of_files(files[0] ^ files[1])
+
+    @property
+    def reland_touched_groups(self) -> Optional[Set[str]]:
+        """The groups with tests modified by the commits of the push or their reland
+        after the backout, or None if the push wasn't backed out and relanded (or the
+        information is unavailable)."""
+        files = self.reland_files
+        return None if files is None else self._groups_of_files(files[0] | files[1])
 
     def failure_lines(self, task: Task) -> List[Dict[str, Any]]:
         """The failure lines of a task, with their matching bugs (empty if
@@ -208,7 +311,8 @@ class AttributionAnalysis:
         attribute isolated failures to a nearby backout.
 
         This is the case when the group failed at most `flaky_group_max_failures`
-        times until the backout, and the group is flaky,
+        times until the backout, and the group is flaky, or the
+        reland fixed other groups,
         unless the failure is a new one."""
         if self.failures_until_backout(runnable_type).get(name, 0) > config.get(
             "flaky_group_max_failures", 1
@@ -221,6 +325,8 @@ class AttributionAnalysis:
 
         if self.is_flaky_group(summary.name, failing_job_types):
             reason = "the group is flaky on the failing job types"
+        elif self.reland_fixed_other_groups(summary.name):
+            reason = "the reland fixed other groups"
         else:
             return None
 
@@ -240,6 +346,14 @@ class AttributionAnalysis:
                 config.get("flaky_group_min_rate", test_info.FLAKY_GROUP_MIN_RATE),
             )
             for job_type in job_types
+        )
+
+    def reland_fixed_other_groups(self, group: str) -> bool:
+        """Whether the reland of the push changed tests of other groups, and neither
+        the push nor its reland modified tests of this one (the tests which were
+        broken by the push were fixed, and this group wasn't one of them)."""
+        return bool(self.reland_changed_groups) and (
+            group not in (self.reland_touched_groups or ())
         )
 
     def has_novel_failure(self, summary: GroupSummary, failure_push: "Push") -> bool:

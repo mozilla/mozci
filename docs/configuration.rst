@@ -122,7 +122,10 @@ attribute such failures to a nearby backout), and:
   runs, on the job types (e.g. ``test-linux2404-64/opt-mochitest-browser-chrome``)
   of the failing tasks, as groups are often flaky on some platforms only. This
   information comes from the daily ``source-test-file-metadata-test-info-all``
-  task on mozilla-central.
+  task on mozilla-central;
+- or the push was relanded after its backout with changes to tests of other
+  groups, and neither the push nor its reland modified tests of this one (the
+  tests broken by the push were fixed, and this group wasn't among them).
 
 Classifications are kept if the failure is new, i.e. Treeherder reports a
 failure line which is new in the revision and matches no known bug, or a failure

@@ -2,9 +2,21 @@
 from mozci import data
 from mozci.data.sources.treeherder import TreeherderClientSource
 from mozci.push import Push  # noqa: F401 (import order, see mozci.util.test_info)
-from mozci.attribution import is_failure_line_about_group, normalize_failure_line
+from mozci.attribution import (
+    is_failure_line_about_group,
+    normalize_failure_line,
+)
 from mozci.task import GroupResult, Task
-from mozci.util.test_info import is_flaky_group, job_type, normalize_group, summarize
+from mozci.util import test_info
+from mozci.util.hgmo import HgRev
+from mozci.util.test_info import (
+    groups_of_file,
+    is_flaky_group,
+    job_type,
+    normalize_group,
+    summarize,
+    summarize_tests,
+)
 
 
 def test_summarize():
@@ -71,6 +83,51 @@ def test_is_flaky_group():
     assert not is_flaky_group(stats, "busy.toml", "linux")  # rate too low
     assert not is_flaky_group(stats, "unknown.toml", "linux")
     assert not is_flaky_group(None, "flaky.toml", "linux")
+
+
+def test_summarize_tests():
+    report = {
+        "tests": {
+            "Core::DOM": [
+                {
+                    "manifest": ["dom/tests/mochitest.toml"],
+                    "test": "dom/tests/test_a.html",
+                }
+            ],
+            "Testing::web-platform-tests": [
+                {
+                    "manifest": ["/css/css-grid"],
+                    "test": "testing/web-platform/tests/css/css-grid/a.html",
+                }
+            ],
+        }
+    }
+    assert summarize_tests(report) == {
+        "dom/tests/test_a.html": ["dom/tests/mochitest.toml"],
+        "testing/web-platform/tests/css/css-grid/a.html": [
+            "testing/web-platform/tests/css/css-grid"
+        ],
+    }
+
+
+def test_groups_of_file():
+    manifests = {"dom/tests/test_a.html": ["dom/tests/mochitest.toml"]}
+    assert groups_of_file("dom/tests/test_a.html", manifests) == {
+        "dom/tests/mochitest.toml"
+    }
+    assert groups_of_file("dom/tests/mochitest.toml", manifests) == {
+        "dom/tests/mochitest.toml"
+    }
+    assert groups_of_file("dom/base/Element.cpp", manifests) == set()
+    wpt = {
+        "testing/web-platform/tests/css",
+        "testing/web-platform/tests/css/css-grid",
+    }
+    assert groups_of_file("testing/web-platform/tests/css/css-grid/a.html", {}) == wpt
+    # Expectations of WPT tests.
+    assert (
+        groups_of_file("testing/web-platform/meta/css/css-grid/a.html.ini", {}) == wpt
+    )
 
 
 def test_normalize_failure_line():
@@ -297,3 +354,133 @@ def test_fixed_by_commit_on_flaky_group_is_intermittent(create_pushes, monkeypat
             push.__dict__.pop(attr, None)
             push.attribution.__dict__.pop(attr, None)
     assert p[4].get_regressions("group") == {"dom/tests/mochitest.toml": 0}
+
+
+def test_fixed_by_commit_fixed_elsewhere_in_reland_is_intermittent(
+    create_pushes, monkeypatch
+):
+    def task(i, ok, classification="not classified"):
+        t = Task.create(
+            id=str(i) * 22,
+            label="test-linux/opt-mochitest-1",
+            result="passed" if ok else "failed",
+            classification=classification,
+            tags={"tests_grouped": "1"},
+        )
+        t._results = [GroupResult(group="dom/tests/mochitest.toml", ok=ok, duration=1)]
+        return t
+
+    p = create_pushes(9)
+    for j in list(range(0, 4)) + list(range(5, 9)):
+        p[j].tasks = [task(1, True)]
+    p[4].tasks = [task(1, False, "fixed by commit")]
+    p[4].tasks[0].classification_note = p[6].rev
+    p[4].backedoutby = p[6].rev
+    p[4]._bugs = {123}
+    # The group isn't flaky.
+    p[4].attribution._group_failure_stats = {
+        "dom/tests/mochitest.toml": {"test-linux/opt-mochitest": (0, 2000)}
+    }
+
+    # The failure matches a known intermittent bug.
+    monkeypatch.setattr(
+        TreeherderClientSource, "get_job_from_task", lambda self, task: {"id": 1}
+    )
+    monkeypatch.setattr(
+        TreeherderClientSource,
+        "get_bug_suggestions",
+        lambda self, job_id, branch="autoland": [
+            {
+                "search": "TEST-UNEXPECTED-FAIL | dom/tests/test_foo.html | timed out",
+                "failure_new_in_rev": False,
+                "bugs": {"open_recent": [{"summary": "Intermittent test_foo.html"}]},
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        test_info,
+        "manifests_of_tests",
+        lambda date: {
+            "dom/tests/test_foo.html": ["dom/tests/mochitest.toml"],
+            "dom/base/test/test_bar.html": ["dom/base/test/mochitest.toml"],
+        },
+    )
+
+    # Changesets as {node: file}.
+    # json-pushes data of the push, its backout, and pushes after it (a push for
+    # another bug, then the reland).
+    backout_id = p[6].id
+    monkeypatch.setattr(
+        HgRev, "load_json_pushes_between_ids", staticmethod(lambda *args: None)
+    )
+
+    def set_json_pushes():
+        def changesets(nodes, desc="Bug 123 - Change"):
+            return [
+                {"node": node, "desc": desc, "files": [path]}
+                for node, path in nodes.items()
+            ]
+
+        cache = {
+            p[4].id: changesets(original),
+            backout_id: changesets({"r": "dom/base/Element.cpp"}, "Revert"),
+            backout_id + 1: changesets({"x": "other/x.cpp"}, "Bug 456 - Other"),
+        }
+        if reland:
+            cache[backout_id + 2] = changesets(reland)
+        monkeypatch.setattr(
+            HgRev,
+            "JSON_PUSHES_CACHE",
+            {push_id: {"changesets": c} for push_id, c in cache.items()},
+        )
+
+    def regressions():
+        set_json_pushes()
+        for attr in (
+            "_get_regressions",
+            "_reland_files",
+            "_failure_lines",
+        ):
+            p[4].__dict__.pop(attr, None)
+            p[4].attribution.__dict__.pop(attr, None)
+        return p[4].get_regressions("group")
+
+    original = {"a": "dom/base/Element.cpp"}
+
+    # Not relanded: the classification is trusted.
+    reland = {}
+    assert regressions() == {"dom/tests/mochitest.toml": 0}
+
+    # Relanded with a fix to a test of another group: the failure is considered
+    # intermittent.
+    reland = {"b": "dom/base/Element.cpp", "c": "dom/base/test/test_bar.html"}
+    assert regressions() == {}
+
+    # The reland also fixed a test of the group: the classification is trusted.
+    reland["d"] = "dom/tests/test_foo.html"
+    assert regressions() == {"dom/tests/mochitest.toml": 0}
+
+    # Relanded unchanged: the classification is trusted.
+    reland = {"b": "dom/base/Element.cpp"}
+    assert regressions() == {"dom/tests/mochitest.toml": 0}
+
+    # The push and the reland modified a test of the group: it is considered
+    # changed (the patches aren't compared), the classification is trusted.
+    original = {"a": "dom/base/Element.cpp", "e": "dom/tests/test_foo.html"}
+    reland = {
+        "b": "dom/base/Element.cpp",
+        "c": "dom/base/test/test_bar.html",
+        "f": "dom/tests/test_foo.html",
+    }
+    assert regressions() == {"dom/tests/mochitest.toml": 0}
+
+    # The push and the reland modified a test of another group (the patches aren't
+    # compared), and the reland changed something else: the classification is
+    # trusted.
+    original = {"a": "dom/base/Element.cpp", "e": "dom/base/test/test_bar.html"}
+    reland = {
+        "b": "dom/base/Element.cpp",
+        "c": "dom/base/Node.cpp",
+        "f": "dom/base/test/test_bar.html",
+    }
+    assert regressions() == {"dom/tests/mochitest.toml": 0}

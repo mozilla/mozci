@@ -60,6 +60,12 @@ GENERIC_FAILURE_LINES = (
 RELAND_MAX_DISTANCE = 1000
 RELAND_BATCH_SIZE = 100
 
+# File names, as named in backout descriptions (e.g. "for causing failures at
+# browser_foo.js", "for causing build bustages @ nsFoo.cpp").
+FILE_NAME_RE = re.compile(
+    r"([\w\-.]+\.(?:cpp|h|c|rs|js|mjs|sys\.mjs|html|xhtml|py|toml|ini|css|svg|webidl))\b"
+)
+
 # Descriptions of commits which back out others, or merge branches.
 BACKOUT_PREFIXES = ("Backed out", "Backout", "Revert", "Merge")
 
@@ -172,6 +178,43 @@ class AttributionAnalysis:
             logger.debug(f"Backout of {push.rev} unavailable: {e}")
             return None
 
+    @memoized_property
+    def backout_file_names(self) -> Set[str]:
+        """File names in the descriptions of the commits backing out the push (e.g.
+        "for causing failures at test_foo.html").
+
+        Only the commits backing out commits of the push are considered, as a push can
+        back out several pushes (unless which commits they back out is unknown)."""
+        push = self.push
+        if self.backout_push_id is None:
+            return set()
+        try:
+            changesets = HgRev.load_json_push(push.branch, self.backout_push_id)[
+                "changesets"
+            ]
+        except Exception as e:
+            logger.debug(f"Backout of {push.rev} unavailable: {e}")
+            return set()
+        backouts = [c for c in changesets if c["desc"].startswith(BACKOUT_PREFIXES)]
+        try:
+            backed_out = HgRev.create(push.backedoutby, branch=push.branch).backouts
+        except Exception as e:
+            logger.debug(f"Commits backed out with {push.rev} unavailable: {e}")
+            backed_out = {}
+        revs = {rev[:12] for rev in push.revs}
+        relevant = {
+            node[:12]
+            for node, nodes in backed_out.items()
+            if any(n[:12] in revs for n in nodes)
+        }
+        if relevant:
+            backouts = [c for c in backouts if c["node"][:12] in relevant]
+        return {
+            name
+            for c in backouts
+            for name in FILE_NAME_RE.findall(c["desc"].split("\n", 1)[0])
+        }
+
     def _reland(self, backout_id: int) -> List[Dict[str, Any]]:
         """The changesets for the bugs of the push in the first two pushes relanding
         them after the backout (looking at up to RELAND_MAX_DISTANCE pushes)."""
@@ -283,9 +326,11 @@ class AttributionAnalysis:
         name: Any,
         summary: Union[GroupSummary, LabelSummary],
         failure_push: "Push",
+        passing_job_types: Set[str],
     ) -> Decision:
         """What to do with the classifications of a failure of a runnable on
-        `failure_push`.
+        `failure_push` (`passing_job_types`: the job types on which the runnable
+        passed, from the push to `failure_push`).
 
         Isolated 'fixed by commit' failures of groups are considered intermittent
         when the evidence says so (see isolated_intermittent)."""
@@ -294,7 +339,9 @@ class AttributionAnalysis:
             return RETAIN
         assert isinstance(summary, GroupSummary)
 
-        reason = self.isolated_intermittent(runnable_type, name, summary, failure_push)
+        reason = self.isolated_intermittent(
+            runnable_type, name, summary, failure_push, passing_job_types
+        )
         if reason is not None:
             return Decision(Verdict.INTERMITTENT, reason)
         return RETAIN
@@ -305,6 +352,7 @@ class AttributionAnalysis:
         name: Any,
         summary: GroupSummary,
         failure_push: "Push",
+        passing_job_types: Set[str],
     ) -> Optional[str]:
         """Why 'fixed by commit' classifications of an isolated failure of a group on
         `failure_push` should be considered intermittent (or None): sheriffs sometimes
@@ -312,7 +360,8 @@ class AttributionAnalysis:
 
         This is the case when the group failed at most `flaky_group_max_failures`
         times until the backout, and the group is flaky, or the
-        reland fixed other groups,
+        reland fixed other groups, or the group passed on the failing job types after
+        the push (unless the backout names the failure),
         unless the failure is a new one."""
         if self.failures_until_backout(runnable_type).get(name, 0) > config.get(
             "flaky_group_max_failures", 1
@@ -328,7 +377,14 @@ class AttributionAnalysis:
         elif self.reland_fixed_other_groups(summary.name):
             reason = "the reland fixed other groups"
         else:
-            return None
+            # The failing configurations ran the group with the push applied, and it
+            # passed (unless the backout names the failure).
+            if failing_job_types & passing_job_types:
+                reason = "the group passed on the failing job types"
+            else:
+                return None
+            if self.revert_names_failure(summary):
+                return None
 
         # Unless the failure is a new one.
         if self.has_novel_failure(summary, failure_push):
@@ -354,6 +410,22 @@ class AttributionAnalysis:
         broken by the push were fixed, and this group wasn't one of them)."""
         return bool(self.reland_changed_groups) and (
             group not in (self.reland_touched_groups or ())
+        )
+
+    def revert_names_failure(self, summary: GroupSummary) -> bool:
+        """Whether the backout of the push names, in its description, a file which
+        appears in a failure line of the group in its tasks classified as 'fixed by
+        commit' (e.g. "for causing assertion failures @ RegExpObject.cpp")."""
+        names = self.backout_file_names
+        if not names:
+            return False
+        return any(
+            name in s["search"]
+            for task in summary.tasks
+            if task.failed and task.classification == "fixed by commit"
+            for s in self.failure_lines(task)
+            if is_failure_line_about_group(s["search"], summary.name)
+            for name in names
         )
 
     def has_novel_failure(self, summary: GroupSummary, failure_push: "Push") -> bool:

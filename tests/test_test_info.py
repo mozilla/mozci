@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from mozci import data
 from mozci.data.sources.treeherder import TreeherderClientSource
-from mozci.push import Push  # noqa: F401 (import order, see mozci.util.test_info)
+from mozci.push import Push  # imported first, see mozci.util.test_info
 from mozci.attribution import (
     is_failure_line_about_group,
     normalize_failure_line,
@@ -484,3 +484,146 @@ def test_fixed_by_commit_fixed_elsewhere_in_reland_is_intermittent(
         "f": "dom/base/test/test_bar.html",
     }
     assert regressions() == {"dom/tests/mochitest.toml": 0}
+
+
+def test_backout_file_names_of_the_commits_backing_out_the_push(
+    create_pushes, monkeypatch
+):
+    p = create_pushes(9)
+    # p[8] backs out both p[4] and p[5], with a commit each.
+    p[4].backedoutby = p[5].backedoutby = p[8].rev
+    monkeypatch.setattr(
+        HgRev,
+        "JSON_PUSHES_CACHE",
+        {
+            p[8].id: {
+                "changesets": [
+                    {
+                        "node": "a" * 40,
+                        "desc": "Revert 'Bug 1' for causing failures at test_foo.html",
+                    },
+                    {
+                        "node": "b" * 40,
+                        "desc": "Revert 'Bug 2' for causing failures at test_bar.html",
+                    },
+                ]
+            }
+        },
+    )
+
+    def names(backouts):
+        monkeypatch.setattr(HgRev, "backouts", property(lambda self: backouts))
+        result = []
+        for push in (p[4], p[5]):
+            push.attribution.__dict__.pop("_backout_file_names", None)
+            result.append(push.attribution.backout_file_names)
+        return result
+
+    # Each push only gets the names from the commit backing it out.
+    assert names({"a" * 40: [p[4].rev], "b" * 40: [p[5].rev]}) == [
+        {"test_foo.html"},
+        {"test_bar.html"},
+    ]
+
+    # Which commits are backed out is unknown: all names are used.
+    assert names({}) == [{"test_foo.html", "test_bar.html"}] * 2
+
+
+def test_fixed_by_commit_after_passing_on_same_job_type_is_intermittent(
+    create_pushes, monkeypatch
+):
+    def task(
+        i, ok, label="test-linux/opt-mochitest-1", classification="not classified"
+    ):
+        t = Task.create(
+            id=str(i) * 22,
+            label=label,
+            result="passed" if ok else "failed",
+            classification=classification,
+            tags={"tests_grouped": "1"},
+        )
+        t._results = [GroupResult(group="dom/tests/mochitest.toml", ok=ok, duration=1)]
+        return t
+
+    p = create_pushes(9)
+    for j in list(range(0, 4)) + list(range(6, 9)):
+        p[j].tasks = [task(1, True)]
+    # The group passed on the push, on the job type which failed on the next push.
+    p[4].tasks = [task(1, True, label="test-linux/opt-mochitest-2")]
+    failing = task(2, False, classification="fixed by commit")
+    failing.classification_note = p[7].rev
+    p[5].tasks = [failing]
+    p[4].backedoutby = p[7].rev
+    p[4]._bugs = {123}
+    # The group isn't flaky, and wasn't relanded.
+    p[4].attribution._group_failure_stats = {
+        "dom/tests/mochitest.toml": {"test-linux/opt-mochitest": (0, 2000)}
+    }
+    monkeypatch.setattr(
+        TreeherderClientSource, "get_job_from_task", lambda self, task: {"id": 1}
+    )
+    monkeypatch.setattr(
+        TreeherderClientSource,
+        "get_bug_suggestions",
+        lambda self, job_id, branch="autoland": [
+            {
+                "search": "TEST-UNEXPECTED-FAIL | dom/tests/test_foo.html | timed out",
+                "failure_new_in_rev": False,
+                "bugs": {"open_recent": [{"id": 1, "summary": "Intermittent"}]},
+            }
+        ],
+    )
+    backout_id = p[7].id
+    monkeypatch.setattr(
+        HgRev, "load_json_pushes_between_ids", staticmethod(lambda *args: None)
+    )
+    # The note points to the backout of the push.
+    monkeypatch.setattr(
+        Push,
+        "_is_classified_as_cause",
+        lambda self, first, classifications: (
+            any(c == "fixed by commit" for c, n in classifications) or None
+        ),
+    )
+
+    def regressions(revert):
+        monkeypatch.setattr(
+            HgRev,
+            "JSON_PUSHES_CACHE",
+            {
+                p[4].id: {
+                    "changesets": [
+                        {"node": "a", "desc": "Bug 123 - Change", "files": []}
+                    ]
+                },
+                backout_id: {
+                    "changesets": [{"node": "r", "desc": revert, "files": []}]
+                },
+            },
+        )
+        for push in p:
+            for attr in (
+                "_get_regressions",
+                "_failure_lines",
+                "_reland_files",
+                "_group_summaries",
+                "_failures_until_backout",
+                "_backout_file_names",
+            ):
+                push.__dict__.pop(attr, None)
+                push.attribution.__dict__.pop(attr, None)
+        return p[4].get_regressions("group")
+
+    # The note is considered wrong: the group passed on that job type with the push.
+    assert regressions("Revert 'Bug 123 - Change' for causing build bustages") == {}
+
+    # The backout names the failing test: the classification is trusted.
+    assert regressions(
+        "Revert 'Bug 123 - Change' for causing failures at test_foo.html"
+    ) == {"dom/tests/mochitest.toml": 0}
+
+    # It passed on another job type only: the classification is trusted.
+    p[4].tasks = [task(1, True, label="test-windows/opt-mochitest-2")]
+    assert regressions("Revert 'Bug 123 - Change' for causing build bustages") == {
+        "dom/tests/mochitest.toml": 0
+    }

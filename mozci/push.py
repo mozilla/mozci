@@ -32,6 +32,7 @@ from mozci.task import (
     get_configuration,
     is_verify,
 )
+from mozci.util import test_info
 from mozci.util.defs import FAILURE_CLASSES, MAX_DEPTH, TASK_FINAL_STATES
 from mozci.util.hgmo import HgRev, parse_bugs
 from mozci.util.memoize import memoize, memoized_property
@@ -788,6 +789,8 @@ class Push:
         classifications of each failure (or only the sheriff classifications, without
         an analysis)."""
         ever_passing_runnables = set()
+        # The job types on which each runnable passed so far.
+        passing_job_types: Dict[str, Set[str]] = defaultdict(set)
         passing_runnables = set()
         candidate_regressions = {}
 
@@ -802,6 +805,11 @@ class Push:
                     ever_passing_runnables.add(name)
                     if name not in candidate_regressions:
                         passing_runnables.add(name)
+                    passing_job_types[name] |= {
+                        test_info.job_type(task.label)
+                        for task in summary.tasks
+                        if task.label
+                    }
                     continue
 
                 classifications = summary.classifications
@@ -811,6 +819,7 @@ class Push:
                         name,
                         summary,
                         other,
+                        passing_job_types[name],
                     )
                     if analysis is not None
                     else RETAIN

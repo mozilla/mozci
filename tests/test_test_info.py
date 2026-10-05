@@ -710,3 +710,104 @@ def test_config_group_failure_belongs_to_the_push_naming_the_group(
         {(configuration, group): 0},
         {},
     ]
+
+
+def test_failures_counted_until_a_distant_backout(create_pushes, monkeypatch):
+    from mozci.push import MAX_DEPTH
+
+    group = "dom/tests/mochitest.toml"
+
+    def task(i, ok, classification="not classified", note=None):
+        t = Task.create(
+            id=str(i) * 22,
+            label="test-linux/opt-mochitest-1",
+            result="passed" if ok else "failed",
+            classification=classification,
+            classification_note=note,
+            tags={"tests_grouped": "1"},
+        )
+        t._results = [GroupResult(group=group, ok=ok, duration=1)]
+        return t
+
+    # The push is backed out more than MAX_DEPTH pushes later.
+    p = create_pushes(MAX_DEPTH + 10)
+    backout = p[MAX_DEPTH + 7]
+    for push in p:
+        push.tasks = [task(1, True)]
+    p[2].backedoutby = backout.rev
+    # The group failed on the push, and again after MAX_DEPTH children.
+    p[2].tasks = [task(2, False, "fixed by commit", backout.rev)]
+    p[MAX_DEPTH + 5].tasks = [task(3, False, "fixed by commit", backout.rev)]
+
+    monkeypatch.setattr(
+        Push,
+        "_is_classified_as_cause",
+        lambda self, first, classifications: (
+            any(c == "fixed by commit" for c, n in classifications) or None
+        ),
+    )
+    # The group is flaky, and the failures aren't new.
+    monkeypatch.setattr(AttributionAnalysis, "is_flaky_group", lambda *args: True)
+    monkeypatch.setattr(AttributionAnalysis, "has_novel_failure", lambda *args: False)
+
+    # Both failures count, so they aren't isolated: the classifications are kept.
+    assert p[2].get_regressions("group") == {group: 0}
+
+
+def test_config_group_failures_on_several_configurations_are_not_isolated(
+    create_pushes, monkeypatch
+):
+    group = "dom/tests/mochitest.toml"
+
+    def task(i, ok, platform, classification="not classified", note=None):
+        t = Task.create(
+            id=str(i) * 22,
+            label=f"test-{platform}/opt-mochitest-plain-1",
+            platform=platform,
+            suite="mochitest-plain",
+            result="passed" if ok else "failed",
+            classification=classification,
+            classification_note=note,
+            tags={"tests_grouped": "1"},
+        )
+        t._results = [GroupResult(group=group, ok=ok, duration=1)]
+        return t
+
+    p = create_pushes(9)
+    for j in list(range(0, 4)) + list(range(6, 9)):
+        p[j].tasks = [task(1, True, "linux1804-64"), task(2, True, "windows11-64")]
+    p[4].backedoutby = p[7].rev
+    p[4].tasks = [task(1, False, "linux1804-64", "fixed by commit", p[7].rev)]
+
+    monkeypatch.setattr(
+        Push,
+        "_is_classified_as_cause",
+        lambda self, first, classifications: (
+            any(c == "fixed by commit" for c, n in classifications) or None
+        ),
+    )
+    # The group is flaky, and the failures aren't new.
+    monkeypatch.setattr(AttributionAnalysis, "is_flaky_group", lambda *args: True)
+    monkeypatch.setattr(AttributionAnalysis, "has_novel_failure", lambda *args: False)
+    monkeypatch.setattr(AttributionAnalysis, "named_culprit", lambda *args: None)
+
+    def regressions():
+        for push in p:
+            for attr in (
+                "_get_regressions",
+                "_config_group_summaries",
+                "_group_summaries",
+                "_failures_until_backout",
+            ):
+                push.__dict__.pop(attr, None)
+                push.attribution.__dict__.pop(attr, None)
+        return p[4].get_regressions("config_group")
+
+    # A single failure: considered intermittent.
+    assert regressions() == {}
+
+    # The group also failed on another configuration: the classifications are kept.
+    p[5].tasks = [task(2, False, "windows11-64", "fixed by commit", p[7].rev)]
+    linux = p[4].tasks[0].configuration
+    windows = p[5].tasks[0].configuration
+    assert regressions() == {(linux, group): 0, (windows, group): 0}

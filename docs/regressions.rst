@@ -78,6 +78,9 @@ A *regression* is a candidate regression that additionally satisfies the followi
     * The candidate regression is not marked as a regression of any parent pushes up
       to :data:`~mozci.push.MAX_DEPTH` pushes away.
     * The condition ``total_distance <= MAX_DEPTH`` is satisfied. This condition is explained in more detail below.
+    * For labels, the label didn't fail both on its last run before the push and on its first run
+      after the backout of the push (the push didn't change its result, e.g. for tasks which are
+      always failing, which sheriffs classify with a nearby backout).
 
 .. note:: Distance Calculation
 

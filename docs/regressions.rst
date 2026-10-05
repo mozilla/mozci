@@ -56,6 +56,13 @@ A candidate regression is a runnable which meets the following criteria:
     * The classification references a backout that backs out the target push.
 
 
+For configuration groups (``config_group`` runnables), sheriffs sometimes classify a failure with
+the backout of a nearby push, especially when the configuration didn't run between the culprit and
+the failure. So when a single push, backed out or bustage-fixed after the failure and landed between
+the last pass of the configuration group and the failure, has a backout naming a test of the group
+(e.g. "for causing failures at test_foo.html") or a reland changing tests of the group, the failure
+is considered caused by that push, whatever the classification references.
+
 Candidate regressions are the set of all runnables that could possibly be a regression of this push.
 This *does not* mean that they are regressions. Just that they could be.
 

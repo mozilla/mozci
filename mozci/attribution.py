@@ -36,7 +36,7 @@ from mozci.task import (
 from mozci.util import test_info
 from mozci.util.defs import MAX_DEPTH
 from mozci.util.hgmo import HgRev, parse_bugs
-from mozci.util.memoize import memoize, memoized_property
+from mozci.util.memoize import memoized_property
 
 if TYPE_CHECKING:
     from mozci.push import Push
@@ -156,22 +156,20 @@ class AttributionAnalysis:
         """The groups of each test, as of the push (see mozci.util.test_info)."""
         return test_info.manifests_of_tests(self.push.push_date)
 
-    @memoize
-    def failures_until_backout(self, runnable_type: str) -> Dict[Any, int]:
-        """Number of failing tasks of each runnable on the push and its children, until
-        the push was backed out (or up to MAX_DEPTH children if it wasn't)."""
+    @memoized_property
+    def failures_until_backout(self) -> Dict[str, int]:
+        """Number of failing tasks of each group (on any configuration) on the push
+        and its children, until the push was backed out (or up to MAX_DEPTH children
+        if it wasn't), as for candidate regressions."""
         push = self.push
-        failures: Dict[Any, int] = defaultdict(int)
-        for other in push._iterate_children(MAX_DEPTH):
-            if (
-                push.branch != "try"
-                and other != push
-                and push.backedoutby in other.revs
-            ):
+        backed_out = push.branch != "try" and push.backedout
+        failures: Dict[str, int] = defaultdict(int)
+        for other in push._iterate_children(None if backed_out else MAX_DEPTH):
+            if backed_out and other != push and push.backedoutby in other.revs:
                 break
-            for name, summary in getattr(other, f"{runnable_type}_summaries").items():
+            for group, summary in other.group_summaries.items():
                 if summary.status != Status.PASS:
-                    failures[name] += len(summary.classifications)
+                    failures[group] += len(summary.classifications)
         return failures
 
     @memoized_property
@@ -383,7 +381,7 @@ class AttributionAnalysis:
             return RETAIN
         assert isinstance(summary, GroupSummary)
 
-        reason = self.isolated_intermittent(runnable_type, name, summary, failure_push)
+        reason = self.isolated_intermittent(group, summary, failure_push)
         if reason is not None:
             return Decision(Verdict.INTERMITTENT, reason)
 
@@ -399,8 +397,7 @@ class AttributionAnalysis:
 
     def isolated_intermittent(
         self,
-        runnable_type: str,
-        name: Any,
+        group: str,
         summary: GroupSummary,
         failure_push: "Push",
     ) -> Optional[str]:
@@ -409,10 +406,10 @@ class AttributionAnalysis:
         attribute isolated failures to a nearby backout.
 
         This is the case when the group failed at most `flaky_group_max_failures`
-        times until the backout, and the group is flaky, or the
+        times (on any configuration) until the backout, and the group is flaky, or the
         reland fixed other groups,
         unless the failure is a new one."""
-        if self.failures_until_backout(runnable_type).get(name, 0) > config.get(
+        if self.failures_until_backout.get(group, 0) > config.get(
             "flaky_group_max_failures", 1
         ):
             return None

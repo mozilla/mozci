@@ -114,8 +114,9 @@ flaky_group_min_rate, flaky_group_max_failures
 
 Failures of groups classified as "fixed by commit" are considered intermittent
 when the group failed on at most ``flaky_group_max_failures`` (default: ``1``)
-tasks on the push and the following pushes until its backout (sheriffs sometimes
-attribute such failures to a nearby backout), and:
+tasks on the push and the following pushes until its backout, on any
+configuration (sheriffs sometimes attribute such failures to a nearby backout),
+and:
 
 - the group is flaky: in the 30 days before the push, its failures classified as
   intermittent were at least ``flaky_group_min_rate`` (default: ``0.005``) of its

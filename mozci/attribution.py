@@ -620,3 +620,28 @@ class AttributionAnalysis:
                     return None
                 named = push.id
         return named
+
+    def label_failing_around(self, name: str) -> bool:
+        """Whether a label failed on its last run before the push and on its first run
+        after the backout of the push: the push didn't change its result (e.g. tasks
+        which are always failing, which sheriffs classify with a nearby backout)."""
+        push = self.push
+        backout_id = self.backout_push_id
+        if backout_id is None:
+            return False
+        before = next(
+            (
+                p.label_summaries[name]
+                for p in itertools.islice(push.parent._iterate_parents(), MAX_DEPTH)
+                if name in p.label_summaries
+            ),
+            None,
+        )
+        if before is None or before.status != Status.FAIL:
+            return False
+        for other in itertools.islice(
+            push._iterate_children(), max(backout_id - push.id + MAX_DEPTH, 0)
+        ):
+            if other.id >= backout_id and name in other.label_summaries:
+                return other.label_summaries[name].status == Status.FAIL
+        return False

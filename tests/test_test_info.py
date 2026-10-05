@@ -901,3 +901,47 @@ def test_fixed_by_commit_on_one_of_many_job_types_is_intermittent(
 
     # It passed on 5 other job types only: the classification is trusted.
     assert regressions(5) == {group: 0}
+
+
+def test_label_failing_before_and_after_the_backout_is_not_a_regression(
+    create_pushes, monkeypatch
+):
+    label = "build-linux64/opt"
+
+    def task(i, ok, classification="not classified", note=None):
+        return Task.create(
+            id=str(i) * 22,
+            label=label,
+            result="passed" if ok else "failed",
+            classification=classification,
+            classification_note=note,
+        )
+
+    p = create_pushes(9)
+    p[4].backedoutby = p[7].rev
+    monkeypatch.setattr(
+        Push,
+        "_is_classified_as_cause",
+        lambda self, first, classifications: (
+            any(c == "fixed by commit" for c, n in classifications) or None
+        ),
+    )
+
+    def regressions(before, after):
+        for j in range(9):
+            p[j].tasks = [task(j, True)]
+        p[3].tasks = [task(3, before, "intermittent")]
+        p[4].tasks = [task(4, False, "fixed by commit", p[7].rev)]
+        p[7].tasks = [task(7, after, "intermittent")]
+        for push in p:
+            for attr in ("_get_regressions", "_label_summaries"):
+                push.__dict__.pop(attr, None)
+                push.attribution.__dict__.pop(attr, None)
+        return p[4].get_regressions("label")
+
+    # The label was already failing, and still failed after the backout.
+    assert regressions(before=False, after=False) == {}
+
+    # It passed before the push, or after its backout: the push is the culprit.
+    assert regressions(before=True, after=False) == {label: 0}
+    assert regressions(before=False, after=True) == {label: 0}

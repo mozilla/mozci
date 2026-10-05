@@ -1066,6 +1066,9 @@ class Push:
         for name, (count, failure_summary) in self.get_candidate_regressions(
             runnable_type
         ).items():
+            if runnable_type == "label" and self.attribution.label_failing_around(name):
+                continue
+
             other = self.parent
             prior_regression = False
 

@@ -811,3 +811,93 @@ def test_config_group_failures_on_several_configurations_are_not_isolated(
     linux = p[4].tasks[0].configuration
     windows = p[5].tasks[0].configuration
     assert regressions() == {(linux, group): 0, (windows, group): 0}
+
+
+def test_fixed_by_commit_on_one_of_many_job_types_is_intermittent(
+    create_pushes, monkeypatch
+):
+    group = "dom/tests/mochitest.toml"
+
+    def task(i, ok, platform, classification="not classified"):
+        t = Task.create(
+            id=str(i) * 22,
+            label=f"test-{platform}/opt-mochitest-1",
+            result="passed" if ok else "failed",
+            classification=classification,
+            tags={"tests_grouped": "1"},
+        )
+        t._results = [GroupResult(group=group, ok=ok, duration=1)]
+        return t
+
+    platforms = [f"platform{i}" for i in range(7)]
+    p = create_pushes(9)
+    for j in list(range(0, 4)) + list(range(5, 9)):
+        p[j].tasks = [task(i, True, platform) for i, platform in enumerate(platforms)]
+    p[4].backedoutby = p[7].rev
+    p[4]._bugs = {123}
+    # The group isn't flaky, and wasn't relanded.
+    p[4].attribution._group_failure_stats = {}
+    monkeypatch.setattr(
+        TreeherderClientSource, "get_job_from_task", lambda self, task: {"id": 1}
+    )
+    monkeypatch.setattr(
+        TreeherderClientSource,
+        "get_bug_suggestions",
+        lambda self, job_id, branch="autoland": [
+            {
+                "search": "TEST-UNEXPECTED-FAIL | dom/tests/test_foo.html | timed out",
+                "failure_new_in_rev": False,
+                "bugs": {"open_recent": [{"id": 1, "summary": "Intermittent"}]},
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        HgRev, "load_json_pushes_between_ids", staticmethod(lambda *args: None)
+    )
+    monkeypatch.setattr(
+        HgRev,
+        "JSON_PUSHES_CACHE",
+        {
+            p[4].id: {
+                "changesets": [{"node": "a", "desc": "Bug 123 - Change", "files": []}]
+            },
+            p[7].id: {
+                "changesets": [
+                    {"node": "r", "desc": "Revert 'Bug 123' for bustages", "files": []}
+                ]
+            },
+        },
+    )
+    # The note points to the backout of the push.
+    monkeypatch.setattr(
+        Push,
+        "_is_classified_as_cause",
+        lambda self, first, classifications: (
+            any(c == "fixed by commit" for c, n in classifications) or None
+        ),
+    )
+
+    def regressions(passing):
+        failing = task(0, False, platforms[0], "fixed by commit")
+        failing.classification_note = p[7].rev
+        p[4].tasks = [failing] + [
+            task(i + 1, True, platform)
+            for i, platform in enumerate(platforms[1 : 1 + passing])
+        ]
+        for push in p:
+            for attr in (
+                "_get_regressions",
+                "_failure_lines",
+                "_reland_files",
+                "_group_summaries",
+                "_failures_until_backout",
+            ):
+                push.__dict__.pop(attr, None)
+                push.attribution.__dict__.pop(attr, None)
+        return p[4].get_regressions("group")
+
+    # The group passed on 6 other job types on the push: the note is considered wrong.
+    assert regressions(6) == {}
+
+    # It passed on 5 other job types only: the classification is trusted.
+    assert regressions(5) == {group: 0}

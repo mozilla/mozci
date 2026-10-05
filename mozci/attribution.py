@@ -60,6 +60,9 @@ GENERIC_FAILURE_LINES = (
 # at once.
 RELAND_MAX_DISTANCE = 1000
 RELAND_BATCH_SIZE = 100
+# Minimum number of job types on which a group must pass on a push for a failure on
+# a single other job type to be considered isolated.
+MIN_PASSING_JOB_TYPES = 6
 
 # File names, as named in backout descriptions (e.g. "for causing failures at
 # browser_foo.js", "for causing build bustages @ nsFoo.cpp").
@@ -408,7 +411,7 @@ class AttributionAnalysis:
         This is the case when the group failed at most `flaky_group_max_failures`
         times (on any configuration) until the backout, and the group is flaky, or the
         reland fixed other groups, or the group passed on the failing job types after
-        the push (unless the backout names the failure),
+        the push or on many other job types (unless the backout names the failure),
         unless the failure is a new one."""
         if self.failures_until_backout.get(group, 0) > config.get(
             "flaky_group_max_failures", 1
@@ -428,6 +431,8 @@ class AttributionAnalysis:
             # passed (unless the backout names the failure).
             if failing_job_types & passing_job_types:
                 reason = "the group passed on the failing job types"
+            elif self.failed_on_one_of_many_job_types(group, failure_push):
+                reason = "the group passed on many other job types"
             else:
                 return None
             if self.revert_names_failure(summary):
@@ -458,6 +463,21 @@ class AttributionAnalysis:
         return bool(self.reland_changed_groups) and (
             group not in (self.reland_touched_groups or ())
         )
+
+    @staticmethod
+    def failed_on_one_of_many_job_types(group: str, failure_push: "Push") -> bool:
+        """Whether a group failed on a single job type on a push, while it passed on at
+        least MIN_PASSING_JOB_TYPES other job types on the same push."""
+        summary = failure_push.group_summaries.get(group)
+        if summary is None:
+            return False
+        failing: Set[str] = set()
+        passing: Set[str] = set()
+        for task in summary.tasks:
+            if task.label:
+                ok = all(r.ok for r in task.results if r.group == group)
+                (passing if ok else failing).add(test_info.job_type(task.label))
+        return len(failing) == 1 and len(passing - failing) >= MIN_PASSING_JOB_TYPES
 
     def revert_names_failure(self, summary: GroupSummary) -> bool:
         """Whether the backout of the push names, in its description, a file which

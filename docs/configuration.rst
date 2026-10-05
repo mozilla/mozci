@@ -128,8 +128,10 @@ and:
   groups, and neither the push nor its reland modified tests of this one (the
   tests broken by the push were fixed, and this group wasn't among them);
 - or the group passed, on the push or the following pushes before failing, on the
-  job types of the failing tasks, and the backout doesn't name (e.g. "for causing
-  failures at test_foo.html") a file which appears in a failure line of the group.
+  job types of the failing tasks, or it failed on a single job type while passing
+  on at least 6 other job types on the same push, and the backout doesn't name
+  (e.g. "for causing failures at test_foo.html") a file which appears in a failure
+  line of the group.
 
 Classifications are kept if the failure is new, i.e. Treeherder reports a
 failure line which is new in the revision and matches no known bug, or a failure

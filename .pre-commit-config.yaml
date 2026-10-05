@@ -45,7 +45,7 @@ repos:
       - id: mypy
         additional_dependencies:
           - types-PyYAML==6.0.12.20260906
-          - types-requests==0.1.11
+          - types-requests==2.33.0.20260906
           - types-tabulate==0.10.0.20260508
   - repo: https://github.com/python-poetry/poetry
     rev: "2.3.2"

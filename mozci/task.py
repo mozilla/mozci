@@ -503,6 +503,9 @@ class TestTask(Task):
     _failure_types: Optional[Dict[GroupName, List[Tuple[TestName, FailureType]]]] = (
         field(default=None)
     )
+    _crashes: Optional[Dict[GroupName, List[Tuple[TestName, Optional[str]]]]] = field(
+        default=None
+    )
 
     @property
     def is_wpt(self):
@@ -592,6 +595,21 @@ class TestTask(Task):
                 "test_task_failure_types", task_id=self.id
             )
         return self._failure_types
+
+    @property
+    def crashes(self):
+        """
+        Returns a dict mapping each group with crashes on this TestTask
+        to a list of its crashed test names and their crash signatures.
+
+        e.g:
+        {"group/failing/on-this-task.ini": [
+            ("group/failing/test-file-1.js", "@ mozilla::SomeFunction"),
+        ]}
+        """
+        if self._crashes is None:
+            self._crashes = data.handler.get("test_task_crashes", task_id=self.id)
+        return self._crashes
 
 
 # Don't perform type checking because of https://github.com/python/mypy/issues/5374.

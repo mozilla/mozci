@@ -6,7 +6,7 @@ import json
 import math
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
@@ -29,7 +29,9 @@ from mozci.task import (
     Task,
     TestTask,
     get_configuration,
+    wpt_workaround,
 )
+from mozci.util import test_info
 from mozci.util.defs import FAILURE_CLASSES, TASK_FINAL_STATES
 from mozci.util.hgmo import HgRev, parse_bugs
 from mozci.util.memoize import memoize, memoized_property
@@ -760,6 +762,125 @@ class Push:
             if max_depth is not None and i == max_depth:
                 break
 
+    @memoized_property
+    def group_failure_stats(self):
+        """Failure statistics of groups over the 30 days before the push (see mozci.util.test_info)."""
+        return test_info.group_failure_stats(
+            datetime.fromtimestamp(self.date, timezone.utc).date()
+        )
+
+    def _is_flaky_runnable(self, runnable_type: str, name) -> bool:
+        """Whether a group failed intermittently often in the 30 days before the push."""
+        if runnable_type == "label":
+            return False
+        group = name[1] if runnable_type == "config_group" else name
+        return test_info.is_flaky_group(
+            self.group_failure_stats,
+            group,
+            config.get("flaky_group_min_rate", 0.005),
+        )
+
+    def _failures_until_backout(self, runnable_type: str, name) -> int:
+        """Number of failing tasks of a runnable on this push and its children, until
+        the push was backed out (or up to MAX_DEPTH children if it wasn't)."""
+        cache = self.__dict__.setdefault("_failures_until_backout_cache", {})
+        if (runnable_type, name) not in cache:
+            failures = 0
+            for other in self._iterate_children(MAX_DEPTH):
+                if (
+                    self.branch != "try"
+                    and other != self
+                    and self.backedoutby in other.revs
+                ):
+                    break
+                summary = getattr(other, f"{runnable_type}_summaries").get(name)
+                if summary is not None and summary.status != Status.PASS:
+                    failures += len(summary.classifications)
+            cache[(runnable_type, name)] = failures
+        return cache[(runnable_type, name)]
+
+    def _has_novel_failure(self, summary: GroupSummary, push: "Push") -> bool:
+        """Whether a task classified as 'fixed by commit' has a failure line which is
+        new in the revision and matches no known bug, according to Treeherder.
+
+        Crash report and Taskcluster error lines are ignored, as they contain unique
+        identifiers which make them always look new.
+
+        When Treeherder has no failure lines for a task (e.g. when its log was too
+        large to be parsed), the failure is considered new if the group crashed with
+        a signature which also crashed another test on the push (intermittent
+        crashes rarely crash several tests), according to the errorsummary of the
+        tasks classified as 'fixed by commit', or if that can't be checked.
+        """
+        cache = self.__dict__.setdefault("_bug_suggestions_cache", {})
+        treeherder = TreeherderClientSource()
+        for task in summary.tasks:
+            if not task.failed or task.classification != "fixed by commit":
+                continue
+            if task.id not in cache:
+                try:
+                    job = treeherder.get_job_from_task(task)
+                    cache[task.id] = treeherder.get_bug_suggestions(
+                        job["id"], branch=self.branch
+                    )
+                except Exception as e:
+                    logger.debug(f"Failure lines of {task.id} unavailable: {e}")
+                    cache[task.id] = []
+            suggestions = cache[task.id]
+            if suggestions:
+                novel = any(
+                    s.get("failure_new_in_rev")
+                    and not s["bugs"].get("open_recent")
+                    and not s["bugs"].get("all_others")
+                    for s in suggestions
+                    if not s["search"].startswith("PROCESS-CRASH")
+                    and "[taskcluster:error]" not in s["search"]
+                )
+            else:
+                try:
+                    novel = self._crash_repeated(task, summary.name, push)
+                except Exception as e:
+                    logger.debug(f"Crashes of {task.id} unavailable: {e}")
+                    return True
+            if novel:
+                return True
+        return False
+
+    def _crash_repeated(self, task: TestTask, group: str, push: "Push") -> bool:
+        """Whether a crash of the group in the task has a signature which also crashed
+        another test in a task of the push classified as 'fixed by commit'."""
+
+        def crashes(t: TestTask) -> Iterator[Tuple[str, str, str]]:
+            for g, tests in t.crashes.items():
+                for test, signature in tests:
+                    # Unknown signatures don't tell crashes apart.
+                    if signature and "[Unknown]" not in signature:
+                        yield (
+                            wpt_workaround(g) if g.startswith(("/", ":")) else g,
+                            test,
+                            signature,
+                        )
+
+        signatures = {s for g, _, s in crashes(task) if g == group}
+        if not signatures:
+            return False
+        tests = defaultdict(set)
+        others = [
+            t
+            for t in push.tasks
+            if t is not task
+            and isinstance(t, TestTask)
+            and t.failed
+            and t.classification == "fixed by commit"
+        ]
+        for t in [task] + others:
+            for _, test, signature in crashes(t):
+                if signature in signatures:
+                    tests[signature].add(test)
+                    if len(tests[signature]) > 1:
+                        return True
+        return False
+
     def _iterate_failures(
         self, runnable_type: str, max_depth: Optional[int] = None
     ) -> Iterator[
@@ -795,7 +916,22 @@ class Push:
                         passing_runnables.add(name)
                     continue
 
-                if all(c not in FAILURE_CLASSES for c, n in summary.classifications):
+                classifications = summary.classifications
+                if (
+                    self._is_flaky_runnable(runnable_type, name)
+                    and self._failures_until_backout(runnable_type, name)
+                    <= config.get("flaky_group_max_failures", 1)
+                    and not self._has_novel_failure(summary, other)
+                ):
+                    # Sheriffs sometimes attribute isolated failures of flaky groups to
+                    # a nearby backout, consider them intermittent instead (unless the
+                    # failure is a new one).
+                    classifications = [
+                        ("intermittent", None) if c == "fixed by commit" else (c, n)
+                        for c, n in classifications
+                    ]
+
+                if all(c not in FAILURE_CLASSES for c, n in classifications):
                     classified_as_cause[name].append(None)
                     if name not in candidate_regressions:
                         passing_runnables.add(name)
@@ -805,7 +941,7 @@ class Push:
                     first_appearance[name] = other
 
                 is_classified_as_cause = self._is_classified_as_cause(
-                    first_appearance[name], summary.classifications
+                    first_appearance[name], classifications
                 )
                 if is_classified_as_cause is True:
                     classified_as_cause[name].append(True)

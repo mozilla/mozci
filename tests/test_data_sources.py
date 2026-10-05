@@ -592,6 +592,24 @@ class Responses:
             },
             id="errorsummary.test_task_failure_types",
         ),
+        pytest.param(
+            "errorsummary",
+            "test_task_crashes",
+            # responses
+            Responses.errorsummary_test_task_failure_types,
+            # input
+            {"task_id": "2" * 22},
+            # expected output
+            {
+                "browser/base/content/test/general/browser.ini": [
+                    (
+                        "browser/base/content/test/general/tests2.js",
+                        "@ mozilla::dom::IDBTransaction::~IDBTransaction()",
+                    ),
+                ],
+            },
+            id="errorsummary.test_task_crashes",
+        ),
     ),
 )
 def test_source(responses, source, contract, rsps, data_in, expected):

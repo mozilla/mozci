@@ -842,6 +842,8 @@ class Push:
                 is_classified_as_cause = self._is_classified_as_cause(
                     first_appearance[name], classifications
                 )
+                if decision.verdict == Verdict.ATTRIBUTE:
+                    is_classified_as_cause = decision.culprit == self.id
                 if is_classified_as_cause is True:
                     classified_as_cause[name].append(True)
                 elif is_classified_as_cause is False:
@@ -1001,7 +1003,8 @@ class Push:
             return None
 
         # Bustage fixes are found with the baseline rules (the sheriff
-        # classifications).
+        # classifications): attribution depends on them (see
+        # AttributionAnalysis.fixed_after).
         def find(runnable_type: str) -> Optional[str]:
             for other, candidate_regressions, _, _ in self._iterate_failures(
                 runnable_type, MAX_DEPTH

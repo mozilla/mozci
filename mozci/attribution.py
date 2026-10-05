@@ -7,7 +7,7 @@ intermittent failure attributed to a nearby backout, or a failure attributed to 
 backout of a neighbouring push. An AttributionAnalysis, created for a target push,
 gathers the evidence about a failure (past failure rates, the reland of the push,
 failure lines, crashes, backout descriptions) and decides whether to retain its
-classification or to consider it intermittent.
+classification, to consider it intermittent, or to attribute it to another push.
 
 Push._iterate_failures applies these decisions, while keeping responsibility for the
 traversal of the pushes and the bookkeeping of candidate regressions.
@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Set
 from typing import Tuple, Union
 
 from loguru import logger
+from lru import LRU
 
 from mozci import config, data
 from mozci.task import (
@@ -118,12 +119,15 @@ class Verdict(Enum):
     RETAIN = "retain"
     # Its 'fixed by commit' classifications are considered intermittent.
     INTERMITTENT = "intermittent"
+    # The failure is attributed to another push (Decision.culprit).
+    ATTRIBUTE = "attribute"
 
 
 @dataclass(frozen=True)
 class Decision:
     verdict: Verdict
     reason: str = ""
+    culprit: Optional[int] = None
 
 
 RETAIN = Decision(Verdict.RETAIN)
@@ -131,6 +135,9 @@ RETAIN = Decision(Verdict.RETAIN)
 
 class AttributionAnalysis:
     """Evidence about the failures attributed to a push, and decisions about them."""
+
+    # {(branch, push id): groups named by the backout or reland of the push}.
+    NAMED_GROUPS_CACHE: Dict[Tuple[str, int], Set[str]] = LRU(1000)
 
     def __init__(self, push: "Push"):
         self.push = push
@@ -291,6 +298,38 @@ class AttributionAnalysis:
         files = self.reland_files
         return None if files is None else self._groups_of_files(files[0] | files[1])
 
+    @property
+    def named_groups(self) -> Set[str]:
+        """Groups whose tests are named in the description of the backout of the push
+        (e.g. "for causing failures at test_foo.html"), or were modified by the push
+        or its reland (see reland_touched_groups)."""
+        key = (self.push.branch, self.push.id)
+        if key not in AttributionAnalysis.NAMED_GROUPS_CACHE:
+            groups = set(self.reland_touched_groups or ())
+            names = self.backout_file_names
+            if names:
+                groups |= {
+                    group
+                    for test, test_groups in (self.test_manifests or {}).items()
+                    if test.rsplit("/", 1)[-1] in names
+                    for group in test_groups
+                }
+            AttributionAnalysis.NAMED_GROUPS_CACHE[key] = groups
+        return AttributionAnalysis.NAMED_GROUPS_CACHE[key]
+
+    def fixed_after(self, failure_push: "Push") -> bool:
+        """Whether the push was backed out or bustage-fixed, after `failure_push`
+        landed (bustage fixes are found with the baseline rules, see
+        Push.bustage_fixed_by)."""
+        push = self.push
+        fix = push.backedoutby or push.bustage_fixed_by
+        if not fix:
+            return False
+        try:
+            return HgRev.create(fix, branch=push.branch).pushid > failure_push.id
+        except Exception:
+            return True
+
     def failure_lines(self, task: Task) -> List[Dict[str, Any]]:
         """The failure lines of a task, with their matching bugs (empty if
         unavailable)."""
@@ -333,7 +372,9 @@ class AttributionAnalysis:
         passed, from the push to `failure_push`).
 
         Isolated 'fixed by commit' failures of groups are considered intermittent
-        when the evidence says so (see isolated_intermittent)."""
+        when the evidence says so (see isolated_intermittent). Otherwise, failures of
+        configuration groups are attributed to the push whose backout or reland names
+        the group, if there is a single one (see named_culprit)."""
         group = group_of(runnable_type, name)
         if group is None:
             return RETAIN
@@ -344,6 +385,15 @@ class AttributionAnalysis:
         )
         if reason is not None:
             return Decision(Verdict.INTERMITTENT, reason)
+
+        if runnable_type == "config_group" and any(
+            c == "fixed by commit" for c, n in summary.classifications
+        ):
+            culprit = self.named_culprit(name, failure_push)
+            if culprit is not None:
+                return Decision(
+                    Verdict.ATTRIBUTE, "the backout or reland names the group", culprit
+                )
         return RETAIN
 
     def isolated_intermittent(
@@ -532,3 +582,24 @@ class AttributionAnalysis:
                     if len(tests[signature]) > 1:
                         return True
         return False
+
+    def named_culprit(self, name: Any, failure_push: "Push") -> Optional[int]:
+        """The id of the push which most likely caused a configuration-group failure
+        on `failure_push`, if a single candidate names the group: among the pushes
+        backed out or bustage-fixed after the failure, between the last pass of the
+        configuration-group and the failure, the one whose backout names a test of
+        the group, or whose reland changed tests of the group."""
+        group = name[1]
+        named = None
+        for push in itertools.islice(failure_push._iterate_parents(), MAX_DEPTH):
+            if push != failure_push:
+                summary = push.config_group_summaries.get(name)
+                if summary is not None and summary.status == Status.PASS:
+                    break
+            analysis = push.attribution
+            if analysis.fixed_after(failure_push) and group in analysis.named_groups:
+                if named is not None:
+                    # Several candidates name the group.
+                    return None
+                named = push.id
+        return named

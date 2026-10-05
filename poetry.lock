@@ -1812,14 +1812,14 @@ taskcluster-urls = ">=12.1.0"
 
 [[package]]
 name = "taskcluster-urls"
-version = "13.0.2"
+version = "13.1.0"
 description = "Standardized url generator for taskcluster resources."
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "taskcluster_urls-13.0.2-py3-none-any.whl", hash = "sha256:667218846d03dff7b307ad9f1e95eec19b09edb6c509cd844096ac3aac1744b2"},
-    {file = "taskcluster_urls-13.0.2.tar.gz", hash = "sha256:e20581c67199360b89cf86015423f6dad2051464be0d4b2c3f7df32dc3a2fa6e"},
+    {file = "taskcluster_urls-13.1.0-py3-none-any.whl", hash = "sha256:056c7a1607af4b011ace56c20e3af4f525c02d6323eab401fc186b625bbb7ba8"},
+    {file = "taskcluster_urls-13.1.0.tar.gz", hash = "sha256:ccd88e569c32b906faa93a7950756c9ddec96d83081f6f04f75319753f668f8d"},
 ]
 
 [[package]]

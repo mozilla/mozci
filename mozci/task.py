@@ -57,6 +57,16 @@ def is_verify(label: str) -> bool:
     return "test-verify" in label or "test-coverage" in label
 
 
+PERF_SUITES = ("raptor", "talos", "awsy")
+
+
+def is_perf_task(task: "Task") -> bool:
+    """Whether a task is a performance test (its failures are usually caused by the
+    infrastructure or the harness, and its performance regressions are detected by
+    other means)."""
+    return task.suite in PERF_SUITES or task.tags.get("kind") == "perftest"
+
+
 slash_group_warned = False
 
 

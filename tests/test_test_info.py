@@ -945,3 +945,44 @@ def test_label_failing_before_and_after_the_backout_is_not_a_regression(
     # It passed before the push, or after its backout: the push is the culprit.
     assert regressions(before=True, after=False) == {label: 0}
     assert regressions(before=False, after=True) == {label: 0}
+
+
+def test_perf_label_is_not_a_regression(create_pushes, monkeypatch):
+    p = create_pushes(9)
+    p[4].backedoutby = p[7].rev
+    monkeypatch.setattr(
+        Push,
+        "_is_classified_as_cause",
+        lambda self, first, classifications: (
+            any(c == "fixed by commit" for c, n in classifications) or None
+        ),
+    )
+
+    def regressions(label, suite, kind="test"):
+        for j in range(9):
+            p[j].tasks = [
+                Task.create(
+                    id=str(j) * 22,
+                    label=label,
+                    suite=suite,
+                    tags={"kind": kind},
+                    result="failed" if j == 4 else "passed",
+                    classification="fixed by commit" if j == 4 else "not classified",
+                    classification_note=p[7].rev if j == 4 else None,
+                )
+            ]
+            for attr in ("_get_regressions", "_label_summaries"):
+                p[j].__dict__.pop(attr, None)
+                p[j].attribution.__dict__.pop(attr, None)
+        return p[4].get_regressions("label")
+
+    assert regressions("test-linux1804-64-shippable/opt-talos-tp5o", "talos") == {}
+    assert (
+        regressions(
+            "test-linux1804-64-shippable/opt-browsertime-tp6", None, kind="perftest"
+        )
+        == {}
+    )
+    assert regressions("test-linux1804-64/opt-gtest-1proc", "gtest") == {
+        "test-linux1804-64/opt-gtest-1proc": 0
+    }

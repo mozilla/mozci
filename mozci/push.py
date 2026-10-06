@@ -30,6 +30,7 @@ from mozci.task import (
     Task,
     TestTask,
     get_configuration,
+    is_perf_task,
     is_verify,
 )
 from mozci.util import test_info
@@ -1066,7 +1067,10 @@ class Push:
         for name, (count, failure_summary) in self.get_candidate_regressions(
             runnable_type
         ).items():
-            if runnable_type == "label" and self.attribution.label_failing_around(name):
+            if isinstance(failure_summary, LabelSummary) and (
+                all(is_perf_task(task) for task in failure_summary.tasks)
+                or self.attribution.label_failing_around(name)
+            ):
                 continue
 
             other = self.parent

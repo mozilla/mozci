@@ -63,6 +63,13 @@ the last pass of the configuration group and the failure, has a backout naming a
 (e.g. "for causing failures at test_foo.html") or a reland changing tests of the group, the failure
 is considered caused by that push, whatever the classification references.
 
+Runnables which still fail on the backout of the push are not candidate regressions, unless the
+failure on the backout is classified as fixed by the backout of another push, and the first failures
+attributed to the push have a distinctive failure line (naming a test of the runnable, or an
+assertion, and matching no recent bug) which is a different failure than the one on the backout: about
+a test which doesn't fail there, or with none of its messages (e.g. other subtests), or an assertion
+which doesn't appear there (the runnable was broken by both pushes).
+
 Candidate regressions are the set of all runnables that could possibly be a regression of this push.
 This *does not* mean that they are regressions. Just that they could be.
 

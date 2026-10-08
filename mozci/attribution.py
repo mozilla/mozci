@@ -621,6 +621,84 @@ class AttributionAnalysis:
                 named = push.id
         return named
 
+    def failing_on_backout_for_another_push(
+        self,
+        runnable_type: str,
+        name: Any,
+        backout_push: "Push",
+        backout_summary: Union[GroupSummary, LabelSummary],
+    ) -> bool:
+        """Whether a runnable fails on the backout push of the push because of another
+        push: the failure is classified as fixed by the backout of another push, and
+        the first failures classified as fixed by the backout of the push have a
+        distinctive failure line (naming a test of the runnable, or an assertion, and
+        matching no recent bug) which is a different failure than the one on the
+        backout push: about a test which doesn't fail there, or with none of its
+        messages (e.g. other subtests), or an assertion which doesn't appear there."""
+        push = self.push
+        if (
+            push._is_classified_as_cause(backout_push, backout_summary.classifications)
+            is not False
+        ):
+            return False
+        group = group_of(runnable_type, name)
+
+        def normalize(line: str) -> str:
+            return normalize_failure_line(line.replace("\\", "/"))
+
+        def distinctive(line: Dict[str, Any]) -> bool:
+            search = line["search"]
+            # Generic lines, and lines printed for any failing test.
+            if any(g in search for g in GENERIC_FAILURE_LINES) or any(
+                g in search for g in ("profile uploaded", "| finished in ")
+            ):
+                return False
+            if any(b.get("id") for b in line["bugs"].get("open_recent", [])):
+                return False
+            if search.startswith("Assertion failure"):
+                return True
+            return test_of_failure_line(search) is not None and (
+                group is None or is_failure_line_about_group(search, group)
+            )
+
+        # Only the first failures attributed to the push: later ones are more likely to
+        # be failures caused by the other push, attributed to this one.
+        own: Dict[str, Set[str]] = defaultdict(set)
+        for other in itertools.islice(push._iterate_children(), MAX_DEPTH * 3):
+            if other == backout_push:
+                break
+            summary = getattr(other, f"{runnable_type}_summaries").get(name)
+            if summary is None or summary.status == Status.PASS:
+                continue
+            tasks = [
+                task
+                for task in summary.tasks
+                if task.failed
+                and task.classification == "fixed by commit"
+                and push._is_classified_as_cause(
+                    other, [(task.classification, task.classification_note)]
+                )
+                is True
+            ]
+            if tasks:
+                for task in tasks:
+                    for line in self.failure_lines(task):
+                        if distinctive(line):
+                            search = normalize(line["search"])
+                            # Assertions are compared by their line.
+                            own[test_of_failure_line(search) or search].add(search)
+                break
+
+        backout: Dict[str, Set[str]] = defaultdict(set)
+        for task in backout_summary.tasks:
+            if task.failed:
+                for line in self.failure_lines(task):
+                    search = normalize(line["search"])
+                    backout[test_of_failure_line(search) or search].add(search)
+        return any(
+            key not in backout or not lines & backout[key] for key, lines in own.items()
+        )
+
     def label_failing_around(self, name: str) -> bool:
         """Whether a label failed on its last run before the push and on its first run
         after the backout of the push: the push didn't change its result (e.g. tasks

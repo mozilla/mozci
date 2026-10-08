@@ -986,3 +986,96 @@ def test_perf_label_is_not_a_regression(create_pushes, monkeypatch):
     assert regressions("test-linux1804-64/opt-gtest-1proc", "gtest") == {
         "test-linux1804-64/opt-gtest-1proc": 0
     }
+
+
+def test_failure_on_backout_caused_by_another_push(create_pushes, monkeypatch):
+    group = "dom/tests/mochitest.toml"
+
+    def task(i, ok, note=None):
+        t = Task.create(
+            id=str(i) * 22,
+            label=f"test-linux/opt-mochitest-{i}",
+            result="passed" if ok else "failed",
+            classification="fixed by commit" if note else "not classified",
+            classification_note=note,
+            tags={"tests_grouped": "1"},
+        )
+        t._results = [GroupResult(group=group, ok=ok, duration=1)]
+        return t
+
+    p = create_pushes(11)
+    for j in range(11):
+        p[j].tasks = [task(j, True)]
+        p[j].attribution._reland_files = None
+    # p[4] broke the group, and was backed out by p[7]. p[6] broke it too, and was
+    # backed out by p[9].
+    p[4].backedoutby, p[6].backedoutby = p[7].rev, p[9].rev
+    p[5].tasks = [task(5, False, p[7].rev), task(15, False, p[7].rev)]
+    p[7].tasks = [task(7, False, p[9].rev)]
+    p[4].attribution._group_failure_stats = {}
+
+    monkeypatch.setattr(
+        Push,
+        "_is_classified_as_cause",
+        lambda self, first, classifications: next(
+            (
+                n == self.backedoutby
+                for c, n in classifications
+                if c == "fixed by commit"
+            ),
+            None,
+        ),
+    )
+    monkeypatch.setattr(
+        HgRev, "load_json_pushes_between_ids", staticmethod(lambda *args: None)
+    )
+    monkeypatch.setattr(
+        HgRev,
+        "JSON_PUSHES_CACHE",
+        {
+            push.id: {"changesets": [{"node": push.rev, "desc": "Change", "files": []}]}
+            for push in p
+        },
+    )
+    monkeypatch.setattr(
+        TreeherderClientSource, "get_job_from_task", lambda self, task: {"id": task.id}
+    )
+
+    def regressions(backout_line):
+        lines = {
+            "5" * 22: "TEST-UNEXPECTED-FAIL | dom/tests/test_foo.html | broken",
+            "1" * 11
+            + "5" * 11: "TEST-UNEXPECTED-FAIL | dom/tests/test_foo.html | broken",
+            "7" * 22: backout_line,
+        }
+        monkeypatch.setattr(
+            TreeherderClientSource,
+            "get_bug_suggestions",
+            lambda self, job_id, branch="autoland": [
+                {"search": lines[job_id], "failure_new_in_rev": True, "bugs": {}}
+            ],
+        )
+        for push in p:
+            for attr in (
+                "_get_regressions",
+                "_failure_lines",
+                "_group_summaries",
+                "_failures_until_backout",
+            ):
+                push.__dict__.pop(attr, None)
+                push.attribution.__dict__.pop(attr, None)
+        return p[4].get_regressions("group")
+
+    # The failure on the backout is another failure, caused by p[6].
+    assert regressions("TEST-UNEXPECTED-FAIL | dom/tests/test_bar.html | other") == {
+        group: 0
+    }
+
+    # The failure on the backout is in the same test, but on other subtests: it's
+    # another failure too.
+    assert regressions("TEST-UNEXPECTED-FAIL | dom/tests/test_foo.html | other") == {
+        group: 0
+    }
+
+    # The failure on the backout is the same: it wasn't caused by p[4].
+    assert regressions("TEST-UNEXPECTED-FAIL | dom/tests/test_foo.html | broken") == {}

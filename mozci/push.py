@@ -957,8 +957,9 @@ class Push:
                 # Runnables that still fail after the backout, can't be considered
                 # regressions of the push.
                 # NOTE: There could be another push in between the push of interest and its
-                # backout that causes another failure in the same runnable, but it is very
-                # unlikely (especially for finer granularities, such as "group").
+                # backout that causes another failure in the same runnable: it is detected
+                # when the failure on the backout is classified as fixed by the backout of
+                # the other push, and doesn't look like the failures caused by this push.
                 for name, summary in getattr(
                     next_child, f"{runnable_type}_summaries"
                 ).items():
@@ -967,6 +968,10 @@ class Push:
                         and summary.status != Status.PASS
                         and all(
                             c in FAILURE_CLASSES for c, n in summary.classifications
+                        )
+                        # Unless the failure on the backout is caused by another push.
+                        and not self.attribution.failing_on_backout_for_another_push(
+                            runnable_type, name, next_child, summary
                         )
                     ):
                         del candidate_regressions[name]

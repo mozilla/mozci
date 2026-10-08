@@ -29,6 +29,7 @@ from mozci.task import (
     Task,
     TestTask,
     get_configuration,
+    is_verify,
 )
 from mozci.util.defs import FAILURE_CLASSES, TASK_FINAL_STATES
 from mozci.util.hgmo import HgRev, parse_bugs
@@ -512,7 +513,8 @@ class Push:
         for task in self.tasks:
             # We can't consider tasks that were chunked in the taskgraph for finding label-level regressions
             # because tasks with the same name on different pushes might contain totally different tests.
-            if task.is_tests_grouped:
+            # Same for test-verify and test-coverage tasks, which run the tests modified by each push.
+            if task.is_tests_grouped or is_verify(task.label or ""):
                 continue
 
             labels[task.label].append(task)

@@ -51,22 +51,10 @@ def fetch_test_variant_yaml() -> Dict:
     return test_variants
 
 
-NO_GROUPS_SUITES = (
-    "raptor",
-    "talos",
-    "awsy",
-    "gtest",
-    "cppunit",
-    "telemetry-tests",
-    "firefox-ui-functional",
-    "junit",  # https://bugzilla.mozilla.org/show_bug.cgi?id=1617632
-    "jittest",  # https://bugzilla.mozilla.org/show_bug.cgi?id=1617633
-    "marionette",  # https://bugzilla.mozilla.org/show_bug.cgi?id=1636088
-)
-
-
-def is_no_groups_suite(label):
-    return any(f"-{s}-" in label for s in NO_GROUPS_SUITES)
+def is_verify(label: str) -> bool:
+    """Whether a task is a test-verify or test-coverage task, which run the tests
+    modified by a push (different tests on each push)."""
+    return "test-verify" in label or "test-coverage" in label
 
 
 slash_group_warned = False
@@ -505,6 +493,13 @@ class TestTask(Task):
     )
 
     @property
+    def has_group_results(self) -> bool:
+        """Whether the results of the task are meaningful at the group level: the
+        task runs whole groups, or (for test-verify and test-coverage) specific tests
+        of groups."""
+        return self.is_tests_grouped or is_verify(self.label or "")
+
+    @property
     def is_wpt(self):
         return any(
             s in self.label
@@ -514,7 +509,7 @@ class TestTask(Task):
     def retrieve_results(self, push):
         global slash_group_warned
 
-        if is_no_groups_suite(self.label):
+        if not self.has_group_results:
             assert self._errors is None, (
                 f"{self.id} : {self.label} should have no errors"
             )

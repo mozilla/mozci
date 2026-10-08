@@ -635,11 +635,35 @@ def test_results_for_incomplete_task(responses):
         id=1,
         label="test-task",
         state="completed",
+        tags={"tests_grouped": "1"},
     )
     task.retrieve_results(push)
     assert task.results == [
         GroupResult(group="layout/base/tests/browser.ini", ok=True, duration=12430),
     ]
+
+    # Tasks which don't run whole groups have no group results.
+    task = Task.create(
+        id=1,
+        label="test-linux1804-64/opt-jsreftest-1",
+        state="completed",
+    )
+    task.retrieve_results(push)
+    assert task.results == []
+
+
+def test_has_group_results():
+    def task(label, tags={}):
+        return Task.create(id=1, label=label, tags=tags)
+
+    assert task(
+        "test-linux1804-64/opt-mochitest-1", {"tests_grouped": "1"}
+    ).has_group_results
+    assert task("test-linux1804-64/opt-test-verify").has_group_results
+    assert task("test-linux1804-64/opt-test-verify-wpt").has_group_results
+    assert task("test-linux1804-64/opt-test-coverage").has_group_results
+    assert not task("test-linux1804-64/opt-jsreftest-1").has_group_results
+    assert not task("test-linux1804-64-shippable/opt-talos-tp5o").has_group_results
 
 
 @pytest.mark.parametrize(

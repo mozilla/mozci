@@ -1831,3 +1831,37 @@ def test_classify_cases(
         assert set(result[2].real_retrigger) == real_retrigger
         assert set(result[2].intermittent_retrigger) == intermittent_retrigger
         assert set(result[2].backfill) == backfill
+
+
+def test_summaries_of_grouped_and_verify_tasks(create_push):
+    push = create_push()
+
+    def task(i, label, group=None, tags={}):
+        t = Task.create(id=str(i) * 22, label=label, result="failed", tags=tags)
+        if group is not None:
+            t._results = [GroupResult(group=group, ok=False, duration=1)]
+        return t
+
+    push.tasks = [
+        task(1, "build-linux64/opt"),
+        task(
+            2,
+            "test-linux1804-64/opt-mochitest-1",
+            "dom/tests/mochitest.toml",
+            {"tests_grouped": "1"},
+        ),
+        task(3, "test-linux1804-64/opt-test-verify", "dom/base/test/mochitest.toml"),
+        task(4, "test-linux1804-64/opt-jsreftest-1"),
+    ]
+    # Tasks which can't be scheduled at the group level have no group results.
+    push.tasks[3]._results = []
+
+    # Chunked tasks and test-verify tasks run different tests on each push.
+    assert set(push.label_summaries) == {
+        "build-linux64/opt",
+        "test-linux1804-64/opt-jsreftest-1",
+    }
+    assert set(push.group_summaries) == {
+        "dom/tests/mochitest.toml",
+        "dom/base/test/mochitest.toml",
+    }

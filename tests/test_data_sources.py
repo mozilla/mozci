@@ -8,6 +8,7 @@ import responses
 from mozci.data import DataHandler
 from mozci.data.contract import all_contracts
 from mozci.data.sources.treeherder import TreeherderClientSource
+from mozci.errors import ContractNotFilled
 from mozci.task import FailureType, TestTask
 
 
@@ -609,3 +610,72 @@ def test_source(responses, source, contract, rsps, data_in, expected):
     pprint(data_out, indent=2)
     assert data_out == expected
     contract.validate_out(data_out)
+
+
+def test_treeherder_groups_might_be_incomplete(responses):
+    """Treeherder only ingests the first lines of the errorsummary, so the groups of a
+    task might be incomplete: another source is used instead."""
+    source = DataHandler.ALL_SOURCES["treeherder_client"]
+    group = "toolkit/profile/test/xpcshell/xpcshell.toml"
+    responses.add(
+        responses.GET,
+        f"{TreeherderClientSource.base_url}/project/autoland/push/group_results/?revision=fedcba&format=json",
+        status=200,
+        json={
+            "aaaaaaaaaaaaaaaaaaaaaa": {"dom/tests/mochitest.toml": True},
+            "bbbbbbbbbbbbbbbbbbbbbb": {"dom/tests/mochitest.toml": True},
+            "cccccccccccccccccccccc": {
+                f"dir{i}/xpcshell.toml": True for i in range(125)
+            },
+        },
+    )
+
+    def groups(task_id, result):
+        task = TestTask.create(id=task_id, label="test-foo", result=result)
+        return source.run_test_task_groups(branch="autoland", rev="fedcba", task=task)
+
+    assert groups("aaaaaaaaaaaaaaaaaaaaaa", "passed") == {
+        "dom/tests/mochitest.toml": (True, None)
+    }
+    # The task failed, but no group failed.
+    with pytest.raises(ContractNotFilled):
+        groups("bbbbbbbbbbbbbbbbbbbbbb", "failed")
+    # The task has as many groups as Treeherder can ingest.
+    with pytest.raises(ContractNotFilled):
+        groups("cccccccccccccccccccccc", "passed")
+
+    # The errorsummary is used instead.
+    responses.add(
+        responses.GET,
+        f"{TreeherderClientSource.base_url}/project/autoland/push/group_results/?revision=fedcba&format=json",
+        status=200,
+        json={"dddddddddddddddddddddd": {"dom/tests/mochitest.toml": True}},
+    )
+    responses.add(
+        responses.GET,
+        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/dddddddddddddddddddddd/artifacts",
+        status=200,
+        json={"artifacts": [{"name": "public/test_info/xpcshell_errorsummary.log"}]},
+    )
+    responses.add(
+        responses.GET,
+        "https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/dddddddddddddddddddddd/artifacts/public/test_info/xpcshell_errorsummary.log",
+        status=200,
+        body=dedent(
+            f"""
+            {{"action": "test_groups", "line": 3, "groups": ["dom/tests/mochitest.toml", "{group}"]}}
+            {{"status": "OK", "duration": 10, "line": 9, "group": "dom/tests/mochitest.toml", "action": "group_result"}}
+            {{"status": "ERROR", "duration": 20, "line": 9, "group": "{group}", "action": "group_result"}}
+            """
+        ).strip(),
+    )
+    handler = DataHandler("treeherder_client", "errorsummary")
+    task = TestTask.create(
+        id="dddddddddddddddddddddd", label="test-foo", result="failed"
+    )
+    assert handler.get(
+        "test_task_groups", branch="autoland", rev="fedcba", task=task
+    ) == {
+        "dom/tests/mochitest.toml": (True, 10),
+        group: (False, 20),
+    }

@@ -24,9 +24,15 @@ class JobUnavailable(Exception):
     """Exception raised when a Treeherder job does not exist or its logs have not been parsed yet"""
 
 
+# Treeherder only ingests the first 150 lines of the errorsummary of a task, so the
+# groups of tasks running many groups might be missing (their results are reported
+# at the end of the errorsummary).
+MAX_COMPLETE_GROUPS = 125
+
+
 class BaseTreeherderSource(DataSource, ABC):
     lock = threading.Lock()
-    groups_cache: Dict[str, List[str]] = LRU(7000)
+    groups_cache: Dict[str, Dict[str, bool]] = LRU(7000)
 
     @abstractmethod
     def get_push_test_groups(self, branch: str, rev: str) -> Dict[str, List[str]]: ...
@@ -40,13 +46,20 @@ class BaseTreeherderSource(DataSource, ABC):
                 self.groups_cache.update(self.get_push_test_groups(branch, rev))
 
         try:
-            # TODO: Once https://github.com/mozilla/mozci/issues/662 is fixed, we should return the actual duration instead of None.
-            return {
-                group: (status, None)
-                for group, status in self.groups_cache.pop(task.id).items()
-            }
+            groups = self.groups_cache.pop(task.id)
         except KeyError:
             raise ContractNotFilled(self.name, "test_task_groups", "groups are missing")
+
+        # The groups might be incomplete: let another source (e.g. the errorsummary)
+        # provide them, when a task has as many groups as Treeherder can ingest, or
+        # when it failed without any failing group.
+        if len(groups) >= MAX_COMPLETE_GROUPS or (task.failed and all(groups.values())):
+            raise ContractNotFilled(
+                self.name, "test_task_groups", "groups might be incomplete"
+            )
+
+        # TODO: Once https://github.com/mozilla/mozci/issues/662 is fixed, we should return the actual duration instead of None.
+        return {group: (status, None) for group, status in groups.items()}
 
 
 class TreeherderClientSource(BaseTreeherderSource):

@@ -1079,3 +1079,87 @@ def test_failure_on_backout_caused_by_another_push(create_pushes, monkeypatch):
 
     # The failure on the backout is the same: it wasn't caused by p[4].
     assert regressions("TEST-UNEXPECTED-FAIL | dom/tests/test_foo.html | broken") == {}
+
+
+def test_fixed_by_commit_judged_on_tasks_where_the_group_failed(
+    create_pushes, monkeypatch
+):
+    group, other_group = "dom/tests/mochitest.toml", "dom/base/mochitest.toml"
+
+    def task(i, label, results, classification="not classified"):
+        t = Task.create(
+            id=str(i) * 22,
+            label=label,
+            result="passed" if all(ok for g, ok in results) else "failed",
+            classification=classification,
+            tags={"tests_grouped": "1"},
+        )
+        t._results = [GroupResult(group=g, ok=ok, duration=1) for g, ok in results]
+        return t
+
+    p = create_pushes(8)
+    for j in list(range(0, 4)) + list(range(5, 8)):
+        p[j].tasks = [
+            task(1, "test-linux/opt-mochitest-1", [(group, True)]),
+            task(
+                2, "test-windows/opt-mochitest-1", [(group, True), (other_group, True)]
+            ),
+        ]
+    p[4].backedoutby = p[6].rev
+    p[4].tasks = [
+        # The group failed on Linux, where it is flaky.
+        task(1, "test-linux/opt-mochitest-1", [(group, False)], "fixed by commit"),
+        # The push broke another group on Windows, where the group passed.
+        task(
+            2,
+            "test-windows/opt-mochitest-1",
+            [(group, True), (other_group, False)],
+            "fixed by commit",
+        ),
+    ]
+    for t in p[4].tasks:
+        t.classification_note = p[6].rev
+    p[4].attribution._group_failure_stats = {
+        group: {
+            "test-linux/opt-mochitest": (50, 2000),
+            "test-windows/opt-mochitest": (0, 2000),
+        }
+    }
+    p[4].attribution._reland_files = None
+    monkeypatch.setattr(
+        TreeherderClientSource, "get_job_from_task", lambda self, task: {"id": task.id}
+    )
+    monkeypatch.setattr(
+        TreeherderClientSource,
+        "get_bug_suggestions",
+        lambda self, job_id, branch="autoland": (
+            [
+                {
+                    "search": "TEST-UNEXPECTED-FAIL | dom/tests/test_foo.html | timed out",
+                    "failure_new_in_rev": False,
+                    "bugs": {"open_recent": [{"id": 1, "summary": "Intermittent"}]},
+                }
+            ]
+            if job_id == "1" * 22
+            else [
+                {
+                    "search": "TEST-UNEXPECTED-FAIL | dom/base/test_bar.html | broken",
+                    "failure_new_in_rev": True,
+                    "bugs": {"open_recent": [], "all_others": []},
+                }
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        Push,
+        "_is_classified_as_cause",
+        lambda self, first, classifications: (
+            any(c == "fixed by commit" for c, n in classifications) or None
+        ),
+    )
+
+    # The group is flaky where it failed, and the new failure is about another group:
+    # the failure of the group is considered intermittent.
+    regressions = p[4].get_regressions("group")
+    assert group not in regressions
+    assert other_group in regressions

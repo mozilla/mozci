@@ -351,11 +351,15 @@ class AttributionAnalysis:
 
     @staticmethod
     def fixed_by_commit_tasks(summary: GroupSummary) -> List[TestTask]:
-        """Failed test tasks of a group summary classified as 'fixed by commit'."""
+        """Failed test tasks of a group summary classified as 'fixed by commit', where
+        the group failed (a task can fail because of other groups)."""
         return [
             task
             for task in summary.tasks
-            if task.label and task.failed and task.classification == "fixed by commit"
+            if task.label
+            and task.failed
+            and task.classification == "fixed by commit"
+            and any(r.group == summary.name and not r.ok for r in task.results)
         ]
 
     # Decisions.
@@ -496,8 +500,9 @@ class AttributionAnalysis:
         )
 
     def has_novel_failure(self, summary: GroupSummary, failure_push: "Push") -> bool:
-        """Whether a task classified as 'fixed by commit' has a failure line which is
-        new in the revision and matches no known bug, according to Treeherder.
+        """Whether a task classified as 'fixed by commit', where the group failed, has a
+        failure line about the group which is new in the revision and matches no known
+        bug, according to Treeherder.
 
         Crash report and Taskcluster error lines are ignored, as they contain unique
         identifiers which make them always look new.
@@ -522,6 +527,7 @@ class AttributionAnalysis:
                     for s in suggestions
                     if not s["search"].startswith("PROCESS-CRASH")
                     and "[taskcluster:error]" not in s["search"]
+                    and is_failure_line_about_group(s["search"], summary.name)
                 ) or self.line_repeated(task, summary.name, failure_push)
             else:
                 try:

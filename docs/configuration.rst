@@ -128,8 +128,10 @@ and:
   groups, and neither the push nor its reland modified tests of this one (the
   tests broken by the push were fixed, and this group wasn't among them).
 
-Classifications are kept if the failure is new, i.e. Treeherder reports a
-failure line which is new in the revision and matches no known bug, or a failure
+Only the tasks where the group failed are considered (a task can fail because of
+other groups). Classifications are kept if the failure is new, i.e. Treeherder
+reports a failure line about the group which is new in the revision and matches
+no known bug, or a failure
 line of the group which matches no bug also appears in another task of the push
 classified as "fixed by commit". When Treeherder has no failure lines for the
 task (e.g. when its log was too large to be parsed), classifications are kept if

@@ -783,14 +783,6 @@ class Push:
         count = 0
         for other in self._iterate_children(max_depth):
             for name, summary in getattr(other, f"{runnable_type}_summaries").items():
-                # test-verify is special, we don't want to look at children pushes.
-                if (
-                    self != other
-                    and runnable_type == "label"
-                    and ("test-verify" in name or "test-coverage" in name)
-                ):
-                    break
-
                 if summary.status == Status.PASS:
                     ever_passing_runnables.add(name)
                     if name not in candidate_regressions:
@@ -1031,55 +1023,48 @@ class Push:
             other = self.parent
             prior_regression = False
 
-            # test-verify is special, we can assume the test-verify task is not the same as the one
-            # in the parent pushes.
-            if (
-                runnable_type != "label"
-                or "test-verify" not in name
-                or "test-coverage" not in name
-            ):
-                found_in_parent = False
-                for other in other._iterate_parents(MAX_DEPTH):
-                    if count < 0:
+            found_in_parent = False
+            for other in other._iterate_parents(MAX_DEPTH):
+                if count < 0:
+                    break
+
+                runnable_summaries = getattr(other, f"{runnable_type}_summaries")
+
+                if name in runnable_summaries:
+                    found_in_parent = True
+                    summary = runnable_summaries[name]
+
+                    # If the failure is not intermittent...
+                    if not failure_summary.is_intermittent:
+                        # ...and it failed permanently in the first parent where it ran, it is a
+                        # prior regression.
+                        # Otherwise, if it passed or was intermittent, it is likely not a prior
+                        # regression.
+                        if (
+                            summary.status != Status.PASS
+                            and not summary.is_intermittent
+                            and (
+                                not assume_unclassified_is_intermittent
+                                or all(
+                                    c != "not classified"
+                                    for c, n in summary.classifications
+                                )
+                            )
+                        ):
+                            prior_regression = True
+
                         break
 
-                    runnable_summaries = getattr(other, f"{runnable_type}_summaries")
+                    # If the failure is intermittent and it failed intermittently in a close
+                    # parent too, it is likely a prior regression.
+                    # We need to explore the parent's parents instead if it passed or failed
+                    # consistently in the parent.
+                    elif summary.is_intermittent:
+                        prior_regression = True
+                        break
 
-                    if name in runnable_summaries:
-                        found_in_parent = True
-                        summary = runnable_summaries[name]
-
-                        # If the failure is not intermittent...
-                        if not failure_summary.is_intermittent:
-                            # ...and it failed permanently in the first parent where it ran, it is a
-                            # prior regression.
-                            # Otherwise, if it passed or was intermittent, it is likely not a prior
-                            # regression.
-                            if (
-                                summary.status != Status.PASS
-                                and not summary.is_intermittent
-                                and (
-                                    not assume_unclassified_is_intermittent
-                                    or all(
-                                        c != "not classified"
-                                        for c, n in summary.classifications
-                                    )
-                                )
-                            ):
-                                prior_regression = True
-
-                            break
-
-                        # If the failure is intermittent and it failed intermittently in a close
-                        # parent too, it is likely a prior regression.
-                        # We need to explore the parent's parents instead if it passed or failed
-                        # consistently in the parent.
-                        elif summary.is_intermittent:
-                            prior_regression = True
-                            break
-
-                    if not found_in_parent:
-                        count += 1
+                if not found_in_parent:
+                    count += 1
 
             # Given that our "bustage fix" detection is a heuristic which might fail, we
             # penalize regressions for pushes which weren't backed-out by doubling their count

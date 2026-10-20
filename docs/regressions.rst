@@ -56,6 +56,20 @@ A candidate regression is a runnable which meets the following criteria:
     * The classification references a backout that backs out the target push.
 
 
+For configuration groups (``config_group`` runnables), sheriffs sometimes classify a failure with
+the backout of a nearby push, especially when the configuration didn't run between the culprit and
+the failure. So when a single push, backed out or bustage-fixed after the failure and landed between
+the last pass of the configuration group and the failure, has a backout naming a test of the group
+(e.g. "for causing failures at test_foo.html") or a reland changing tests of the group, the failure
+is considered caused by that push, whatever the classification references.
+
+Runnables which still fail on the backout of the push are not candidate regressions, unless the
+failure on the backout is classified as fixed by the backout of another push, and the first failures
+attributed to the push have a distinctive failure line (naming a test of the runnable, or an
+assertion, and matching no recent bug) which is a different failure than the one on the backout: about
+a test which doesn't fail there, or with none of its messages (e.g. other subtests), or an assertion
+which doesn't appear there (the runnable was broken by both pushes).
+
 Candidate regressions are the set of all runnables that could possibly be a regression of this push.
 This *does not* mean that they are regressions. Just that they could be.
 
@@ -71,6 +85,12 @@ A *regression* is a candidate regression that additionally satisfies the followi
     * The candidate regression is not marked as a regression of any parent pushes up
       to :data:`~mozci.push.MAX_DEPTH` pushes away.
     * The condition ``total_distance <= MAX_DEPTH`` is satisfied. This condition is explained in more detail below.
+    * For labels, the label is not a performance test (raptor, talos, awsy or perftest tasks):
+      their failures are usually caused by the infrastructure or the harness, and their
+      performance regressions are detected by other means.
+    * For labels, the label didn't fail both on its last run before the push and on its first run
+      after the backout of the push (the push didn't change its result, e.g. for tasks which are
+      always failing, which sheriffs classify with a nearby backout).
 
 .. note:: Distance Calculation
 

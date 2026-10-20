@@ -57,6 +57,16 @@ def is_verify(label: str) -> bool:
     return "test-verify" in label or "test-coverage" in label
 
 
+PERF_SUITES = ("raptor", "talos", "awsy")
+
+
+def is_perf_task(task: "Task") -> bool:
+    """Whether a task is a performance test (its failures are usually caused by the
+    infrastructure or the harness, and its performance regressions are detected by
+    other means)."""
+    return task.suite in PERF_SUITES or task.tags.get("kind") == "perftest"
+
+
 slash_group_warned = False
 
 
@@ -491,6 +501,9 @@ class TestTask(Task):
     _failure_types: Optional[Dict[GroupName, List[Tuple[TestName, FailureType]]]] = (
         field(default=None)
     )
+    _crashes: Optional[Dict[GroupName, List[Tuple[TestName, Optional[str]]]]] = field(
+        default=None
+    )
 
     @property
     def has_group_results(self) -> bool:
@@ -587,6 +600,21 @@ class TestTask(Task):
                 "test_task_failure_types", task_id=self.id
             )
         return self._failure_types
+
+    @property
+    def crashes(self):
+        """
+        Returns a dict mapping each group with crashes on this TestTask
+        to a list of its crashed test names and their crash signatures.
+
+        e.g:
+        {"group/failing/on-this-task.ini": [
+            ("group/failing/test-file-1.js", "@ mozilla::SomeFunction"),
+        ]}
+        """
+        if self._crashes is None:
+            self._crashes = data.handler.get("test_task_crashes", task_id=self.id)
+        return self._crashes
 
 
 # Don't perform type checking because of https://github.com/python/mypy/issues/5374.

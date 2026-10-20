@@ -6,7 +6,7 @@ from typing import Tuple, Union
 
 import validx as v
 
-from mozci.task import FailureType, TestTask
+from mozci.task import FailureType, Task, TestTask
 
 
 @dataclass
@@ -198,6 +198,32 @@ _contracts: Tuple[Contract, ...] = (
             extra=(
                 v.Str(minlen=1),
                 v.List(v.Tuple(v.Str(minlen=1), v.Type(FailureType))),
+            )
+        ),
+    ),
+    Contract(
+        name="test_task_failure_lines",
+        description="The failure lines of a task, with the bugs they match (Treeherder bug suggestions).",
+        validate_in=v.Dict(
+            {
+                "task": v.Type(Task),
+                "branch": v.Str(),
+            }
+        ),
+        validate_out=v.List(v.Dict(extra=(v.Str(), v.Any()))),
+    ),
+    Contract(
+        name="test_task_crashes",
+        description="A list of crashed tests with their crash signature grouped by test group for a given TestTask.",
+        validate_in=v.Dict(
+            {
+                "task_id": v.Str(),
+            }
+        ),
+        validate_out=v.Dict(
+            extra=(
+                v.Str(minlen=1),
+                v.List(v.Tuple(v.Str(minlen=1), v.Str(nullable=True))),
             )
         ),
     ),

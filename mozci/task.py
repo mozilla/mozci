@@ -35,10 +35,18 @@ class Status(Enum):
     INTERMITTENT = 2
 
 
+# Variants that have been removed from variants.yml in mozilla-central, but
+# which can still be found in tasks from older pushes.
+REMOVED_TEST_VARIANTS = {
+    # Removed in bug 2077172.
+    "socketprocess": "spi",
+}
+
+
 @memoize
 def fetch_test_variant_yaml() -> Dict:
     # load variants.yml from mozilla-central
-    test_variants = {}
+    test_variants = dict(REMOVED_TEST_VARIANTS)
     try:
         r = requests.get(
             "https://hg.mozilla.org/mozilla-central/raw-file/default/taskcluster/test_configs/variants.yml"

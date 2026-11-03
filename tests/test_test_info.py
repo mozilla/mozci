@@ -977,3 +977,109 @@ def test_fixed_by_commit_judged_on_tasks_where_the_group_failed(
     regressions = p[4].get_regressions("group")
     assert group not in regressions
     assert other_group in regressions
+
+
+def test_fixed_by_commit_reproduced_with_another_landing_is_trusted(
+    create_pushes, monkeypatch
+):
+    group = "dom/tests/mochitest.toml"
+
+    def task(
+        i, ok, label="test-linux/opt-mochitest-1", classification="not classified"
+    ):
+        t = Task.create(
+            id=str(i) * 22,
+            label=label,
+            result="passed" if ok else "failed",
+            classification=classification,
+            tags={"tests_grouped": "1"},
+        )
+        t._results = [GroupResult(group=group, ok=ok, duration=1)]
+        return t
+
+    p = create_pushes(11)
+    for j in range(11):
+        p[j].tasks = [task(1, True)]
+    # The push (p[6]) relands the commits of p[1], backed out by p[3], and was
+    # relanded by p[10] after its own backout.
+    p[1].backedoutby = p[3].rev
+    p[6].backedoutby = p[9].rev
+    p[6]._bugs = {123}
+    failing = task(2, False, classification="fixed by commit")
+    failing.classification_note = p[9].rev
+    p[7].tasks = [failing]
+    monkeypatch.setattr(
+        TreeherderClientSource, "get_job_from_task", lambda self, task: {"id": 1}
+    )
+    monkeypatch.setattr(
+        TreeherderClientSource,
+        "get_bug_suggestions",
+        lambda self, job_id, branch="autoland": [
+            {
+                "search": "TEST-UNEXPECTED-FAIL | dom/tests/test_foo.html | timed out",
+                "failure_new_in_rev": False,
+                "bugs": {"open_recent": [{"id": 1, "summary": "Intermittent"}]},
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        HgRev, "load_json_pushes_between_ids", staticmethod(lambda *args: None)
+    )
+
+    monkeypatch.setattr(
+        test_info,
+        "manifests_of_tests",
+        lambda date: {
+            "dom/tests/test_foo.html": [group],
+            "dom/base/test/test_bar.html": ["dom/base/test/mochitest.toml"],
+        },
+    )
+
+    def changesets(desc, files=()):
+        return {"changesets": [{"node": desc[:1], "desc": desc, "files": list(files)}]}
+
+    cache = {push.id: changesets("Bug 456 - Other") for push in p}
+    cache[p[1].id] = changesets("Bug 123 - Change")
+    cache[p[3].id] = changesets("Revert 'Bug 123' for bustages")
+    cache[p[6].id] = changesets("Bug 123 - Change", ["dom/base/test/test_bar.html"])
+    cache[p[9].id] = changesets("Revert 'Bug 123' for bustages")
+    # The reland of the push is relanded without the change to a test of another group.
+    cache[p[10].id] = changesets("Bug 123 - Change")
+    monkeypatch.setattr(HgRev, "JSON_PUSHES_CACHE", cache)
+    monkeypatch.setattr(
+        Push,
+        "_is_classified_as_cause",
+        lambda self, first, classifications: (
+            any(c == "fixed by commit" for c, n in classifications) or None
+        ),
+    )
+
+    def regressions(flaky=False):
+        p[6].attribution._group_failure_stats = {
+            group: {"test-linux/opt-mochitest": (50 if flaky else 0, 2000)}
+        }
+        for push in p:
+            for attr in (
+                "_get_regressions",
+                "_failure_lines",
+                "_group_summaries",
+                "_failures_until_backout",
+                "_landing_push_ids",
+                "_reland_files",
+            ):
+                push.__dict__.pop(attr, None)
+                push.attribution.__dict__.pop(attr, None)
+        return p[6].get_regressions("group")
+
+    # The reland fixed another group: the note is considered wrong.
+    assert regressions() == {}
+
+    # The group also failed on that job type with the first landing: the failure
+    # reproduced, the classification is trusted.
+    earlier = task(3, False, classification="fixed by commit")
+    earlier.classification_note = p[3].rev
+    p[2].tasks = [earlier]
+    assert regressions() == {group: 0}
+
+    # Unless the group is flaky (two failures prove little).
+    assert regressions(flaky=True) == {}

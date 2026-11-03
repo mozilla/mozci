@@ -137,7 +137,9 @@ classified as "fixed by commit". When Treeherder has no failure lines for the
 task (e.g. when its log was too large to be parsed), classifications are kept if
 the group crashed with a signature which also crashed another test on the push,
 according to the errorsummary of the tasks classified as "fixed by commit", or
-if that can't be checked.
+if that can't be checked. Classifications are also kept when the group, unless
+it is flaky, failed on the same job types with another landing of the commits of
+the push (before it, or after its backout), until that landing was backed out.
 
 .. _TOML: http://github.com/toml-lang/toml
 .. _cachy: https://github.com/sdispater/cachy

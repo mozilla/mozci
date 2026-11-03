@@ -251,6 +251,95 @@ class AttributionAnalysis:
         return [c for changesets in relands for c in changesets]
 
     @memoized_property
+    def landing_push_ids(self) -> List[int]:
+        """The ids of the other pushes landing commits for the bugs of the push: the
+        first two before it and the first two after its backout (looking at up to
+        RELAND_MAX_DISTANCE pushes on each side)."""
+        push = self.push
+        bugs = set(map(int, push.bugs))
+        if not bugs:
+            return []
+
+        def lands(push_id: int) -> bool:
+            return any(
+                not c["desc"].startswith(BACKOUT_PREFIXES)
+                and set(parse_bugs(c["desc"])) & bugs
+                for c in HgRev.JSON_PUSHES_CACHE[push_id]["changesets"]
+            )
+
+        before: List[int] = []
+        for push_id in range(push.id - 1, push.id - 1 - RELAND_MAX_DISTANCE, -1):
+            if push_id not in HgRev.JSON_PUSHES_CACHE:
+                HgRev.load_json_pushes_between_ids(
+                    push.branch, max(push_id - RELAND_BATCH_SIZE, 0), push_id
+                )
+            if push_id not in HgRev.JSON_PUSHES_CACHE:
+                break
+            if lands(push_id):
+                before.append(push_id)
+                if len(before) == 2:
+                    break
+        after: List[int] = []
+        if self.backout_push_id is not None:
+            for push_id in range(
+                self.backout_push_id + 1, self.backout_push_id + 1 + RELAND_MAX_DISTANCE
+            ):
+                if push_id not in HgRev.JSON_PUSHES_CACHE:
+                    HgRev.load_json_pushes_between_ids(
+                        push.branch, push_id - 1, push_id - 1 + RELAND_BATCH_SIZE
+                    )
+                if push_id not in HgRev.JSON_PUSHES_CACHE:
+                    break
+                if lands(push_id):
+                    after.append(push_id)
+                    if len(after) == 2:
+                        break
+        return before + after
+
+    def failed_with_other_landing(self, group: str, job_types: Set[str]) -> bool:
+        """Whether the group failed on one of the job types, in a task classified as
+        'fixed by commit', with another landing of the bugs of the push (before that
+        landing was backed out, and outside the pushes from the push to its backout):
+        the failure reproduced independently."""
+        push = self.push
+        try:
+            landing_ids = self.landing_push_ids
+        except Exception as e:
+            logger.debug(f"Other landings of {push.rev} unavailable: {e}")
+            return False
+        for landing_id in landing_ids:
+            iterate = (
+                push._iterate_parents()
+                if landing_id < push.id
+                else push._iterate_children()
+            )
+            landing = next(
+                itertools.islice(
+                    (p for p in iterate if p.id == landing_id),
+                    1,
+                ),
+                None,
+            )
+            if landing is None:
+                continue
+            backout_id = landing.attribution.backout_push_id
+            if backout_id is None:
+                continue
+            for other in itertools.islice(landing._iterate_children(), MAX_DEPTH * 3):
+                if other.id >= backout_id:
+                    break
+                # Landings backed out together with the push share its failures.
+                if push.id <= other.id <= (self.backout_push_id or push.id):
+                    continue
+                summary = other.group_summaries.get(group)
+                if summary is not None and any(
+                    test_info.job_type(task.label or "") in job_types
+                    for task in self.fixed_by_commit_tasks(summary)
+                ):
+                    return True
+        return False
+
+    @memoized_property
     def reland_files(self) -> Optional[Tuple[Set[str], Set[str]]]:
         """The files modified by the commits of the push, and by their reland after the
         backout, or None if the push wasn't backed out and relanded (or the information
@@ -412,7 +501,8 @@ class AttributionAnalysis:
         This is the case when the group failed at most `flaky_group_max_failures`
         times (on any configuration) until the backout, and the group is flaky, or the
         reland fixed other groups,
-        unless the failure is a new one."""
+        unless the failure reproduced with another landing of the push (for groups
+        which aren't flaky), or is a new one."""
         if self.failures_until_backout.get(group, 0) > config.get(
             "flaky_group_max_failures", 1
         ):
@@ -427,6 +517,13 @@ class AttributionAnalysis:
         elif self.reland_fixed_other_groups(summary.name):
             reason = "the reland fixed other groups"
         else:
+            return None
+
+        # Unless the failure reproduced with another landing of the push (meaningless
+        # for flaky groups).
+        if not self.is_flaky_group(
+            summary.name, failing_job_types
+        ) and self.failed_with_other_landing(group, failing_job_types):
             return None
 
         # Unless the failure is a new one.

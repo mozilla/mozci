@@ -1844,14 +1844,14 @@ widechars = ["wcwidth"]
 
 [[package]]
 name = "taskcluster"
-version = "113.2.0"
+version = "114.0.0"
 description = "Python client for Taskcluster"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "taskcluster-113.2.0-py3-none-any.whl", hash = "sha256:8707787a9d861023809dde7512dc1033b004cf8fe1094e7bd569dc94340c1ac0"},
-    {file = "taskcluster-113.2.0.tar.gz", hash = "sha256:eb388c7c67d678a82951884e8f423e79bde2e9abe081f8e7ede0f1d896a2f58c"},
+    {file = "taskcluster-114.0.0-py3-none-any.whl", hash = "sha256:8e32f6844fad5c0c2bb5d22e7fe84a6161b3b7fb053f961471f92b51f1acb54d"},
+    {file = "taskcluster-114.0.0.tar.gz", hash = "sha256:e94acb604a73c3e4ab83c6d5d11058f8a453d44acc11947076d9b33e41c73647"},
 ]
 
 [package.dependencies]
@@ -2307,4 +2307,4 @@ cache-s3 = ["boto3"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4"
-content-hash = "8191454dcec468c507d22f7b48ad12cea28d6c4f53ff981de96cef071474890c"
+content-hash = "dcee8edd05df6b802db5fe80f08bccef0e588cd7d5a205498b8ea85bfa7dd674"

@@ -66,7 +66,12 @@ class TreeherderClientSource(BaseTreeherderSource):
     """Uses the public API to query Treeherder."""
 
     name = "treeherder_client"
-    supported_contracts = ("push_tasks_classifications", "test_task_groups", "pushes")
+    supported_contracts = (
+        "push_tasks_classifications",
+        "test_task_groups",
+        "pushes",
+        "test_task_failure_lines",
+    )
     base_url = "https://treeherder.mozilla.org/api"
 
     @memoized_property
@@ -140,6 +145,10 @@ class TreeherderClientSource(BaseTreeherderSource):
             or any(job_log_url.get("parse_status") == "pending" for job_log_url in data)
         ):
             raise JobUnavailable
+
+    def run_test_task_failure_lines(self, task: Task, branch: str) -> list[dict]:
+        job = self.get_job_from_task(task)
+        return self.get_bug_suggestions(job["id"], branch=branch)
 
     def get_bug_suggestions(self, job_id: int, branch: str = "autoland") -> list[dict]:
         """List suggestions for a specific job."""

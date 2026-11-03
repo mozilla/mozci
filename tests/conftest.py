@@ -12,6 +12,7 @@ from mozci import data
 from mozci.configuration import Configuration
 from mozci.data.base import DataHandler
 from mozci.push import MAX_DEPTH, Push
+from mozci.util import test_info
 from mozci.util.hgmo import HgRev
 
 here = os.path.abspath(os.path.dirname(__file__))
@@ -22,6 +23,12 @@ def set_config_path():
     os.environ["MOZCI_CONFIG_PATH"] = os.path.join(here, "config.toml")
     mozci.config = Configuration()
     data.handler = DataHandler(*mozci.config.data_sources)
+
+
+@pytest.fixture(autouse=True)
+def no_group_failure_stats(monkeypatch):
+    """Avoid downloading test-info reports, no group is considered flaky."""
+    monkeypatch.setattr(test_info, "group_failure_stats", lambda date: None)
 
 
 @pytest.fixture(autouse=True)

@@ -26,6 +26,9 @@ ARTIFACT = "public/test-run-info.json"
 # "autoclassified intermittent", "intermittent needs bugid").
 INTERMITTENT_CLASSIFICATIONS = (4, 7, 8)
 
+# File name suffixes of manifests (groups which aren't directories).
+MANIFEST_SUFFIXES = (".toml", ".ini", ".list")
+
 # Minimum rate of intermittent failures over runs for a group to be considered flaky.
 FLAKY_GROUP_MIN_RATE = 0.005
 

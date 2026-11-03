@@ -57,3 +57,4 @@ repos:
       - id: check-useless-excludes
 default_language_version:
   python: python3
+  node: lts

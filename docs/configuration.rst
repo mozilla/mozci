@@ -109,6 +109,30 @@ verbose
 Enable verbose logging (default: ``0``). Setting this to ``1`` enables debug
 logging, while setting it to ``2`` enables trace logging.
 
+flaky_group_min_rate, flaky_group_max_failures
+``````````````````````````````````````````````
+
+Failures of groups classified as "fixed by commit" are considered intermittent
+when the group failed on at most ``flaky_group_max_failures`` (default: ``1``)
+tasks on the push and the following pushes until its backout (sheriffs sometimes
+attribute such failures to a nearby backout), and:
+
+- the group is flaky: in the 30 days before the push, its failures classified as
+  intermittent were at least ``flaky_group_min_rate`` (default: ``0.005``) of its
+  runs, on the job types (e.g. ``test-linux2404-64/opt-mochitest-browser-chrome``)
+  of the failing tasks, as groups are often flaky on some platforms only. This
+  information comes from the daily ``source-test-file-metadata-test-info-all``
+  task on mozilla-central.
+
+Classifications are kept if the failure is new, i.e. Treeherder reports a
+failure line which is new in the revision and matches no known bug, or a failure
+line of the group which matches no bug also appears in another task of the push
+classified as "fixed by commit". When Treeherder has no failure lines for the
+task (e.g. when its log was too large to be parsed), classifications are kept if
+the group crashed with a signature which also crashed another test on the push,
+according to the errorsummary of the tasks classified as "fixed by commit", or
+if that can't be checked.
+
 .. _TOML: http://github.com/toml-lang/toml
 .. _cachy: https://github.com/sdispater/cachy
 .. _cachy's configuration format: https://cachy.readthedocs.io/en/latest/configuration.html

@@ -6,13 +6,14 @@ import json
 import math
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
 from loguru import logger
 
 from mozci import config, data
+from mozci.attribution import RETAIN, AttributionAnalysis, Verdict
 from mozci.data.sources.treeherder import JobUnavailable, TreeherderClientSource
 from mozci.errors import (
     ChildPushNotFound,
@@ -31,16 +32,12 @@ from mozci.task import (
     get_configuration,
     is_verify,
 )
-from mozci.util.defs import FAILURE_CLASSES, TASK_FINAL_STATES
+from mozci.util.defs import FAILURE_CLASSES, MAX_DEPTH, TASK_FINAL_STATES
 from mozci.util.hgmo import HgRev, parse_bugs
 from mozci.util.memoize import memoize, memoized_property
 from mozci.util.taskcluster import get_task
 
 BASE_INDEX = "gecko.v2.{branch}.revision.{rev}"
-
-# The maximum number of parents or children to look for previous/next task runs,
-# when the task did not run on the currently considered push.
-MAX_DEPTH = config.get("maxdepth", 20)
 
 
 class PushStatus(Enum):
@@ -762,8 +759,22 @@ class Push:
             if max_depth is not None and i == max_depth:
                 break
 
+    @property
+    def push_date(self):
+        """The (UTC) day of the push."""
+        return datetime.fromtimestamp(self.date, timezone.utc).date()
+
+    @memoized_property
+    def attribution(self) -> AttributionAnalysis:
+        """Evidence about the failures attributed to this push, and decisions about
+        them (see mozci.attribution)."""
+        return AttributionAnalysis(self)
+
     def _iterate_failures(
-        self, runnable_type: str, max_depth: Optional[int] = None
+        self,
+        runnable_type: str,
+        max_depth: Optional[int] = None,
+        analysis: Optional[AttributionAnalysis] = None,
     ) -> Iterator[
         Tuple[
             "Push",
@@ -772,6 +783,10 @@ class Push:
             Dict[str, List[Optional[bool]]],
         ]
     ]:
+        """Failures of a runnable on this push and its children, with the candidate
+        regressions so far, applying the decisions of `analysis` on the
+        classifications of each failure (or only the sheriff classifications, without
+        an analysis)."""
         ever_passing_runnables = set()
         passing_runnables = set()
         candidate_regressions = {}
@@ -789,7 +804,24 @@ class Push:
                         passing_runnables.add(name)
                     continue
 
-                if all(c not in FAILURE_CLASSES for c, n in summary.classifications):
+                classifications = summary.classifications
+                decision = (
+                    analysis.decide(
+                        runnable_type,
+                        name,
+                        summary,
+                        other,
+                    )
+                    if analysis is not None
+                    else RETAIN
+                )
+                if decision.verdict == Verdict.INTERMITTENT:
+                    classifications = [
+                        ("intermittent", None) if c == "fixed by commit" else (c, n)
+                        for c, n in classifications
+                    ]
+
+                if all(c not in FAILURE_CLASSES for c, n in classifications):
                     classified_as_cause[name].append(None)
                     if name not in candidate_regressions:
                         passing_runnables.add(name)
@@ -799,7 +831,7 @@ class Push:
                     first_appearance[name] = other
 
                 is_classified_as_cause = self._is_classified_as_cause(
-                    first_appearance[name], summary.classifications
+                    first_appearance[name], classifications
                 )
                 if is_classified_as_cause is True:
                     classified_as_cause[name].append(True)
@@ -893,7 +925,7 @@ class Push:
         max_depth = None if self.backedout or self.bustage_fixed_by else MAX_DEPTH
 
         for other, candidate_regressions, _, _ in self._iterate_failures(
-            runnable_type, max_depth
+            runnable_type, max_depth, self.attribution
         ):
             # Break early if we reached the backout of this push, since any failure
             # after that won't be blamed on this push.
@@ -959,6 +991,8 @@ class Push:
         if len(possible_bustage_fixes) == 0:
             return None
 
+        # Bustage fixes are found with the baseline rules (the sheriff
+        # classifications).
         def find(runnable_type: str) -> Optional[str]:
             for other, candidate_regressions, _, _ in self._iterate_failures(
                 runnable_type, MAX_DEPTH

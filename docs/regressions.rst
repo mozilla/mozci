@@ -91,6 +91,11 @@ A *regression* is a candidate regression that additionally satisfies the followi
     * For labels, the label didn't fail both on its last run before the push and on its first run
       after the backout of the push (the push didn't change its result, e.g. for tasks which are
       always failing, which sheriffs classify with a nearby backout).
+    * The runnable didn't first fail after another push landed which was backed out after that
+      failure and before the backout of the push, with the runnable passing on a run between the
+      two backouts: that push explains the failure better (sheriffs sometimes classify it with the
+      wrong one of two backouts close together). Pushes backed out for lint failures are ignored,
+      as they don't break tests.
 
 .. note:: Distance Calculation
 

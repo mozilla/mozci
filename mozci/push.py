@@ -1063,6 +1063,9 @@ class Push:
         for name, (count, failure_summary) in self.get_candidate_regressions(
             runnable_type
         ).items():
+            if self.attribution.later_backout_explains(runnable_type, name):
+                continue
+
             if isinstance(failure_summary, LabelSummary) and (
                 all(is_perf_task(task) for task in failure_summary.tasks)
                 or self.attribution.label_failing_around(name)

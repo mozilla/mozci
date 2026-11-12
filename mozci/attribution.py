@@ -70,6 +70,9 @@ FILE_NAME_RE = re.compile(
 # Descriptions of commits which back out others, or merge branches.
 BACKOUT_PREFIXES = ("Backed out", "Backout", "Revert", "Merge")
 
+# Reasons of backouts for lint failures, which don't break tests.
+LINT_RE = re.compile(r"\blint", re.IGNORECASE)
+
 
 def normalize_failure_line(line: str) -> str:
     """A failure line without the parts which change between occurrences (identifiers,
@@ -781,4 +784,55 @@ class AttributionAnalysis:
         ):
             if other.id >= backout_id and name in other.label_summaries:
                 return other.label_summaries[name].status == Status.FAIL
+        return False
+
+    def later_backout_explains(self, runnable_type: str, name: Any) -> bool:
+        """Whether another push explains the failures of a runnable better: it landed
+        after the push and before the first failure, was backed out after that failure
+        and before the backout of the push, and the runnable passed on a run between
+        the two backouts (sheriffs sometimes classify the failure with the wrong one of
+        two backouts close together).
+
+        Pushes backed out for lint failures are ignored, as they don't break tests."""
+        push = self.push
+        backout_id = self.backout_push_id
+        if backout_id is None:
+            return False
+
+        between = []
+        first_failure = None
+        for other in itertools.islice(push._iterate_children(), MAX_DEPTH + 1):
+            summary = getattr(other, f"{runnable_type}_summaries").get(name)
+            if summary is not None and summary.status != Status.PASS:
+                first_failure = other.id
+                break
+            if other != push:
+                between.append(other)
+        if first_failure is None:
+            return False
+
+        for other in between:
+            other_backout_id = other.attribution.backout_push_id
+            if other_backout_id is None or not (
+                first_failure < other_backout_id < backout_id
+            ):
+                continue
+            if any(
+                LINT_RE.search(desc)
+                for desc in other.attribution._backout_descriptions()
+            ):
+                continue
+            # The first run of the runnable between the two backouts.
+            for after in itertools.islice(
+                other._iterate_children(), backout_id - other.id
+            ):
+                if after.id < other_backout_id:
+                    continue
+                if after.id >= backout_id:
+                    break
+                summary = getattr(after, f"{runnable_type}_summaries").get(name)
+                if summary is not None:
+                    if summary.status == Status.PASS:
+                        return True
+                    break
         return False

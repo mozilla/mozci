@@ -8,6 +8,7 @@ import pytest
 from responses import RequestsMock
 
 import mozci
+import mozci.configuration
 from mozci import data
 from mozci.configuration import Configuration
 from mozci.data.base import DataHandler
@@ -23,6 +24,8 @@ def set_config_path():
     os.environ["MOZCI_CONFIG_PATH"] = os.path.join(here, "config.toml")
     mozci.config = Configuration()
     data.handler = DataHandler(*mozci.config.data_sources)
+    # Modules imported the original config object, not the one created above.
+    mozci.configuration.config.set(user_agent="mozci-tests")
 
 
 @pytest.fixture(autouse=True)

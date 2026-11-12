@@ -4,6 +4,8 @@ import sys
 
 from cleo.application import Application
 
+from mozci import config
+
 from mozci.console.commands.batch_execution import (
     BatchClassificationCommand,
     BatchEvaluationCommand,
@@ -20,6 +22,9 @@ from mozci.console.commands.push import (
 
 
 def cli():
+    if "user_agent" not in config:
+        config.set(user_agent="mozci")
+
     application = Application()
     application.add(BatchClassificationCommand())
     application.add(BatchEvaluationCommand())

@@ -49,7 +49,8 @@ def fetch_test_variant_yaml() -> Dict:
     test_variants = dict(REMOVED_TEST_VARIANTS)
     try:
         r = requests.get(
-            "https://hg.mozilla.org/mozilla-central/raw-file/default/taskcluster/test_configs/variants.yml"
+            "https://hg.mozilla.org/mozilla-central/raw-file/default/taskcluster/test_configs/variants.yml",
+            headers={"User-Agent": config["user_agent"]},
         )
         tv = yaml.load(r.text, yaml.BaseLoader)
         for v in tv:

@@ -76,9 +76,7 @@ class TreeherderClientSource(BaseTreeherderSource):
 
     @memoized_property
     def session(self):
-        session = get_session()
-        session.headers = {"User-Agent": "mozci"}
-        return session
+        return get_session()
 
     @lru_cache(maxsize=700)
     def _run_query(self, query, params=None):

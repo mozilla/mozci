@@ -7,6 +7,7 @@ from loguru import logger
 from taskcluster import Index
 from taskcluster.exceptions import TaskclusterRestFailure
 
+from mozci import config
 from mozci.data.base import DataSource
 from mozci.errors import ContractNotFilled
 from mozci.util import taskcluster
@@ -173,7 +174,9 @@ class TaskclusterSource(DataSource):
             )
 
         try:
-            r = requests.get(url, allow_redirects=True)
+            r = requests.get(
+                url, allow_redirects=True, headers={"User-Agent": config["user_agent"]}
+            )
             r.raise_for_status()
         except requests.exceptions.HTTPError as e:
             raise ContractNotFilled(

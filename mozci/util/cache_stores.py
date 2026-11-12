@@ -55,8 +55,6 @@ class SeededFileStore(FileStore):
         self._reseed_interval = config.get("reseed_interval", 0)
         self._archive_relpath = config.get("archive_relpath")
 
-        self._session = get_session()
-
         kwargs = {
             "directory": config["path"],
         }
@@ -73,7 +71,7 @@ class SeededFileStore(FileStore):
         self._create_cache_directory(self._directory)
 
         filename = self._url.split("/")[-1]
-        with self._session.get(self._url, stream=True) as r:
+        with get_session().get(self._url, stream=True) as r:
             r.raise_for_status()
 
             with tempfile.TemporaryDirectory() as tempdir:

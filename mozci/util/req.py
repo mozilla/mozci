@@ -12,7 +12,12 @@ DEFAULT_STATUS_FORCELIST = [500, 502, 503, 504]
 
 @lru_cache(maxsize=None)
 def get_session(concurrency=50):
+    # Imported here, as the configuration module (indirectly) imports this one.
+    from mozci.configuration import config
+
     session = requests.Session()
+    # Projects using mozci must set it to identify themselves.
+    session.headers["User-Agent"] = config["user_agent"]
 
     retry = Retry(
         total=DEFAULT_RETRIES,

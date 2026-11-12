@@ -103,6 +103,26 @@ contract, the ``taskcluster`` source will be used as a backup.
 
 Available sources are defined in the :class:`~mozci.data.DataHandler` class.
 
+user_agent
+``````````
+
+The ``User-Agent`` header sent with mozci's HTTP requests, e.g. to hg.mozilla.org, Treeherder and
+Taskcluster. Projects using ``mozci`` as a library must set it to identify themselves, otherwise
+mozci raises a ``KeyError`` on its first request. The ``mozci`` CLI defaults it to ``mozci``.
+
+.. code-block:: toml
+
+    [mozci]
+    user_agent = "my-project"
+
+It can also be set from code, before mozci makes any request:
+
+.. code-block:: python
+
+    from mozci import config
+
+    config.set(user_agent="my-project")
+
 verbose
 ```````
 

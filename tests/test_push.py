@@ -737,7 +737,7 @@ def test_generate_all_shadow_scheduler_tasks(responses):
                     "task": {
                         "extra": {
                             "suite": ss[2],
-                            "test-settings": {"runtime": {}},
+                            "test-setting": {"runtime": {}},
                             "treeherder-platform": "",
                         },
                     },
@@ -871,7 +871,7 @@ def test_generate_all_shadow_scheduler_config_groups(responses):
                     "task": {
                         "extra": {
                             "suite": suite,
-                            "test-settings": {
+                            "test-setting": {
                                 "runtime": {"socketprocess_networking": True}
                             },
                             "treeherder-platform": platform,

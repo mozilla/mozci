@@ -171,7 +171,7 @@ def get_configuration(task) -> str:
     suite = task["task"]["extra"]["suite"]
     label = task["label"]
     test_variant = get_test_variant(
-        task["task"]["extra"].get("test-settings", {}).get("runtime", {}), label
+        task["task"]["extra"].get("test-setting", {}).get("runtime", {}), label
     )
     return _get_configuration(platform, suite, label, test_variant)
 
@@ -192,7 +192,7 @@ def _get_configuration(platform, suite, label, test_variant) -> str:
     # account for the suite being replaced
     retVal += "-*"
 
-    # Hack #2: wpt tasks using tag=<X> have no attributes in test-settings
+    # Hack #2: wpt tasks using tag=<X> have no attributes in test-setting
     wpt_tags = ["privatebrowsing", "canvas", "webgpu"]
     for wt in wpt_tags:
         if f"web-platform-tests-{wt}" in label:

@@ -1579,6 +1579,20 @@ def test_autoclassify(
             "msix",
             "test-macosx1015-64/opt-*-msix",
         ),
+        (  # a variant which isn't in variants.yml anymore
+            Task.create(
+                id=1,
+                label="test-linux2404-64/opt-mochitest-browser-chrome-no-nv-2",
+                suite="mochitest-browser-chrome",
+                platform="linux2404-64/opt",
+                variant={"no-nova": True},
+                _results=[GR_2],
+            ),
+            "mochitest-browser-chrome",
+            "linux2404-64/opt",
+            "no-nv",
+            "test-linux2404-64/opt-*-no-nv",
+        ),
     ],
 )
 def test_get_configuration(task, suite, platform, variant, configuration):

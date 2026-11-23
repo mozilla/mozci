@@ -38,8 +38,34 @@ class Status(Enum):
 # Variants that have been removed from variants.yml in mozilla-central, but
 # which can still be found in tasks from older pushes.
 REMOVED_TEST_VARIANTS = {
+    # Removed in bug 1750820.
+    "webgl-ipc": "gli",
+    # Removed in bug 1892551.
+    "geckoview-no-fission-no-ship": "nofis-noship",
+    # Removed in bug 1943436.
+    "os-integration": "osint",
+    # Removed in bug 1951246.
+    "geckoview-no-fission-ship": "nofis-ship",
+    # Removed in bug 1953418.
+    "cm5": "cm5",
+    # Removed in bug 1955050.
+    "cm6": "cm6",
+    # Removed in bug 1971268.
+    "content-navigation-manager": "cnm",
+    # Removed in bug 2002521.
+    "navigation-api": "nav",
+    # Removed in bug 2004381.
+    "socketprocess_networking": "spi-nw",
+    # Removed in bug 2057643.
+    "nova": "nv",
     # Removed in bug 2077172.
     "socketprocess": "spi",
+    # Removed in bug 2078920.
+    "geckoview-no-fission": "nofis",
+    # Removed in bug 2079548.
+    "geckoview-fission": "fis",
+    # Removed in bug 2082901.
+    "no-nova": "no-nv",
 }
 
 

@@ -454,7 +454,17 @@ def test_to_json():
         assert result[k] == v
 
 
-def test_configuration():
+def test_configuration(responses):
+    responses.add(
+        responses.GET,
+        "https://hg.mozilla.org/mozilla-central/raw-file/default/taskcluster/test_configs/variants.yml",
+        json={
+            "no-fission": {"suffix": "nofis"},
+            "headless": {"suffix": "headless"},
+            "fission": {"suffix": "fis"},
+            "1proc": {"suffix": "1proc"},
+        },
+    )
     assert (
         Task.create(
             id=1,
@@ -1579,20 +1589,6 @@ def test_autoclassify(
             "msix",
             "test-macosx1015-64/opt-*-msix",
         ),
-        (  # a variant which isn't in variants.yml anymore
-            Task.create(
-                id=1,
-                label="test-linux2404-64/opt-mochitest-browser-chrome-no-nv-2",
-                suite="mochitest-browser-chrome",
-                platform="linux2404-64/opt",
-                variant={"no-nova": True},
-                _results=[GR_2],
-            ),
-            "mochitest-browser-chrome",
-            "linux2404-64/opt",
-            "no-nv",
-            "test-linux2404-64/opt-*-no-nv",
-        ),
     ],
 )
 def test_get_configuration(task, suite, platform, variant, configuration):
@@ -1600,3 +1596,66 @@ def test_get_configuration(task, suite, platform, variant, configuration):
     assert task.platform == platform
     assert get_test_variant(task.variant, task.label) == variant
     assert task.configuration == configuration
+
+
+def test_get_configuration_removed_variant(responses):
+    responses.add(
+        responses.GET,
+        "https://hg.mozilla.org/mozilla-central/raw-file/default/taskcluster/test_configs/variants.yml",
+        json={"webrender-sw": {"suffix": "swr"}},
+    )
+    # The push is from before variants.yml was moved.
+    responses.add(
+        responses.GET,
+        "https://hg.mozilla.org/integration/autoland/raw-file/abcdef/taskcluster/test_configs/variants.yml",
+        status=404,
+    )
+    responses.add(
+        responses.GET,
+        "https://hg.mozilla.org/integration/autoland/raw-file/abcdef/taskcluster/kinds/test/variants.yml",
+        json={"webrender-sw": {"suffix": "swr"}, "no-nova": {"suffix": "no-nv"}},
+    )
+
+    def create_task(label, variant, push_rev="abcdef"):
+        return Task.create(
+            id=1,
+            label=label,
+            suite="mochitest-browser-chrome",
+            platform="linux2404-64/opt",
+            variant=variant,
+            push_branch="autoland",
+            push_rev=push_rev,
+        )
+
+    # Variants in mozilla-central's variants.yml don't need the push's.
+    task = create_task(
+        "test-linux2404-64/opt-mochitest-browser-chrome-swr-1", {"webrender-sw": True}
+    )
+    assert task.configuration == "test-linux2404-64/opt-*-swr"
+    assert len(responses.calls) == 1
+
+    # Removed variants are found in the push's variants.yml.
+    task = create_task(
+        "test-linux2404-64/opt-mochitest-browser-chrome-no-nv-swr-1",
+        {"no-nova": True, "webrender-sw": True},
+    )
+    assert task.configuration == "test-linux2404-64/opt-*-no-nv-swr"
+    assert len(responses.calls) == 3
+
+    # Once found, they are known for the tasks of other pushes too.
+    task = create_task(
+        "test-linux2404-64/opt-mochitest-browser-chrome-no-nv-2",
+        {"no-nova": True},
+        push_rev="012345",
+    )
+    assert task.configuration == "test-linux2404-64/opt-*-no-nv"
+    assert len(responses.calls) == 3
+
+    # Without the push, they can't be found.
+    task = create_task(
+        "test-linux2404-64/opt-mochitest-browser-chrome-unknown-1",
+        {"unknown": True},
+        push_rev=None,
+    )
+    with pytest.raises(Exception, match="Missing test variant unknown"):
+        task.configuration

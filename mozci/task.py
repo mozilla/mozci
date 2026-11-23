@@ -4,12 +4,13 @@ from __future__ import annotations
 import collections
 import fnmatch
 import os
+import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import signature
 from statistics import median
-from typing import Dict, List, NewType, Optional, Tuple
+from typing import Dict, List, NewType, Optional, Set, Tuple
 
 import jsone
 import requests
@@ -35,55 +36,54 @@ class Status(Enum):
     INTERMITTENT = 2
 
 
-# Variants that have been removed from variants.yml in mozilla-central, but
-# which can still be found in tasks from older pushes.
-REMOVED_TEST_VARIANTS = {
-    # Removed in bug 1750820.
-    "webgl-ipc": "gli",
-    # Removed in bug 1892551.
-    "geckoview-no-fission-no-ship": "nofis-noship",
-    # Removed in bug 1943436.
-    "os-integration": "osint",
-    # Removed in bug 1951246.
-    "geckoview-no-fission-ship": "nofis-ship",
-    # Removed in bug 1953418.
-    "cm5": "cm5",
-    # Removed in bug 1955050.
-    "cm6": "cm6",
-    # Removed in bug 1971268.
-    "content-navigation-manager": "cnm",
-    # Removed in bug 2002521.
-    "navigation-api": "nav",
-    # Removed in bug 2004381.
-    "socketprocess_networking": "spi-nw",
-    # Removed in bug 2057643.
-    "nova": "nv",
-    # Removed in bug 2077172.
-    "socketprocess": "spi",
-    # Removed in bug 2078920.
-    "geckoview-no-fission": "nofis",
-    # Removed in bug 2079548.
-    "geckoview-fission": "fis",
-    # Removed in bug 2082901.
-    "no-nova": "no-nv",
-}
+VARIANTS_YML_PATHS = (
+    "taskcluster/test_configs/variants.yml",
+    # Before bug 1982404.
+    "taskcluster/kinds/test/variants.yml",
+)
+
+
+def _fetch_variants_yml(repo: str, rev: str) -> Optional[Dict[str, str]]:
+    """The suffixes of the test variants defined in variants.yml at a revision, or None if
+    there is no variants.yml at the revision."""
+    for path in VARIANTS_YML_PATHS:
+        r = requests.get(
+            f"https://hg.mozilla.org/{repo}/raw-file/{rev}/{path}",
+            headers={"User-Agent": config["user_agent"]},
+            timeout=(30, 120),
+        )
+        if r.status_code == 404:
+            continue
+        r.raise_for_status()
+        tv = yaml.load(r.text, yaml.BaseLoader)
+        return {v: tv[v]["suffix"] for v in tv}
+    return None
 
 
 @memoize
 def fetch_test_variant_yaml() -> Dict:
     # load variants.yml from mozilla-central
-    test_variants = dict(REMOVED_TEST_VARIANTS)
-    try:
-        r = requests.get(
-            "https://hg.mozilla.org/mozilla-central/raw-file/default/taskcluster/test_configs/variants.yml",
-            headers={"User-Agent": config["user_agent"]},
-        )
-        tv = yaml.load(r.text, yaml.BaseLoader)
-        for v in tv:
-            test_variants[v] = tv[v]["suffix"]
-    except requests.ConnectionError:
-        raise
+    test_variants = _fetch_variants_yml("mozilla-central", "default")
+    assert test_variants is not None
     return test_variants
+
+
+# The suffixes of the test variants which aren't in mozilla-central's variants.yml (e.g.
+# removed ones), learned from the variants.yml of the pushes whose tasks have them, and the
+# pushes whose variants.yml was retrieved.
+_push_test_variants: Dict[str, str] = {}
+_push_test_variants_revs: Set[Tuple[str, str]] = set()
+_push_test_variants_lock = threading.Lock()
+
+
+def _learn_push_test_variants(branch: str, rev: str) -> None:
+    with _push_test_variants_lock:
+        if (branch, rev) in _push_test_variants_revs:
+            return
+
+        repo = "integration/autoland" if branch == "autoland" else branch
+        _push_test_variants.update(_fetch_variants_yml(repo, rev) or {})
+        _push_test_variants_revs.add((branch, rev))
 
 
 def is_verify(label: str) -> bool:
@@ -174,30 +174,52 @@ def wpt_workaround(group: str) -> str:
         return "/".join(["testing/web-platform/tests", group[1:]])
 
 
-def get_test_variant(variants, label) -> str:
+def get_test_variant(
+    variants, label, branch: Optional[str] = None, rev: Optional[str] = None
+) -> str:
+    """The suffix of the test variants of a task.
+
+    The variants are looked up in mozilla-central's variants.yml, then, if they aren't there
+    (e.g. if they were removed), in the variants.yml of the task's push (`branch` and `rev`).
+    """
     if not variants:
         return ""
 
-    suffixes = []
     yaml_variants = fetch_test_variant_yaml()
+    if rev is not None and any(
+        variant not in yaml_variants and variant not in _push_test_variants
+        for variant in variants
+    ):
+        _learn_push_test_variants(branch or "autoland", rev)
+
+    suffixes = []
     for variant in variants:
-        if variant not in yaml_variants:
+        if variant in yaml_variants:
+            suffixes.append(yaml_variants[variant])
+        elif variant in _push_test_variants:
+            suffixes.append(_push_test_variants[variant])
+        else:
             raise Exception(
                 f"Missing test variant {variant} in variants.yml: {yaml_variants}"
             )
-        suffixes.append(yaml_variants[variant])
 
     # figure out which order to pack the suffixes; we can cheat by using self.label
     retVal = sorted(suffixes, key=lambda x: label.find(x))
     return "-".join(retVal)
 
 
-def get_configuration(task) -> str:
+def get_configuration(
+    task, branch: Optional[str] = None, rev: Optional[str] = None
+) -> str:
+    """The configuration of a task (from a task graph) of the push `rev` on `branch`."""
     platform = task["task"]["extra"]["treeherder-platform"]
     suite = task["task"]["extra"]["suite"]
     label = task["label"]
     test_variant = get_test_variant(
-        task["task"]["extra"].get("test-setting", {}).get("runtime", {}), label
+        task["task"]["extra"].get("test-setting", {}).get("runtime", {}),
+        label,
+        branch,
+        rev,
     )
     return _get_configuration(platform, suite, label, test_variant)
 
@@ -253,6 +275,9 @@ class Task:
     platform: Optional[str] = field(default=None)
     variant: Optional[Dict] = field(default=None)
     job_kind: Optional[str] = field(default=None)
+    # The push of the task, to look up its test variants (see get_test_variant).
+    push_branch: Optional[str] = field(default=None)
+    push_rev: Optional[str] = field(default=None)
 
     @staticmethod
     def create(index=None, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL, **kwargs):
@@ -309,7 +334,7 @@ class Task:
             self.platform,
             self.suite,
             self.label,
-            get_test_variant(self.variant, self.label),
+            get_test_variant(self.variant, self.label, self.push_branch, self.push_rev),
         )
 
     def get_artifact(self, path, root_url=PRODUCTION_TASKCLUSTER_ROOT_URL):

@@ -333,6 +333,12 @@ class Push:
         cached_tasks = config.cache.get(f"{self.push_uuid}/tasks")
         # Push is supposedly finalized, if a cache exists we can return it as tasks should've finished running
         if self.is_finalized and cached_tasks is not None:
+            # Tasks cached by mozci versions from before Task had push_branch and
+            # push_rev don't know their push (see get_test_variant). This can be
+            # removed once those cache entries have expired.
+            for task in cached_tasks:
+                task.push_branch = self.branch
+                task.push_rev = self.rev
             return cached_tasks
 
         logger.debug(f"Retrieving all tasks and groups which run on {self.rev}...")
@@ -371,7 +377,10 @@ class Push:
         except MissingDataError:
             pass
 
-        tasks = [Task.create(**task) for task in tasks]
+        tasks = [
+            Task.create(**{**task, "push_branch": self.branch, "push_rev": self.rev})
+            for task in tasks
+        ]
 
         # Gather group data.
         logger.debug(f"Gathering test groups for {self.rev}...")
@@ -1751,7 +1760,7 @@ class Push:
             try:
                 config_groups = {
                     (
-                        get_configuration(task),
+                        get_configuration(task, self.branch, self.rev),
                         group,
                     )
                     for task in self.get_shadow_scheduler_tasks(name)

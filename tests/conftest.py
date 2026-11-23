@@ -40,6 +40,19 @@ def reset_hgmo_cache():
     HgRev.CACHE = {}
 
 
+@pytest.fixture(autouse=True)
+def reset_test_variants(monkeypatch):
+    """Retrieve the test variants again in each test, as tests mock them differently."""
+    # Imported here, as importing it before mozci.data is circular.
+    import mozci.task
+
+    mozci.task.fetch_test_variant_yaml.clear()
+    monkeypatch.setattr(mozci.task, "_push_test_variants", {})
+    monkeypatch.setattr(mozci.task, "_push_test_variants_revs", set())
+    yield
+    mozci.task.fetch_test_variant_yaml.clear()
+
+
 @pytest.fixture
 def responses():
     with RequestsMock(assert_all_requests_are_fired=False) as rsps:

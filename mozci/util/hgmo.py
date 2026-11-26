@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, NewType, Tuple
+from datetime import datetime, timedelta
+from typing import Any, Dict, NewType, Tuple
 
 import requests
 from lru import LRU
 
-from mozci.errors import PushNotFound
+from mozci.errors import PushNotFound, TooManyPushes
 from mozci.util.memoize import memoized_property
 from mozci.util.req import get_session
 
@@ -92,7 +93,7 @@ class HgRev:
         return instance
 
     @staticmethod
-    def _get_and_cache_pushes(branch: str, url: str) -> List[HgPush]:
+    def _get_and_cache_pushes(branch: str, url: str) -> Dict[str, HgPush]:
         pushes = HgRev._get_resource(url, context={"branch": branch})["pushes"]
         for push_id, value in pushes.items():
             HgRev.JSON_PUSHES_CACHE[int(push_id)] = value
@@ -101,7 +102,7 @@ class HgRev:
     @staticmethod
     def load_json_pushes_between_ids(
         branch: str, push_id_start: int, push_id_end: int
-    ) -> List[HgPush]:
+    ) -> Dict[str, HgPush]:
         url = HgRev.JSON_PUSHES_TEMPLATE.format(
             push_id_start=push_id_start,
             push_id_end=push_id_end,
@@ -112,13 +113,36 @@ class HgRev:
     @staticmethod
     def load_json_pushes_between_dates(
         branch: str, from_date: str, to_date: str
-    ) -> List[HgPush]:
+    ) -> Dict[str, HgPush]:
         url = HgRev.JSON_PUSHES_BETWEEN_DATES_TEMPLATE.format(
             from_date=from_date,
             to_date=to_date,
             branch=f"integration/{branch}" if branch == "autoland" else branch,
         )
-        return HgRev._get_and_cache_pushes(branch, url)
+        try:
+            return HgRev._get_and_cache_pushes(branch, url)
+        except TooManyPushes:
+            start = datetime.fromisoformat(from_date)
+            end = datetime.fromisoformat(to_date)
+            if end - start <= timedelta(seconds=2):
+                raise
+
+        # hg.mozilla.org refuses queries matching more than 10000 pushes, so
+        # split the range in two halves. Both bounds of a query are exclusive,
+        # so the second half starts one second before the middle to include
+        # the pushes made at the middle.
+        middle = (start + (end - start) / 2).replace(microsecond=0)
+        pushes = HgRev.load_json_pushes_between_dates(
+            branch, from_date, middle.strftime("%Y-%m-%d %H:%M:%S")
+        )
+        pushes.update(
+            HgRev.load_json_pushes_between_dates(
+                branch,
+                (middle - timedelta(seconds=1)).strftime("%Y-%m-%d %H:%M:%S"),
+                to_date,
+            )
+        )
+        return pushes
 
     @staticmethod
     def load_json_push(branch: str, push_id: int) -> HgPush:
@@ -146,6 +170,9 @@ class HgRev:
             r = get_session().get(url)
         except requests.exceptions.RetryError as e:
             raise PushNotFound(f"{e} error when getting {url}", **context)
+
+        if r.status_code == 400 and "query matches more than" in r.text:
+            raise TooManyPushes(f"{r.text} response from {url}", **context)
 
         if not r.ok:
             raise PushNotFound(f"{r.status_code} response from {url}", **context)

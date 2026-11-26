@@ -139,3 +139,51 @@ def test_hgmo_backedoutby(responses):
 
     h = HgRev("123456")
     assert h.backedoutby == "abcdef"
+
+
+def test_load_json_pushes_between_dates_splits_range(responses):
+    base = "https://hg.mozilla.org/integration/autoland/json-pushes?version=2&full=1"
+    too_many = {
+        "error": "query matches more than 10000 pushes; narrow it with endID, tochange or enddate"
+    }
+
+    responses.add(
+        responses.GET,
+        f"{base}&startdate=2026-01-01&enddate=2026-01-03",
+        json=too_many,
+        status=400,
+        match_querystring=True,
+    )
+    responses.add(
+        responses.GET,
+        f"{base}&startdate=2026-01-01&enddate=2026-01-02 00:00:00",
+        json={"lastpushid": 3, "pushes": {"1": {"changesets": ["a"], "date": 1}}},
+        status=200,
+        match_querystring=True,
+    )
+    responses.add(
+        responses.GET,
+        f"{base}&startdate=2026-01-01 23:59:59&enddate=2026-01-03",
+        json=too_many,
+        status=400,
+        match_querystring=True,
+    )
+    responses.add(
+        responses.GET,
+        f"{base}&startdate=2026-01-01 23:59:59&enddate=2026-01-02 11:59:59",
+        json={"lastpushid": 3, "pushes": {"2": {"changesets": ["b"], "date": 2}}},
+        status=200,
+        match_querystring=True,
+    )
+    responses.add(
+        responses.GET,
+        f"{base}&startdate=2026-01-02 11:59:58&enddate=2026-01-03",
+        json={"lastpushid": 3, "pushes": {"3": {"changesets": ["c"], "date": 3}}},
+        status=200,
+        match_querystring=True,
+    )
+
+    pushes = HgRev.load_json_pushes_between_dates(
+        "autoland", "2026-01-01", "2026-01-03"
+    )
+    assert list(pushes) == ["1", "2", "3"]

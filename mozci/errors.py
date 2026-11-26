@@ -19,6 +19,10 @@ class PushNotFound(BasePushException):
         super(PushNotFound, self).__init__(*args, **kwargs)
 
 
+class TooManyPushes(PushNotFound):
+    """Raised when hg.mozilla.org refuses a query matching too many pushes."""
+
+
 class ChildPushNotFound(BasePushException):
     """Raised when a suitable child push could not be found."""
 

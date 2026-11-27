@@ -113,8 +113,22 @@ class ErrorSummarySource(DataSource):
             if result != "SKIP"
         }
 
-        self.TASK_FAILURE_TYPES[task_id] = test_results
-        self.TASK_CRASHES[task_id] = crashes
+        # The failures of a group which passed did not stick: e.g. a test crashed and
+        # passed when it was retried, as crashes are written even when the harness
+        # will retry the test.
+        passed_groups = {
+            group for group, (result, _) in group_results.items() if result == "OK"
+        }
+        self.TASK_FAILURE_TYPES[task_id] = {
+            group: failures
+            for group, failures in test_results.items()
+            if group not in passed_groups
+        }
+        self.TASK_CRASHES[task_id] = {
+            group: group_crashes
+            for group, group_crashes in crashes.items()
+            if group not in passed_groups
+        }
 
     def run_test_task_groups(self, branch, rev, task):
         if branch == "try":

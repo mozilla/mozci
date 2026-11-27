@@ -630,6 +630,42 @@ def test_source(responses, source, contract, rsps, data_in, expected):
     contract.validate_out(data_out)
 
 
+def test_errorsummary_ignores_failures_of_passing_groups(responses):
+    """A crash is written even when the harness will retry the test, so a group which
+    passed after the retry has no failure types nor crashes."""
+    source = DataHandler.ALL_SOURCES["errorsummary"]
+    task_id = "eeeeeeeeeeeeeeeeeeeeee"
+    retried = "dom/retried/mochitest.toml"
+    failing = "dom/failing/mochitest.toml"
+    responses.add(
+        responses.GET,
+        f"https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/{task_id}/artifacts",
+        status=200,
+        json={"artifacts": [{"name": "public/test_info/mochitest_errorsummary.log"}]},
+    )
+    responses.add(
+        responses.GET,
+        f"https://firefox-ci-tc.services.mozilla.com/api/queue/v1/task/{task_id}/artifacts/public/test_info/mochitest_errorsummary.log",
+        status=200,
+        body=dedent(
+            f"""
+            {{"action": "test_groups", "line": 3, "groups": ["{retried}", "{failing}"]}}
+            {{"test": "test_retried.html", "group": "{retried}", "signature": "@ retried", "stackwalk_stdout": null, "stackwalk_stderr": null, "action": "crash", "line": 5}}
+            {{"test": "test_failing.html", "group": "{failing}", "signature": "@ failing", "stackwalk_stdout": null, "stackwalk_stderr": null, "action": "crash", "line": 7}}
+            {{"status": "OK", "duration": 10, "line": 9, "group": "{retried}", "action": "group_result"}}
+            {{"status": "ERROR", "duration": 20, "line": 9, "group": "{failing}", "action": "group_result"}}
+            """
+        ).strip(),
+    )
+
+    assert source.run_test_task_failure_types(task_id=task_id) == {
+        failing: [("test_failing.html", FailureType.CRASH)]
+    }
+    assert source.run_test_task_crashes(task_id=task_id) == {
+        failing: [("test_failing.html", "@ failing")]
+    }
+
+
 def test_treeherder_groups_might_be_incomplete(responses):
     """Treeherder only ingests the first lines of the errorsummary, so the groups of a
     task might be incomplete: another source is used instead."""

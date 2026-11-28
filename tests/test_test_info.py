@@ -1083,3 +1083,65 @@ def test_fixed_by_commit_reproduced_with_another_landing_is_trusted(
 
     # Unless the group is flaky (two failures prove little).
     assert regressions(flaky=True) == {}
+
+
+def test_failure_explained_by_a_later_backout(create_pushes, monkeypatch):
+    label = "test-linux2404-64/opt-mochitest-1"
+
+    def task(i, ok, classification="not classified"):
+        return Task.create(
+            id=str(i) * 22,
+            label=label,
+            result="passed" if ok else "failed",
+            classification=classification,
+        )
+
+    p = create_pushes(12)
+    # The push (p[2]) is backed out by p[9], and p[4] by p[6].
+    p[2].backedoutby = p[9].rev
+    p[4].backedoutby = p[6].rev
+    monkeypatch.setattr(
+        Push,
+        "_is_classified_as_cause",
+        lambda self, first, classifications: (
+            any(c == "fixed by commit" for c, n in classifications) or None
+        ),
+    )
+    monkeypatch.setattr(HgRev, "backouts", property(lambda self: {}))
+
+    def regressions(after_other_backout, reason="for causing mochitest failures"):
+        monkeypatch.setattr(
+            HgRev,
+            "JSON_PUSHES_CACHE",
+            {
+                p[6].id: {
+                    "changesets": [
+                        {"node": "a" * 40, "desc": f"Revert 'Bug 1' {reason}"}
+                    ]
+                }
+            },
+        )
+        for j in range(12):
+            p[j].tasks = [task(j, True)]
+        # The label first fails after p[4] landed, classified with the push's backout.
+        p[5].tasks = [task(5, False, "fixed by commit")]
+        # It doesn't run on the backout of p[4].
+        p[6].tasks = []
+        p[7].tasks = [
+            task(7, True) if after_other_backout else task(7, False, "fixed by commit")
+        ]
+        for push in p:
+            for attr in ("_get_regressions", "_label_summaries", "_backout_push_id"):
+                push.__dict__.pop(attr, None)
+                push.attribution.__dict__.pop(attr, None)
+        return p[2].get_regressions("label")
+
+    # It passed after the backout of p[4], before the push's backout: p[4] explains
+    # the failure better.
+    assert regressions(after_other_backout=True) == {}
+
+    # It still failed after the backout of p[4].
+    assert regressions(after_other_backout=False) == {label: 0}
+
+    # p[4] was backed out for lint failures, which don't break tests.
+    assert regressions(True, reason="for causing lint failures") == {label: 0}
